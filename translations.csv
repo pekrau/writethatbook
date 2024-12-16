@@ -1,0 +1,141 @@
+en,sv
+status,status
+started,påbörjad
+outline,skiss
+draft,utkast
+written,skriven
+revised,reviderad
+done,färdig
+final,slutgiltig
+title,titel
+subtitle,undertitel
+index,index
+details,detaljer
+references,referenser
+reference,referens
+reference to clipboard,referens till urklipp
+clipboard,urklipp
+author,författare
+authors,författare
+year,år
+month,månad
+article,artikel
+book,bok
+books,böcker
+journal,tidskrift
+volume,volym
+number,nummer
+pages,sidor
+date,datum
+update,uppdatera
+update here,uppdatera här
+edition published,utgåva publicerad
+publisher,förlag
+type,typ
+words,ord
+characters,tecken
+edit,redigera
+actions,åtgärder
+settings,inställningar
+create,skapa
+created,skapad
+file path,filnamn
+footnotes,fotnoter
+footnotes location,placering av fotnoter
+page break level,nivå för radbrytning
+after each text,efter varje text
+after each chapter,efter varje kapitel
+at end of book,i slutet av boken
+indexed font,typsnitt för indexerad
+reference font,typsnitt för referens
+normal,normal
+italic,kursiv
+bold,fetstil
+underline,understruken
+write,skriv
+display,visa
+true,sant
+false,falskt
+display on title page,visa på titelsidan
+display of indexed term reference,visning av referens för indexerad term
+page number,sidnummer
+text full name,textens hela namn
+text heading,textens titel
+none,ingen
+add reference,lägg till referens
+added reference(s),lade till referens(er)
+status list,statuslista
+section,sektion
+text,text
+texts,texter
+convert,omforma
+convert to section,omforma till sektion
+download,ladda ner
+upload,ladda upp
+TGZ file, TGZ-fil
+DOCX file, DOCX-fil
+PDF file, PDF-fil
+upload references,ladda upp referenser
+save,spara
+cancel,avbryt
+source,källa
+book title,boktitel
+delete,radera
+confirm,bekräfta
+create or upload book,skapa eller ladda upp bok
+create text in,skapa text i
+create section in,skapa sektion i
+optional,valfritt
+language,språk
+keywords,nyckelord
+display in output,visa i utdata
+article,artikel
+logged in,inloggad
+user,användare
+all users,alla användare
+create user,skapa användare
+name,namn
+role,roll
+password,lösenord
+old password,gamla lösenordet
+new password,nya lösenordet
+require new value.,kräv nytt värde.
+API key,API-nyckel
+generate new value.,skapa nytt värde.
+code,kod
+memory usage,minnesanvändning
+identifier,identifierare
+modified,modifierad
+differences,skillnader
+differences in,skillnader i
+identical,identiska
+State (JSON),Tillstånd (JSON)
+age,ålder
+newer,nyare
+older,äldre
+same,samma
+size,storlek
+larger,större
+smaller,mindre
+link,länk
+not present in,finns inte i
+not present here,finns inte här
+information,information
+system,system
+contents,innehåll
+BibTex data,BibTex data
+delete book,radera bok
+note: all contents will be lost!,notera: allt innehåll kommer att försvinna!
+search,sök
+term,term
+no result,inget resultat
+menu,meny
+into,in i
+out of,ut ur
+copy,kopiera
+copy*,kopia
+forward,framåt
+backward,bakåt
+referenced by,refererad av
+append,lägg till
+recently modified,nyligen ändrade

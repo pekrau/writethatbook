@@ -1,0 +1,8 @@
+.footnote-ref {outline-color: blue;
+               outline-width: 2px;
+               outline-style: solid;
+               font-weight:bold;
+               padding: 0px 2px;
+               margin: 0px 4px;}
+
+.plain {text-decoration: none;}

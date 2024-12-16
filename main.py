@@ -33,6 +33,10 @@ import users, user_app
 from utils import Tx, Error
 
 
+if "WRITETHATBOOK_DIR" not in os.environ:
+    raise ValueError("env var WRITETHATBOOK_DIR not defined: cannot execute")
+
+
 def error_handler(request, exc):
     "Return a response with the message and status code."
     return Response(content=str(exc), status_code=exc.status_code)

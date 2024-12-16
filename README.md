@@ -1,10 +1,11 @@
 # WriteThatBook
 
-Write books in a web-based app using Markdown files allowing
-references and indexing, creating DOCX or PDF.
+Web app for writing books using Markdown files allowing references and
+indexing, creating DOCX or PDF.
 
 - Contents hierarchically organized into sections (directories) and texts (files).
 - Content files in Markdown format.
+- Interactive editing and rearrangement of sections and texts.
 - Reference handling.
 - Indexing of terms.
 - Footnotes.
@@ -14,12 +15,12 @@ references and indexing, creating DOCX or PDF.
 
 Environment variables:
 
-- WRITETHATBOOK_DIR: Absolute path to the directory containing the books. Required.
-- WRITETHATBOOK_USER: User name for the administrator user. Required.
-- WRITETHATBOOK_PASSWORD: Password for the administrator user. Required.
+- WRITETHATBOOK_DIR: Absolute path to the directory containing the data. Required.
+- WRITETHATBOOK_USERID: User name for the administrator user. Required
+  at initialization of a new instance for creating the first account.
+- WRITETHATBOOK_PASSWORD: Password for the administrator user.
+  Required at initialization of a new instance for creating the first account.
 - WRITETHATBOOK_DEVELOPMENT: When defined, puts app into development mode. Optional.
-- WRITETHATBOOK_APIKEY: When defined, allows using a http request header entry
-  'apikey' for access. Optional.
 
 ## Software
 

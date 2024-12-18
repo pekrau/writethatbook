@@ -1,15 +1,16 @@
 "User HTTP resources."
 
 from http import HTTPStatus as HTTP
+import os
 
-from icecream import ic
 from fasthtml.common import *
 
 import auth
 import components
 import constants
+from errors import *
 import users
-from utils import Tx, Error, error_handler
+from utils import Tx
 
 
 class UserConvertor(Convertor):
@@ -24,13 +25,23 @@ class UserConvertor(Convertor):
 
 register_url_convertor("User", UserConvertor())
 
+# Access rule sets.
+user_view_rules = [
+    auth.Deny({"!": {"var": "current_user"}}),
+    auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
+    auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
+]
+user_edit_rules = user_view_rules
+
 
 app, rt = fast_app(
     live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
+    static_path="static",
     before=users.set_current_user,
+    hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
     exception_handlers={
         Error: error_handler,
-        auth.NotAllowed: auth.not_allowed_handler,
+        NotAllowed: not_allowed_handler,
     },
 )
 setup_toasts(app)
@@ -44,7 +55,7 @@ def get(request):
     for user in users.database.all():
         rows.append(
             Tr(
-                Td(A(user.id, href=f"/user/view/{user.id}")),
+                Td(A(user.id, href=f"/user/view/{user}")),
                 Td(user.name or "-"),
                 Td(user.role),
             )
@@ -68,13 +79,7 @@ def get(request):
 @rt("/view/{user:User}", name="view")
 def get(request, user: users.User):
     "User account page."
-    auth.authorize(
-        request,
-        auth.Deny({"!": {"var": "current_user"}}),
-        auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
-        user=user
-    )
+    auth.authorize(request, *user_view_rules, user=user)
     title = f'{Tx("User")} {user}'
     if auth.logged_in(request) is user:
         logout = Form(Button("Logout"),
@@ -98,7 +103,7 @@ def get(request, user: users.User):
                 Tr(Td(Tx("Code")), Td(user.code or "-")),
             ),
             Card(
-                Div(A(Tx("Edit"), role="button", href=f"/user/edit/{user.id}")),
+                Div(A(Tx("Edit"), role="button", href=f"/user/edit/{user}")),
                 Div(logout),
                 cls="grid"
             ),
@@ -110,13 +115,7 @@ def get(request, user: users.User):
 @rt("/edit/{user:User}", name="edit")
 def get(request, user: users.User):
     "Form page for editing a user account."
-    auth.authorize(
-        request,
-        auth.Deny({"!": {"var": "current_user"}}),
-        auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
-        user=user
-    )
+    auth.authorize(request, *user_edit_rules, user=user)
     fields = []
     if auth.logged_in(request) is not user and auth.is_admin(request):
         fields.append(
@@ -189,10 +188,10 @@ def get(request, user: users.User):
             Form(
                 *fields,
                 Button(Tx("Save")),
-                action=f"/user/edit/{user.id}",
+                action=f"/user/edit/{user}",
                 method="post",
             ),
-            components.cancel_button(f"/user/view/{user.id}"),
+            components.cancel_button(f"/user/view/{user}"),
             cls="container",
         ),
     )
@@ -201,13 +200,7 @@ def get(request, user: users.User):
 @rt("/edit/{user:User}", name="do_edit")
 def post(request, user: users.User, form: dict):
     "Actually edit the user account."
-    auth.authorize(
-        request,
-        auth.Deny({"!": {"var": "current_user"}}),
-        auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
-        user=user
-    )
+    auth.authorize(request, *user_edit_rules, user=user)
     with users.database:
         if auth.logged_in(request) is not user and auth.is_admin(request):
             if form.get("role") in constants.ROLES:
@@ -223,7 +216,7 @@ def post(request, user: users.User, form: dict):
             new_password = form.get("new_password")
             if old_password and new_password and user.login(old_password):
                 user.set_password(new_password)
-    return RedirectResponse(f"/user/view/{user.id}", status_code=HTTP.SEE_OTHER)
+    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
 
 
 @rt("/create", name="create")
@@ -279,13 +272,13 @@ def post(request, form: dict):
         user.name = form.get("name") or None
         user.email = form.get("email") or None
         user.reset_password()
-    return RedirectResponse(f"/user/view/{user.id}", status_code=HTTP.SEE_OTHER)
+    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
 
 
 @rt("/login", name="login")
 def get(request, path: str = None):
     "Login page. Also with forms for resetting and setting password."
-    auth.allow_all(request)
+    auth.allow_anyone(request)
     if path:
         hidden = [Input(type="hidden", name="path", value=path)]
     else:
@@ -332,7 +325,7 @@ def get(request, path: str = None):
 @rt("/login", name="do_login")
 def post(request, userid: str, password: str, path: str = None):
     "Actually do login."
-    auth.allow_all(request)
+    auth.allow_anyone(request)
     if not userid or not password:
         add_toast(request.session, "Missing user identifier and/or password.", "error")
         return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
@@ -350,7 +343,7 @@ def post(request, userid: str, password: str, path: str = None):
 @rt("/reset", name="reset")
 def post(request, form: dict):
     "Reset the password for an account."
-    auth.allow_all(request)
+    auth.allow_anyone(request)
     user = users.database.get(userid=form.get("userid"))
     if user is None:
         user = users.database.get(email=form.get("email"))
@@ -363,7 +356,7 @@ def post(request, form: dict):
 @rt("/password", name="password")
 def post(request, form: dict):
     "Set the password of a user account."
-    auth.allow_all(request)
+    auth.allow_anyone(request)
     try:
         user = users.database[form["userid"]]
         if not user.code:
@@ -379,7 +372,7 @@ def post(request, form: dict):
         user.set_password(form["password"])
         user.code = None
     request.session["auth"] = user.id
-    return RedirectResponse(f"/user/view/{user.id}", status_code=HTTP.SEE_OTHER)
+    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
 
 
 @rt("/logout", name="logout")

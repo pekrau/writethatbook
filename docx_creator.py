@@ -7,17 +7,17 @@ import docx
 import docx.oxml
 
 import constants
+from errors import *
 import utils
-from utils import Tx, Error
+from utils import Tx
 
 
 class Creator:
-    "DOCX creator."
+    "DOCX document creator."
 
-    def __init__(self, book, references, item=None):
+    def __init__(self, book, references):
         self.book = book
         self.references = references
-        self.item = item
         self.title = book.title
         self.subtitle = book.subtitle
         self.authors = book.authors
@@ -29,8 +29,8 @@ class Creator:
         self.indexed_font = settings.get("indexed_font")
         self.reference_font = settings.get("reference_font")
 
-    def create(self):
-        "Create the DOCX document; return a BytesIO instance containing it."
+    def content(self):
+        "Create the DOCX document and return its content."
         # Key: fulltitle; value: dict(label, ast_children)
         self.footnotes = {}
         # References, key: refid; value: reference
@@ -87,24 +87,10 @@ class Creator:
         self.current_text = None
         self.footnote_paragraph = None
 
-        if self.item is None:
-            self.write_title_page()
-            self.write_toc()
-            items = list(self.book.items)
-        elif self.item.is_section:
-            paragraph = self.document.add_paragraph(style="Title")
-            run = paragraph.add_run(self.item.title)
-            run.font.size = docx.shared.Pt(24)
-            run.font.bold = True
-            items = list(self.item.all_items)
-        elif self.item.is_text:
-            paragraph = self.document.add_paragraph(style="Title")
-            run = paragraph.add_run(self.item.title)
-            run.font.size = docx.shared.Pt(20)
-            run.font.bold = True
-            items = [self.item]
+        self.write_title_page()
+        self.write_toc()
         self.write_page_number()
-        for item in items:
+        for item in self.book.items:
             if item.is_section:
                 self.write_section(item, level=item.level)
             else:
@@ -116,7 +102,7 @@ class Creator:
 
         output = io.BytesIO()
         self.document.save(output)
-        return output
+        return output.getvalue()
 
     def write_title_page(self):
         paragraph = self.document.add_paragraph(style="Title")
@@ -334,7 +320,7 @@ class Creator:
         if reference.get("url"):
             add_hyperlink(paragraph, reference["url"], reference["url"])
             any_item = True
-        for key, (label, template) in constants.REFERENCE_LINKS.items():
+        for key, (label, template) in constants.REFS_LINKS.items():
             try:
                 value = reference[key]
                 if any_item:

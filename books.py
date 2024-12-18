@@ -1,5 +1,7 @@
 "Markdown book texts in files and directories."
 
+from icecream import ic
+
 import copy
 import datetime
 import hashlib
@@ -14,81 +16,83 @@ import time
 
 import yaml
 
+import auth
 import constants
+from errors import *
 import markdown
 import utils
-from utils import Error, Tx
+from utils import Tx
 
 
-# Book instances in-memory database. Key: bid; value: Book instance.
+# Book instances in-memory database. Key: id; value: Book instance.
 _books = {}
 
 # References book in-memory.
-_references = None
+_refs = None
 
 
 def read_books():
-    "Read in all books into memory, including the references."
+    "Read in all books into memory, including '_refs'."
+    global _refs
+    refspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.REFS
+    if not refspath.exists():
+        refspath.mkdir()
+    _refs = Book(refspath)
+
     global _books
-    global _references
     _books.clear()
-    for bookpath in Path(os.environ["MDBOOK_DIR"]).iterdir():
+    for bookpath in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
         if not bookpath.is_dir():
-            continue
-        if bookpath.name == constants.REFERENCES:
             continue
         if bookpath.name.startswith("_"):
             continue
         try:
             book = Book(bookpath)
-            _books[book.bid] = book
+            _books[book.id] = book
+            ic(book, len(book.all_items))
         except FileNotFoundError:
             pass
-    refspath = Path(os.environ["MDBOOK_DIR"]) / constants.REFERENCES
-    if not refspath.exists():
-        refspath.mkdir()
-    _references = Book(refspath)
 
 
-def get_books():
-    "Get the list of books, excluding references."
+def get_books(request):
+    "Get list of all books, excluding '_refs'."
     return sorted(_books.values(), key=lambda b: b.modified, reverse=True)
 
 
-def get_book(bid, refresh=False):
-    "Get the book, optionally refreshing the cache."
+def get_book(id, reread=False):
+    "Get the book, optionally rereading it. No access test is made."
     global _books
-    if not bid:
+    if not id:
         raise Error("no book identifier provided", HTTP.BAD_REQUEST)
     try:
-        book = _books[bid]
-        if refresh:
+        book = _books[id]
+        if reread:
             book.read()
         return book
     except KeyError:
         try:  # May happen after update here of entire book.
-            book = Book(Path(os.environ["MDBOOK_DIR"]) / bid)
-            _books[book.bid] = book
+            book = Book(Path(os.environ["WRITETHATBOOK_DIR"]) / id)
+            _books[book.id] = book
             return book
         except FileNotFoundError:
-            raise Error(f"no such book '{bid}'", HTTP.NOT_FOUND)
+            raise Error(f"no such book '{id}'", HTTP.NOT_FOUND)
 
 
-def get_references(refresh=False):
-    "Get the references book, optionally refreshing the cache."
-    global _references
-    if refresh:
-        _references.read()
-        _references.items.sort(key=lambda r: r["id"])
-        _references.write()
-    return _references
+def get_refs(reread=False):
+    "Get the references book, optionally rereading it."
+    global _refs
+    if reread:
+        _refs.read()
+        _refs.items.sort(key=lambda r: r["id"])
+        _refs.write()
+    return _refs
 
 
-def get_state():
+def get_state(request):
     "Return JSON for the overall state of this site."
     books = {}
-    for book in get_books() + [get_references()]:
-        books[book.bid] = dict(
+    for book in get_books(request) + [get_refs()]:
+        books[book.id] = dict(
             title=book.title,
             modified=utils.timestr(
                 filepath=book.absfilepath, localtime=False, display=False
@@ -104,6 +108,35 @@ def get_state():
         type="site",
         books=books,
     )
+
+
+def unpack_tgzfile(dirpath, content, is_refs=False):
+    "Unpack the contents of a TGZ file into the given directory."
+    if not content:
+        raise Error("empty TGZ file", HTTP.BAD_REQUEST)
+    try:
+        tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
+        if "index.md" not in tf.getnames():
+            raise Error("missing 'index.md' file in TGZ file", HTTP.BAD_REQUEST)
+        if is_refs:
+            # No subdirectories or non-Markdown files are allowed in references.
+            for name in tf.getnames():
+                if not name.endswith(".md"):
+                    raise Error(
+                        "reference TGZ file must contain only *.md files",
+                        HTTP.BAD_REQUEST,
+                    )
+                if Path(name).name != name:
+                    raise Error(
+                        "reference TGZ file must contain no directories",
+                        HTTP.BAD_REQUEST,
+                    )
+            filter = lambda tf, path: tf if tf.name != "index.md" else None
+        else:
+            filter = None
+        tf.extractall(path=dirpath, filter=filter)
+    except tarfile.TarError as message:
+        raise Error(f"tar file error: {message}", HTTP.BAD_REQUEST)
 
 
 FRONTMATTER = re.compile(r"^---([\n\r].*?[\n\r])---[\n\r](.*)$", re.DOTALL)
@@ -190,10 +223,10 @@ class Book:
         self.read()
 
     def __str__(self):
-        return self.title
+        return self.id
 
     def __repr__(self):
-        return f"Book('{self}')"
+        return f"Book('{self.id}')"
 
     def __getitem__(self, path):
         "Return the item (section or text) given its URL path."
@@ -256,10 +289,10 @@ class Book:
 
         # Key: reference identifier; value: set of texts.
         self.references = {}
-        self.find_references(self, self.ast)
+        self.find_refs(self, self.ast)
         # for item in self.all_texts:
         for item in self.all_items:
-            self.find_references(item, item.ast)
+            self.find_refs(item, item.ast)
 
         # Write out "index.md" if order changed.
         self.write()
@@ -311,7 +344,7 @@ class Book:
         return result
 
     @property
-    def bid(self):
+    def id(self):
         "The identifier of the book instance is not stored in its 'index.md'."
         return self.abspath.name
 
@@ -322,7 +355,7 @@ class Book:
 
     @property
     def title(self):
-        return self.frontmatter.get("title") or self.bid
+        return self.frontmatter.get("title") or self.id
 
     @title.setter
     def title(self, title):
@@ -450,7 +483,7 @@ class Book:
         "Return a dictionary of the current state of the book."
         return dict(
             type="book",
-            bid=self.bid,
+            id=self.id,
             title=self.title,
             modified=utils.timestr(
                 filepath=self.absfilepath, localtime=False, display=False
@@ -486,14 +519,14 @@ class Book:
         except KeyError:
             pass
 
-    def find_references(self, item, ast):
+    def find_refs(self, item, ast):
         try:
             for child in ast["children"]:
                 if isinstance(child, str):
                     continue
                 if child["element"] == "reference":
                     self.references.setdefault(child["id"], set()).add(item)
-                self.find_references(item, child)
+                self.find_refs(item, child)
         except KeyError:
             pass
 
@@ -557,8 +590,8 @@ class Book:
         if owner:
             book.frontmatter["owner"] = owner
         book.write()
-        get_references(refresh=True)
-        _books[book.bid] = book
+        get_refs(reread=True)
+        _books[book.id] = book
         return book
 
     def delete(self, force=False):
@@ -566,20 +599,20 @@ class Book:
         global _books
         if not force and len(self.items) != 0:
             raise ValueError("Cannot delete non-empty book.")
-        _books.pop(self.bid, None)
+        _books.pop(self.id, None)
         shutil.rmtree(self.abspath)
-        get_references(refresh=True)
+        get_refs(reread=True)
 
     def get_tgzfile(self):
-        """Write all files for the items in this book to a gzipped tar file.
-        Return the BytesIO instance containing the tgz file.
+        """Return the contents of a gzipped tar file containing
+        all files for the items of this book.
         """
-        result = io.BytesIO()
-        with tarfile.open(fileobj=result, mode="w:gz") as tgzfile:
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
             tgzfile.add(self.absfilepath, arcname="index.md")
             for item in self.items:
                 tgzfile.add(item.abspath, arcname=item.filename(), recursive=True)
-        return result
+        return buffer.getvalue()
 
     def search(self, term, ignorecase=True):
         "Find the set of items that contain the term in the content."
@@ -618,7 +651,7 @@ class Item:
         self.read()
 
     def __str__(self):
-        return self.title
+        return self.path
 
     def __repr__(self):
         return f"{self.__class__.__name__}('{self.path}')"
@@ -822,7 +855,7 @@ class Item:
             self.parent.items.insert(0, self.parent.items.pop(index))
         else:
             self.parent.items.insert(index + 1, self.parent.items.pop(index))
-        # Write out book and refresh (references need not be refreshed).
+        # Write out book and reread (references need not be reread).
         self.book.write()
         self.book.read()
 
@@ -833,7 +866,7 @@ class Item:
             self.parent.items.append(self.parent.items.pop(0))
         else:
             self.parent.items.insert(index - 1, self.parent.items.pop(index))
-        # Write out book and refresh (references need not be refreshed).
+        # Write out book and reread (references need not be reread).
         self.book.write()
         self.book.read()
 
@@ -872,10 +905,10 @@ class Item:
         for item in self.all_items:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and refresh everything.
+        # Write out book and reread everything.
         self.book.write()
         self.book.read()
-        get_references(refresh=True)
+        get_refs(reread=True)
 
     def into(self):
         "Move this item into the section closest backward of it."
@@ -912,10 +945,10 @@ class Item:
         for item in self.all_items:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and refresh everything.
+        # Write out book and reread everything.
         self.book.write()
         self.book.read()
-        get_references(refresh=True)
+        get_refs(reread=True)
 
     def copy(self):
         "Copy this item."
@@ -1088,7 +1121,7 @@ class Section(Item):
         path = section.path
         self.book.write()
         self.book.read()
-        get_references(refresh=True)
+        get_refs(reread=True)
         return path
 
     def delete(self, force=False):
@@ -1099,7 +1132,7 @@ class Section(Item):
         self.parent.items.remove(self)
         shutil.rmtree(self.abspath)
         self.book.write()
-        get_references(refresh=True)
+        get_refs(reread=True)
 
     def search(self, term, ignorecase=True):
         "Find the set of items that contain the term in the content."
@@ -1253,7 +1286,7 @@ class Text(Item):
         path = text.path
         self.book.write()
         self.book.read()
-        get_references(refresh=True)
+        get_refs(reread=True)
         return path
 
     def delete(self, force=False):
@@ -1277,20 +1310,3 @@ class Text(Item):
     def check_integrity(self):
         super().check_integrity()
         assert self.abspath.is_file()
-
-
-if __name__ == "__main__":
-    timer = utils.Timer()
-    book = Book("/home/pekrau/Dropbox/mdbooks/lejonen")
-    print(timer)
-    timer.restart()
-    book.check_integrity()
-    print(timer)
-    timer.restart()
-    result = book.search("XXX")
-    print(timer)
-    timer.restart()
-    result = book.search("XXX", ignorecase=False)
-    print(timer)
-    print(result)
-    print(book, book.sum_words, book.sum_characters)

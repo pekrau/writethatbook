@@ -22,20 +22,20 @@ def blank(width, style=None):
     return Span(NotStr("&nbsp;"), style=style)
 
 
-def references_link():
-    return A(Tx("References"), href="/references")
+def refs_link():
+    return A(Tx("References"), href="/refs")
 
 
 def index_link(book):
-    return A(Tx("Index"), href=f"/index/{book.bid}")
+    return A(Tx("Index"), href=f"/index/{book.id}")
 
 
 def information_link(book):
-    return A(Tx("Information"), href=f"/information/{book.bid}")
+    return A(Tx("Information"), href=f"/information/{book.id}")
 
 
 def statuslist_link(book):
-    return (A(Tx("Status list"), href=f"/statuslist/{book.bid}"),)
+    return (A(Tx("Status list"), href=f"/statuslist/{book.id}"),)
 
 
 def cancel_button(href):
@@ -66,10 +66,10 @@ def header(request, title, book=None, status=None, menu=None):
 
     # The first cell: icon to home page, and title of book, if any.
     if book:
-        if book is books.get_references():
-            link = A(Strong(Tx("References")), href="/references")
+        if book is books.get_refs():
+            link = A(Strong(Tx("References")), href="/refs")
         else:
-            link = A(Strong(book.title), href=f"/book/{book.bid}")
+            link = A(Strong(book.title), href=f"/book/{book.id}")
         cells = [
             Ul(
                 Li(A(Img(src="/mdbook.png", width=32, height=32), href="/")),
@@ -110,71 +110,6 @@ def header(request, title, book=None, status=None, menu=None):
     return Header(Nav(*cells, style=nav_style), cls="container")
 
 
-def toc(book, items, show_arrows=False):
-    "Recursive lists of sections and texts."
-    parts = []
-    for item in items:
-        if show_arrows:
-            arrows = [
-                blank(0),
-                A(
-                    NotStr("&ShortUpArrow;"),
-                    title=Tx("Backward"),
-                    cls="plain",
-                    href=f"/backward/{book.bid}/{item.path}",
-                ),
-                blank(0),
-                A(
-                    NotStr("&ShortDownArrow;"),
-                    title=Tx("Forward"),
-                    cls="plain",
-                    href=f"/forward/{book.bid}/{item.path}",
-                ),
-            ]
-            if item.parent is not book:
-                arrows.append(blank(0))
-                arrows.append(
-                    A(
-                        NotStr("&ShortLeftArrow;"),
-                        title=Tx("Out of"),
-                        cls="plain",
-                        href=f"/outof/{book.bid}/{item.path}",
-                    )
-                )
-            if item.prev_section:
-                arrows.append(blank(0))
-                arrows.append(
-                    A(
-                        NotStr("&ShortRightArrow;"),
-                        title=Tx("Into"),
-                        cls="plain",
-                        href=f"/into/{book.bid}/{item.path}",
-                    )
-                )
-        else:
-            arrows = []
-        parts.append(
-            Li(
-                A(
-                    str(item),
-                    style=f"color: {item.status.color};",
-                    href=f"/book/{item.book.bid}/{item.path}",
-                ),
-                blank(0.5),
-                Small(
-                    f"{Tx(item.type)}; ",
-                    f"{Tx(repr(item.status))}; ",
-                    f'{utils.thousands(item.n_words)} {Tx("words")}; ',
-                    f'{utils.thousands(item.n_characters)} {Tx("characters")}',
-                ),
-                *arrows,
-            )
-        )
-        if item.is_section:
-            parts.append(toc(book, item.items, show_arrows=show_arrows))
-    return Ol(*parts)
-
-
 def footer(item):
     return Footer(
         Hr(),
@@ -185,8 +120,7 @@ def footer(item):
                 f'{utils.thousands(item.n_words)} {Tx("words")}; ',
                 f'{utils.thousands(item.n_characters)} {Tx("characters")}',
             ),
-            cls="grid",
-        ),
+            cls="grid"),
         cls="container",
     )
 
@@ -377,12 +311,12 @@ def get_reference_from_form(form, ref=None):
         for char in [""] + list(string.ascii_lowercase):
             name = f"{author} {year}{char}"
             refid = utils.nameify(name)
-            if books.get_references().get(refid) is None:
+            if books.get_refs().get(refid) is None:
                 break
         else:
             raise Error(f"could not form unique id for {name} {year}", HTTP.BAD_REQUEST)
         try:
-            ref = books.get_references().create_text(name)
+            ref = books.get_refs().create_text(name)
         except ValueError as message:
             raise Error(message, HTTP.BAD_REQUEST)
         ref.set("type", type)

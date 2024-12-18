@@ -1,31 +1,10 @@
 "Classes, functions and instances for access authorization."
 
-from http import HTTPStatus as HTTP
-import urllib
-
-from icecream import ic
 from json_logic import jsonLogic
-from fasthtml.common import Response, RedirectResponse, uri
 
 import constants
+from errors import *
 import users
-
-
-class NotAllowed(Exception):
-    "Custom exception for when not allowed to access a resource."
-    pass
-
-
-def not_allowed_handler(request, exc):
-    """If logged in, then forbidden since authorization failed.
-    If not logged in, then redirect to login.
-    """
-    ic("not_allowed_handler")
-    if request.scope.get("current_user"):
-        return Response(content="Forbidden", status_code=HTTP.FORBIDDEN)
-    else:
-        path = urllib.parse.urlencode({"path": request.url.path})
-        return RedirectResponse(f"/user/login?{path}", status_code=HTTP.SEE_OTHER)
 
 
 def authorized(request, *rules, **context):
@@ -52,9 +31,13 @@ def authorize(request, *rules, **context):
     if not authorized(request, *rules, **context):
         raise NotAllowed
 
-def allow_all(request):
-    "For clarity, or placeholder."
+def allow_anyone(request):
+    "For clarity."
     pass
+
+def allow_logged_in(request):
+    "Do not allow anonymous users."
+    authorize(request, Allow({"!!": {"var": "current_user"}}))
 
 def allow_admin(request):
     "Does the current user have role 'admin'?"
@@ -77,7 +60,7 @@ def logged_in(request):
 def is_admin(request):
     "Is the current user defined (logged in) and has the role 'admin'?"
     try:
-        return request.scope["current_user"].role == constants.ADMIN_ROLE
+        return request.scope["current_user"].is_admin
     except KeyError:
         return False
 
@@ -92,6 +75,7 @@ class Allow:
         "Return None if rule does not apply, True of allowed, False if denied."
         if jsonLogic(self.logic, context):
             return True
+        return None
 
 
 class Deny:
@@ -104,3 +88,4 @@ class Deny:
         "Return None if rule does not apply, True of allowed, False if denied."
         if jsonLogic(self.logic, context):
             return False
+        return None

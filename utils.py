@@ -4,13 +4,11 @@ import csv
 import datetime
 import hashlib
 from http import HTTPStatus as HTTP
-import io
 import json
 import os
 from pathlib import Path
 import re
 import string
-import tarfile
 import time
 import unicodedata
 
@@ -18,19 +16,7 @@ import requests
 
 import constants
 import latex_utf8
-
-
-class Error(Exception):
-    "Custom exception; return response with message and status code."
-
-    def __init__(self, message, status_code):
-        super().__init__(message)
-        self.status_code = status_code
-
-
-def error_handler(request, exc):
-    "Return a response with the message and status code."
-    return Response(content=str(exc), status_code=exc.status_code)
+from errors import *
 
 
 def short_name(name):
@@ -134,20 +120,20 @@ def tolocaltime(utctime):
 
 def get_state_remote(bid=None):
     "Get the remote site state, optionally for the given bid."
-    if "MDBOOK_UPDATE_SITE" not in os.environ:
+    if "WRITETHATBOOK_UPDATE_SITE" not in os.environ:
         raise Error(
-            "remote update site undefined; missing MDBOOK_UPDATE_SITE",
+            "remote update site undefined; missing WRITETHATBOOK_UPDATE_SITE",
             HTTP.INTERNAL_SERVER_ERROR,
         )
-    if "MDBOOK_UPDATE_APIKEY" not in os.environ:
+    if "WRITETHATBOOK_UPDATE_APIKEY" not in os.environ:
         raise Error(
-            "remote update apikey undefined; missing MDBOOK_UPDATE_APIKEY",
+            "remote update apikey undefined; missing WRITETHATBOOK_UPDATE_APIKEY",
             HTTP.INTERNAL_SERVER_ERROR,
         )
-    url = os.environ["MDBOOK_UPDATE_SITE"].rstrip("/") + "/state"
+    url = os.environ["WRITETHATBOOK_UPDATE_SITE"].rstrip("/") + "/state"
     if bid:
         url += "/" + bid
-    headers = dict(apikey=os.environ["MDBOOK_UPDATE_APIKEY"])
+    headers = dict(apikey=os.environ["WRITETHATBOOK_UPDATE_APIKEY"])
     response = requests.get(url, headers=headers)
     if response.status_code == 404 or not response.content:
         return {}
@@ -157,48 +143,6 @@ def get_state_remote(bid=None):
             HTTP.INTERNAL_SERVER_ERROR,
         )
     return response.json()
-
-
-def get_tgzfile(dirpath):
-    """Return an io.BytesIO object containing the gzipped tar file
-    contents of the given directory.
-    """
-    result = io.BytesIO()
-    with tarfile.open(fileobj=result, mode="w:gz") as tgzfile:
-        for path in dirpath.iterdir():
-            tgzfile.add(path, arcname=path.name, recursive=True)
-    return result
-
-
-def unpack_tgzfile(dirpath, content, references=False):
-    "Unpack the contents of a TGZ file into the given directory."
-    if not content:
-        raise Error("empty TGZ file", HTTP.BAD_REQUEST)
-    try:
-        tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
-        if "index.md" not in tf.getnames():
-            raise Error(
-                "no 'index.md' file in TGZ file; not from mdbook?", HTTP.BAD_REQUEST
-            )
-        if references:
-            # No subdirectories or non-Markdown files are allowed in references.
-            for name in tf.getnames():
-                if not name.endswith(".md"):
-                    raise Error(
-                        "reference TGZ file must contain only *.md files",
-                        HTTP.BAD_REQUEST,
-                    )
-                if Path(name).name != name:
-                    raise Error(
-                        "reference TGZ file must contain no directories",
-                        HTTP.BAD_REQUEST,
-                    )
-            filter = lambda tf, path: tf if tf.name != "index.md" else None
-        else:
-            filter = None
-        tf.extractall(path=dirpath, filter=filter)
-    except tarfile.TarError as message:
-        raise Error(f"tar file error: {message}", HTTP.BAD_REQUEST)
 
 
 class Translator:

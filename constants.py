@@ -89,12 +89,12 @@ class Status:
         return self.ordinal < other.ordinal
 
 
-STARTED = Status("started", 0, "lightgray")
-OUTLINE = Status("outline", 1, "gold")
-DRAFT = Status("draft", 2, "orange")
+STARTED = Status("started", 0, "gray")
+OUTLINE = Status("outline", 1, "goldenrod")
+DRAFT = Status("draft", 2, "darkorange")
 WRITTEN = Status("written", 3, "crimson")
 REVISED = Status("revised", 4, "blue")
-DONE = Status("done", 5, "green")
+DONE = Status("done", 5, "forestgreen")
 FINAL = Status("final", 6, "black")
 STATUSES = (STARTED, OUTLINE, DRAFT, WRITTEN, REVISED, DONE, FINAL)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
@@ -107,15 +107,15 @@ LINK = "link"
 MAX_RECENT = 20
 MAX_COPY_NUMBER = 20
 
-MAX_DISPLAY_AUTHORS = 4
-REFERENCES = "references"
-REFERENCE_TYPES = (ARTICLE, BOOK, LINK)
-REFERENCE_COLOR = "royalblue"
-REFERENCE_LINKS = dict(
+REFS = "_refs"
+REFS_TYPES = (ARTICLE, BOOK, LINK)
+REFS_COLOR = "royalblue"
+REFS_LINKS = dict(
     doi=("DOI", "https://doi.org/{value}"),
     pmid=("PubMed", "https://pubmed.ncbi.nlm.nih.gov/{value}"),
     isbn=("ISBN", "https://isbnsearch.org/isbn/{value}"),
 )
+MAX_DISPLAY_AUTHORS = 4
 
 BOLD = "bold"
 ITALIC = "italic"

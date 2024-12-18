@@ -5,13 +5,14 @@ import io
 
 import fpdf  # fpdf2, actually!
 
-import utils
 import constants
-from utils import Tx, Error
+from errors import *
+import utils
+from utils import Tx
 
 
 class Creator:
-    "PDF creator."
+    "PDF document creator."
 
     def __init__(self, book, references):
         self.book = book
@@ -28,9 +29,11 @@ class Creator:
         self.footnotes_location = settings["footnotes_location"]
         self.indexed_xref = settings["indexed_xref"]
 
-    def create(self):
-        "Create the PDF document; return a BytesIO instance containing it."
-        if self.contents_pages:
+    def content(self):
+        "Create the PDF document and return it content."
+        if len(self.book.all_items) == 0:
+            return self.create_attempt(0)
+        elif self.contents_pages:
             for contents_pages in range(1, 20):
                 try:
                     return self.create_attempt(contents_pages)
@@ -146,7 +149,7 @@ class Creator:
         # This may fail if the number of content pages is wrong.
         output = io.BytesIO()
         self.pdf.output(output)
-        return output
+        return output.getvalue()
 
     def write_title_page(self):
         self.pdf.add_page()
@@ -385,7 +388,7 @@ class Creator:
         links = []
         if reference.get("url"):
             links.append((reference["url"], reference["url"]))
-        for key, (label, template) in constants.REFERENCE_LINKS.items():
+        for key, (label, template) in constants.REFS_LINKS.items():
             try:
                 value = reference[key]
                 text = f"{label}:{value}"
@@ -496,7 +499,7 @@ class Creator:
     def render_code_block(self, ast):
         self.state.set(
             family=constants.CODE_FONT,
-            left_indent=constants.CODE_INDENT,
+            left_indent=constants.CODE_LEFT_INDENT,
             line_height=1.2,
         )
         for child in ast["children"]:
@@ -507,7 +510,7 @@ class Creator:
     def render_fenced_code(self, ast):
         self.state.set(
             family=constants.CODE_FONT,
-            left_indent=constants.CODE_INDENT,
+            left_indent=constants.CODE_LEFT_INDENT,
             line_height=1.2,
         )
         for child in ast["children"]:

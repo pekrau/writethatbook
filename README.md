@@ -1,10 +1,10 @@
 # WriteThatBook
 
-Web app for writing books using Markdown files allowing references and
+Web app for writing books using Markdown files, allowing references and
 indexing, creating DOCX or PDF.
 
-- Contents hierarchically organized into sections (directories) and texts (files).
 - Content files in Markdown format.
+- Contents hierarchically organized into sections (directories) and texts (files).
 - Interactive editing and rearrangement of sections and texts.
 - Reference handling.
 - Indexing of terms.

@@ -21,7 +21,10 @@ class User:
             setattr(self, key, data.get(key))
 
     def __str__(self):
-        return self.name or self.id
+        return self.id
+
+    def __repr__(self):
+        return f"User('{self.id}')"
 
     def to_dict(self):
         result = {"id": self.id}
@@ -54,6 +57,10 @@ class User:
         self.salt = None
         self.password = None
         self.code = uuid.uuid4().hex
+
+    @property
+    def is_admin(self):
+        return self.role == constants.ADMIN_ROLE
 
 
 class Database:

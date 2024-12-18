@@ -109,14 +109,19 @@ class Database:
         except KeyError:
             return False
 
-    def get_by_apikey(self, apikey):
-        """Get the user given the API key.
-        Otherwise raise KeyError.
-        """
+    def get(self, userid=None, email=None, apikey=None, default=None):
+        "Get the user given the userid, email or API key, or return default value."
+        try:
+            if userid:
+                return self[userid]
+        except KeyError:
+            pass
         for user in self.users.values():
-            if user.apikey == apikey:
+            if email and user.email == email:
                 return user
-        raise KeyError(f"no user for API key")
+            if apikey and user.apikey == apikey:
+                return user
+        return default
 
     def create_user(self, userid, role=constants.USER_ROLE):
         "Create a new user. NOTE: Does not write out the database."
@@ -142,7 +147,9 @@ def set_current_user(request, session):
         user = database[session.get("auth")]
     except KeyError:
         try:
-            user = database.get_by_apikey(request.headers["apikey"])
+            user = database.get(apikey=request.headers["apikey"])
+            if not user:
+                raise KeyError
         except KeyError:
             return
     request.scope["current_user"] = user

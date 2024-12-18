@@ -30,16 +30,11 @@ import constants
 # import pdf_creator
 import utils
 import users, user_app
-from utils import Tx, Error
+from utils import Tx, Error, error_handler
 
 
 if "WRITETHATBOOK_DIR" not in os.environ:
     raise ValueError("env var WRITETHATBOOK_DIR not defined: cannot execute")
-
-
-def error_handler(request, exc):
-    "Return a response with the message and status code."
-    return Response(content=str(exc), status_code=exc.status_code)
 
 
 app, rt = fast_app(
@@ -61,8 +56,7 @@ app, rt = fast_app(
 @rt("/", name="home")
 def get(request):
     "Home page; list of books."
-    auth.authorize(request, auth.allow_all)
-
+    auth.allow_all(request)
     hrows = Tr(
         Th(Tx("Title")),
         Th(Tx("Type")),
@@ -92,13 +86,13 @@ def get(request):
             )
         )
     menu = [components.references_link()]
-    # if auth.logged_in(request):
-    #     menu.append(A(Tx("Create or upload book"), href="/book"))
-    # if auth.is_admin(request):
-    #     menu.append(A(f'{Tx("Download")} {Tx("TGZ file")}', href="/tgz"))
-    #     menu.append(A(Tx("State (JSON)"), href="/state"))
-    #     if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-    #         menu.append(A(Tx("Differences"), href="/differences"))
+    if auth.logged_in(request):
+        menu.append(A(Tx("Create or upload book"), href="/book"))
+    if auth.is_admin(request):
+        menu.append(A(f'{Tx("Download")} {Tx("TGZ file")}', href="/tgz"))
+        menu.append(A(Tx("State (JSON)"), href="/state"))
+        if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
+            menu.append(A(Tx("Differences"), href="/differences"))
     user = auth.logged_in(request)
     if user:
         menu.append(A(f'{Tx("User")} {user}', href=f"/user/view/{user.id}"))
@@ -115,10 +109,15 @@ def get(request):
 
 
 @rt("/ping")
-def get():
+def get(request):
     "Health check."
-    auth.authorize(request, auth.allow_all)
-    return "It's alive!"
+    # auth.authorize(
+    #     request,
+    #     auth.Deny({"!": {"var": "current_user"}}),
+    #     auth.Deny(False),
+    #     )
+    auth.allow_all(request)
+    return f"Hello, {request.scope.get('current_user') or 'anonymous'}!"
 
 
 # @rt("/references")

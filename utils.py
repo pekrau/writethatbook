@@ -28,6 +28,11 @@ class Error(Exception):
         self.status_code = status_code
 
 
+def error_handler(request, exc):
+    "Return a response with the message and status code."
+    return Response(content=str(exc), status_code=exc.status_code)
+
+
 def short_name(name):
     "Return the person name in short form; given names as initials."
     parts = [p.strip() for p in name.split(",")]

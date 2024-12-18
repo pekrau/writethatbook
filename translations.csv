@@ -99,6 +99,8 @@ role,roll
 password,lösenord
 old password,gamla lösenordet
 new password,nya lösenordet
+set password,definiera lösenordet
+reset password,återställ lösenordet
 require new value.,kräv nytt värde.
 API key,API-nyckel
 generate new value.,skapa nytt värde.

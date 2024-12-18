@@ -9,7 +9,7 @@ import auth
 import components
 import constants
 import users
-from utils import Tx, Error
+from utils import Tx, Error, error_handler
 
 
 class UserConvertor(Convertor):
@@ -26,14 +26,20 @@ register_url_convertor("User", UserConvertor())
 
 
 app, rt = fast_app(
-    live="WRITETHATBOOK_DEVELOPMENT" in os.environ, before=users.set_current_user
+    live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
+    before=users.set_current_user,
+    exception_handlers={
+        Error: error_handler,
+        auth.NotAllowed: auth.not_allowed_handler,
+    },
 )
+setup_toasts(app)
 
 
 @rt("/list", name="list")
 def get(request):
     "Display a list of all users."
-    auth.authorize(request, auth.allow_admin)
+    auth.allow_admin(request)
     rows = []
     for user in users.database.all():
         rows.append(
@@ -64,15 +70,19 @@ def get(request, user: users.User):
     "User account page."
     auth.authorize(
         request,
-        auth.deny_anonymous,
+        auth.Deny({"!": {"var": "current_user"}}),
         auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.allow_admin,
-        user=user,
+        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
+        user=user
     )
     title = f'{Tx("User")} {user}'
-    menu = []
     if auth.logged_in(request) is user:
-        menu.append(A(Tx("Logout"), href="/user/logout"))
+        logout = Form(Button("Logout"),
+                      action="/user/logout",
+                      method="post")
+    else:
+        logout = ""
+    menu = []
     if auth.is_admin(request):
         menu.append(A(Tx("All users"), href="/user/list"))
     return (
@@ -87,9 +97,10 @@ def get(request, user: users.User):
                 Tr(Td(Tx("API key")), Td(user.apikey or "-")),
                 Tr(Td(Tx("Code")), Td(user.code or "-")),
             ),
-            Div(
+            Card(
                 Div(A(Tx("Edit"), role="button", href=f"/user/edit/{user.id}")),
-                cls="grid",
+                Div(logout),
+                cls="grid"
             ),
             cls="container",
         ),
@@ -101,10 +112,10 @@ def get(request, user: users.User):
     "Form page for editing a user account."
     auth.authorize(
         request,
-        auth.deny_anonymous,
+        auth.Deny({"!": {"var": "current_user"}}),
         auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.allow_admin,
-        user=user,
+        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
+        user=user
     )
     fields = []
     if auth.logged_in(request) is not user and auth.is_admin(request):
@@ -192,10 +203,10 @@ def post(request, user: users.User, form: dict):
     "Actually edit the user account."
     auth.authorize(
         request,
-        auth.deny_anonymous,
+        auth.Deny({"!": {"var": "current_user"}}),
         auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-        auth.allow_admin,
-        user=user,
+        auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
+        user=user
     )
     with users.database:
         if auth.logged_in(request) is not user and auth.is_admin(request):
@@ -212,14 +223,13 @@ def post(request, user: users.User, form: dict):
             new_password = form.get("new_password")
             if old_password and new_password and user.login(old_password):
                 user.set_password(new_password)
-        ic(user.name)
     return RedirectResponse(f"/user/view/{user.id}", status_code=HTTP.SEE_OTHER)
 
 
 @rt("/create", name="create")
 def get(request):
     "Form page for creating a new user account."
-    auth.authorize(request, auth.allow_admin)
+    auth.allow_admin(request)
     title = Tx("Create user")
     return (
         Title(title),
@@ -263,7 +273,7 @@ def get(request):
 @rt("/create", name="do_create")
 def post(request, form: dict):
     "Actually create a new user account."
-    auth.authorize(request, auth.allow_admin)
+    auth.allow_admin(request)
     with users.database as database:
         user = database.create_user(form["userid"], role=form["role"])
         user.name = form.get("name") or None
@@ -274,42 +284,106 @@ def post(request, form: dict):
 
 @rt("/login", name="login")
 def get(request, path: str = None):
-    "Login page."
+    "Login page. Also with forms for resetting and setting password."
+    auth.allow_all(request)
     if path:
         hidden = [Input(type="hidden", name="path", value=path)]
     else:
         hidden = []
-    return Titled(
-        f"{constants.SOFTWARE} login",
-        Form(
-            *hidden,
-            Input(id="userid", placeholder=Tx("User"), autofocus=True),
-            Input(id="password", type="password", placeholder=Tx("Password")),
-            Button(Tx("Login")),
-            action="/user/login",
-            method="post",
-        ),
+    title = "Login"
+    return (
+        Title(title),
+        components.header(request, title),
+        Main(
+            Article(
+                Form(
+                H2("Login"),
+                *hidden,
+                Input(id="userid", placeholder=Tx("Identifier"), autofocus=True, required=True),
+                Input(id="password", type="password", placeholder=Tx("Password"), required=True),
+                Button("Login"),
+                action="/user/login",
+                method="post",
+            )),
+            Article(
+            Form(
+                H2(Tx("Reset password")),
+                Input(id="userid", placeholder=Tx("Identifier")),
+                Input(id="email", placeholder=Tx("Email")),
+                Button(Tx("Reset password")),
+                action="/user/reset",
+                method="post",
+            )),
+            Article(
+            Form(
+                H2(Tx("Set password")),
+                Input(id="userid", placeholder=Tx("Identifier"), required=True),
+                Input(id="password", type="password", placeholder=Tx("Password"), required=True),
+                Input(id="code", placeholder=Tx("Code"), required=True),
+                Button(Tx("Set password")),
+                action="/user/password",
+                method="post",
+            )),
+            cls="container",
+        )
     )
 
 
 @rt("/login", name="do_login")
 def post(request, userid: str, password: str, path: str = None):
     "Actually do login."
+    auth.allow_all(request)
     if not userid or not password:
+        add_toast(request.session, "Missing user identifier and/or password.", "error")
         return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
     try:
         user = users.database[userid]
+        if not user.login(password):
+            raise KeyError
     except KeyError:
-        return RedirectResponse("/login", status_code=HTTP.SEE_OTHER)
-    if user.login(password):
-        request.session["auth"] = user.id
-        return RedirectResponse(path or "/", status_code=HTTP.SEE_OTHER)
-    else:
+        add_toast(request.session, "Invalid user identifier and/or password.", "error")
         return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
+    request.session["auth"] = user.id
+    return RedirectResponse(path or "/", status_code=HTTP.SEE_OTHER)
+
+
+@rt("/reset", name="reset")
+def post(request, form: dict):
+    "Reset the password for an account."
+    auth.allow_all(request)
+    user = users.database.get(userid=form.get("userid"))
+    if user is None:
+        user = users.database.get(email=form.get("email"))
+    if user:
+        with users.database:
+            user.reset_password()
+    return RedirectResponse("/", status_code=HTTP.SEE_OTHER)
+
+
+@rt("/password", name="password")
+def post(request, form: dict):
+    "Set the password of a user account."
+    auth.allow_all(request)
+    try:
+        user = users.database[form["userid"]]
+        if not user.code:
+            raise KeyError
+        if user.code != form["code"]:
+            raise KeyError
+        if len(form["password"]) < constants.MIN_PASSWORD_LENGTH:
+            raise KeyError
+    except KeyError:
+        add_toast(request.session, "Invalid user identifier, code or too short password.", "error")
+        return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
+    with users.database:
+        user.set_password(form["password"])
+        user.code = None
+    request.session["auth"] = user.id
+    return RedirectResponse(f"/user/view/{user.id}", status_code=HTTP.SEE_OTHER)
 
 
 @rt("/logout", name="logout")
-def get(request):
+def post(request):
     "Perform logout."
     request.session.pop("auth", None)
     return RedirectResponse("/", status_code=HTTP.SEE_OTHER)

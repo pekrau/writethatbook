@@ -17,6 +17,7 @@ FONT_DIRPATH = SOURCE_DIRPATH / "freefont"
 TRANSLATIONS_FILEPATH = SOURCE_DIRPATH / "translations.csv"
 
 USERS_DATABASE_FILENAME = "users.yaml"
+MIN_PASSWORD_LENGTH = 6
 
 # User roles.
 ADMIN_ROLE = "admin"

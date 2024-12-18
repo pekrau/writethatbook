@@ -20,7 +20,8 @@ def not_allowed_handler(request, exc):
     """If logged in, then forbidden since authorization failed.
     If not logged in, then redirect to login.
     """
-    if request.get("current_user", None):
+    ic("not_allowed_handler")
+    if request.scope.get("current_user"):
         return Response(content="Forbidden", status_code=HTTP.FORBIDDEN)
     else:
         path = urllib.parse.urlencode({"path": request.url.path})
@@ -51,14 +52,30 @@ def authorize(request, *rules, **context):
     if not authorized(request, *rules, **context):
         raise NotAllowed
 
+def allow_all(request):
+    "For clarity, or placeholder."
+    pass
+
+def allow_admin(request):
+    "Does the current user have role 'admin'?"
+    authorize(request,
+              Allow(
+                  {
+                      "and": [
+                          {"!!": {"var": "current_user"}},
+                          {"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]},
+                      ]
+                  }
+              )
+              )
 
 def logged_in(request):
-    "Is the user logged in?"
+    "Return the current user (logged in)."
     return request.scope.get("current_user")
 
 
 def is_admin(request):
-    "Is the user logged in and has the role 'admin'?"
+    "Is the current user defined (logged in) and has the role 'admin'?"
     try:
         return request.scope["current_user"].role == constants.ADMIN_ROLE
     except KeyError:
@@ -87,17 +104,3 @@ class Deny:
         "Return None if rule does not apply, True of allowed, False if denied."
         if jsonLogic(self.logic, context):
             return False
-
-
-# Predefined rules.
-allow_all = Allow(True)
-allow_admin = Allow(
-    {
-        "and": [
-            {"!!": {"var": "current_user"}},
-            {"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]},
-        ]
-    }
-)
-
-deny_anonymous = Deny({"!": {"var": "current_user"}})

@@ -16,9 +16,9 @@ indexing, creating DOCX or PDF.
 Environment variables:
 
 - WRITETHATBOOK_DIR: Absolute path to the directory containing the data. Required.
-- WRITETHATBOOK_USERID: User name for the administrator user. Required
+- WRITETHATBOOK_USERID: User name for the first administrator user. Required
   at initialization of a new instance for creating the first account.
-- WRITETHATBOOK_PASSWORD: Password for the administrator user.
+- WRITETHATBOOK_PASSWORD: Password for the first administrator user.
   Required at initialization of a new instance for creating the first account.
 - WRITETHATBOOK_DEVELOPMENT: When defined, puts app into development mode. Optional.
 

@@ -93,7 +93,7 @@ async def post(request, title: str, tgzfile: UploadFile):
     # Set the title and owner of the new book.
     book = books.get_book(id)
     book.frontmatter["title"] = title or book.title
-    book.frontmatter["owner"] = auth.logged_in().id
+    book.frontmatter["owner"] = str(auth.logged_in())
     book.write()
 
     return utils.redirect(f"/book/{book}")
@@ -107,27 +107,29 @@ def get(request, book: Book):
     # Update the 'index.md' file, if any previous changes.
     book.write()
 
-    menu = []
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        menu.append(A(Tx("Edit"), href=f"/edit/{book}"))
-        # A(Tx("Append"), href=f"/append/{id}/"),
-        # A(f'{Tx("Create")} {Tx("section")}', href=f"/section/{id}"),
-        # A(f'{Tx("Create")} {Tx("text")}', href=f"/text/{id}"),
-    menu.extend(
-        # A(Tx("Recently modified"), href=f"/book/_recent/{id}"),
-        # A(Tx("Index"), href=f"/book/_index/{book}"),
-        [A(Tx("Status list"), href=f"/meta/status/{book}"),
-         A(Tx("Information"), href=f"/meta/info/{book}"),
-         A(Tx("State (JSON)"), href=f"/meta/state/{book}"),
-         A(f'{Tx("Download")} {Tx("DOCX file")}', href=f"/book/{book}.docx"),
-         A(f'{Tx("Download")} {Tx("PDF file")}', href=f"/book/{book}.pdf"),
-         A(f'{Tx("Download")} {Tx("TGZ file")}', href=f"/book/{book}.tgz"),
-         # A(f'{Tx("Copy")}', href=f"/book/_copy/{id}"),
-         # A(f'{Tx("Delete")}', href=f"/book/_delete/{book}")
-         ]
-    )
-    if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-        menu.append(A(f'{Tx("Differences")}', href=f"/differences/{id}"))
+        actions = [
+            ("Edit", f"/edit/{book}"),
+            ("Append", f"/mod/append/{book}/"),
+            ("Create section", f"/mod/section/{book}"),
+            ("Create text", f"/mod/text/{book}"),
+            ("Copy", f"/mod/copy/{book}"),
+            ("Delete", f"/mod/delete/{book}")
+        ]
+    else:
+        actions = []
+    if auth.is_admin(request) and "WRITETHATBOOK_UPDATE_SITE" in os.environ:
+        actions.append(("Differences", f"/sync/diffs/{book}"))
+    pages = [
+        ("Index", f"/meta/index/{book}"),
+        ("Recently modified", f"/meta/recent/{book}"),
+        ("Status list", f"/meta/status/{book}"),
+        ("Information", f"/meta/info/{book}"),
+        ("State (JSON)", f"/meta/state/{book}"),
+        ("Download DOCX file", f"/book/{book}.docx"),
+        ("Download PDF file", f"/book/{book}.pdf"),
+        ("Download TGZ file", f"/book/{book}.tgz"),
+    ]
 
     segments = [components.search_form(f"/search/{id}")]
 
@@ -142,13 +144,13 @@ def get(request, book: Book):
 
     return (
         Title(book.title),
-        components.header(request, Tx("Contents"), book=book, menu=menu, status=book.status),
+        components.header(request, Tx("Contents"), book=book, status=book.status, actions=actions, pages=pages),
         Main(
             *segments,
             Div(NotStr(book.html)),
             Card(
                 Div(A(Tx("Edit"), role="button", href=f"/edit/{book}")),
-                Div(A(Tx("Append"), role="button", href=f"/append/{book}/")),
+                Div(A(Tx("Append"), role="button", href=f"/mod/append/{book}/")),
                 cls="grid",
             ),
             cls="container",
@@ -160,37 +162,58 @@ def get(request, book: Book):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
     "View book text or section contents."
+    auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
         return utils.redirect(f"/book/{book}")
 
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
     item = book[path]
 
-    menu = []
+    if auth.authorized(request, *auth.book_edit_rules, book=book):
+        actions = [
+            ("Edit", f"/edit/{book}/{path}"),
+            ("Append", f"/mod/append/{book}/{path}"),
+        ]
+        if item.is_text:
+            actions.append(["Convert to section", f"/to_section/{id}/{path}"])
+        elif item.is_section:
+            actions.extend([
+                ("Create section", f"/mod/section/{book}/{path}"),
+                ("Create text", f"/mod/text/{book}/{path}"),
+            ])
+        actions.extend([
+            ("Copy", f"/mod/copy/{book}/{path}"),
+            ("Delete", f"/mod/delete/{book}/{path}")
+        ])
+        edit_buttons = Card(
+            Div(A(Tx("Edit"), role="button", href=f"/edit/{book}/{path}")),
+            Div(A(Tx("Append"), role="button", href=f"/mod/append/{book}/{path}")),
+            cls="grid",
+        )
+    else:
+        actions = []
+        edit_buttons = ""
+    
+    pages = []
     if item.parent:
         if item.parent.level == 0:  # Book.
             url = f"/book/{book}"
         else:
             url = f"/book/{book}/{item.parent.path}"
-        menu.append(A(NotStr(f"&ShortUpArrow; {item.parent.title}"), href=url))
+        pages.append([f"&ShortUpArrow; {item.parent.title}", url])
     if item.prev:
         url = f"/book/{book}/{item.prev.path}"
-        menu.append(A(NotStr(f"&ShortLeftArrow; {item.prev.title}"), href=url))
+        pages.append([f"&ShortLeftArrow; {item.prev.title}", url])
     if item.next:
         url = f"/book/{book}/{item.next.path}"
-        menu.append(A(NotStr(f"&ShortRightArrow; {item.next.title}"), href=url))
-
-    menu.append(A(Tx("Edit"), href=f"/edit/{book}/{path}"))
-    menu.append(A(Tx("Append"), href=f"/append/{book}/{path}"))
+        pages.append([f"&ShortRightArrow; {item.next.title}", url])
+    pages.extend([
+        ("References", "/refs"),
+        ("Index", f"/meta/index/{book}")
+    ])
 
     if item.is_text:
-        menu.append(A(Tx("Convert to section"), href=f"/to_section/{id}/{path}"))
         segments = [H3(item.heading)]
-
     elif item.is_section:
-        menu.append(A(f'{Tx("Create")} {Tx("section")}', href=f"/section/{id}/{path}"))
-        menu.append(A(f'{Tx("Create")} {Tx("text")}', href=f"/text/{id}/{path}"))
         segments = [
             Div(
                 Div(H3(item.heading)),
@@ -200,23 +223,9 @@ def get(request, book: Book, path: str):
             toc(book, item.items),
         ]
 
-    menu.append(A(Tx("References"), href="/refs"))
-    menu.append(A(Tx("Index"), href=f"/meta/index/{book}"))
-    menu.append(A(f'{Tx("Copy")}', href=f"/copy/{id}/{path}"))
-    menu.append(A(f'{Tx("Delete")}', href=f"/delete/{id}/{path}"))
-
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
-        edit_buttons = Card(
-            Div(A(Tx("Edit"), role="button", href=f"/edit/{book}/{path}")),
-            Div(A(Tx("Append"), role="button", href=f"/append/{id}/{path}")),
-            cls="grid",
-        )
-    else:
-        edit_buttons = ""
-
     return (
         Title(item.title),
-        components.header(request, item.title, book=book, menu=menu, status=item.status),
+        components.header(request, item.title, book=book, status=item.status, actions=actions, pages=pages),
         Main(
             *segments,
             edit_buttons,
@@ -239,14 +248,14 @@ def toc(book, items, show_arrows=False):
                     NotStr("&ShortUpArrow;"),
                     title=Tx("Backward"),
                     cls="plain",
-                    href=f"/move/backward/{book}/{item.path}",
+                    href=f"/mod/backward/{book}/{item.path}",
                 ),
                 components.blank(0),
                 A(
                     NotStr("&ShortDownArrow;"),
                     title=Tx("Forward"),
                     cls="plain",
-                    href=f"/move/forward/{book}/{item.path}",
+                    href=f"/mod/forward/{book}/{item.path}",
                 ),
             ]
             if item.parent is not book:
@@ -256,7 +265,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortLeftArrow;"),
                         title=Tx("Out of"),
                         cls="plain",
-                        href=f"/move/outof/{book}/{item.path}",
+                        href=f"/mod/outof/{book}/{item.path}",
                     )
                 )
             if item.prev_section:
@@ -266,7 +275,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortRightArrow;"),
                         title=Tx("Into"),
                         cls="plain",
-                        href=f"/move/into/{book}/{item.path}",
+                        href=f"/mod/into/{book}/{item.path}",
                     )
                 )
         else:

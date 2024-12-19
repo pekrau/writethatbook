@@ -45,11 +45,11 @@ def search_form(action, term=None):
     )
 
 
-def header(request, title, book=None, status=None, menu=None):
+def header(request, title, book=None, status=None, actions=None, pages=None, menu=None):
     "The standard page header with navigation bar."
 
     # The first cell: icon link to home page, and title of book, if any.
-    home = A(Img(src="/writethatbook.png", width=32, height=32), href="/", data_tooltip=constants.SOFTWARE, data_placement="bottom")
+    home = A(Img(src="/writethatbook.png", width=32, height=32), href="/", title=constants.SOFTWARE)
     if book:
         if book is books.get_refs():
             cells = [
@@ -71,12 +71,31 @@ def header(request, title, book=None, status=None, menu=None):
     # The second cell: title.
     cells.append(Ul(Li(Strong(title))))
 
-    # The third cell: menu.
+    # The third cell: login button and menus.
+    items = []
+    if auth.logged_in(request) is None:
+        items.append(Li(A(Button("Login"), href="/user/login")))
+    if actions:
+        items.append(
+            Li(
+                Details(
+                    Summary(Tx("Actions"),  style="width: 8em;"),
+                    Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in actions]),
+                    cls="dropdown",
+                ),
+            )
+        )
+    if pages:
+        items.append(
+            Li(
+                Details(
+                    Summary(Tx("Pages"), style="width: 8em;"),
+                    Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in pages]),
+                    cls="dropdown",
+                ),
+            )
+        )
     if menu:
-        if auth.logged_in(request) is None:
-            items = [Li(A(Button("Login"), href="/user/login"))]
-        else:
-            items = []
         items.append(
             Li(
                 Details(
@@ -86,9 +105,7 @@ def header(request, title, book=None, status=None, menu=None):
                 ),
             )
         )
-        cells.append(Ul(*items))
-    else:
-        cells.append(Ul(Li()))
+    cells.append(Ul(*items))
 
     # Set the color of the nav frame.
     nav_style = "outline-color: {color}; outline-width:8px; outline-style:solid; padding:0px 10px; border-radius:5px;"
@@ -127,212 +144,5 @@ def get_status_field(item):
     return Select(*status_options, name="status", required=True)
 
 
-def get_reference_fields(ref=None, type=None):
-    "Return list of input fields for adding or editing a reference."
-    if type is None:
-        return Fieldset(
-            Legend(Tx("Type")),
-            Select(
-                *[
-                    Option(Tx(t.capitalize()), value=t)
-                    for t in constants.REFERENCE_TYPES
-                ],
-                name="type",
-            ),
-        )
-
-    else:
-        result = [Input(type="hidden", name="type", value=type)]
-    if ref is None:
-        ref = {}
-        autofocus = True
-    else:
-        autofocus = False
-    result.append(
-        Fieldset(
-            Legend(Tx("Authors"), required()),
-            Textarea(
-                "\n".join(ref.get("authors") or []),
-                name="authors",
-                required=True,
-                autofocus=autofocus,
-            ),
-        )
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Title"), required()),
-            Input(name="title", value=ref.get("title") or "", required=True),
-        )
-    )
-    if type == constants.BOOK:
-        result.append(
-            Fieldset(
-                Legend(Tx("Subtitle")),
-                Input(name="subtitle", value=ref.get("subtitle") or ""),
-            )
-        )
-    # The year cannot be edited once the reference has been created.
-    if ref:
-        result.append(Input(type="hidden", name="year", value=ref["year"]))
-    else:
-        result.append(
-            Fieldset(
-                Legend(Tx("Year"), required()),
-                Input(name="year", value=ref.get("year") or "", required=True),
-            )
-        )
-    # Both a book and an article may have been reprinted.
-    if type in (constants.BOOK, constants.ARTICLE):
-        result.append(
-            Fieldset(
-                Legend(Tx("Edition published")),
-                Input(
-                    name="edition_published", value=ref.get("edition_published") or ""
-                ),
-            )
-        )
-    result.append(
-        Fieldset(Legend(Tx("Date")), Input(name="date", value=ref.get("date") or ""))
-    )
-    if type == constants.ARTICLE:
-        result.append(
-            Fieldset(
-                Legend(Tx("Journal")),
-                Input(name="journal", value=ref.get("journal") or ""),
-            )
-        )
-        result.append(
-            Fieldset(
-                Legend(Tx("Volume")),
-                Input(name="volume", value=ref.get("volume") or ""),
-            )
-        )
-        result.append(
-            Fieldset(
-                Legend(Tx("Number")),
-                Input(name="number", value=ref.get("number") or ""),
-            )
-        )
-        result.append(
-            Fieldset(
-                Legend(Tx("Pages")), Input(name="pages", value=ref.get("pages") or "")
-            )
-        )
-        result.append(
-            Fieldset(
-                Legend(Tx("ISSN")), Input(name="issn", value=ref.get("issn") or "")
-            )
-        )
-        result.append(
-            Fieldset(
-                Legend(Tx("PubMed")), Input(name="pmid", value=ref.get("pmid") or "")
-            )
-        )
-    if type == constants.BOOK:
-        result.append(
-            Fieldset(
-                Legend(Tx("ISBN")), Input(name="isbn", value=ref.get("isbn") or "")
-            )
-        )
-    if type in (constants.BOOK, constants.ARTICLE):
-        result.append(
-            Fieldset(Legend(Tx("DOI")), Input(name="doi", value=ref.get("doi") or ""))
-        )
-    result.append(
-        Fieldset(Legend(Tx("URL")), Input(name="url", value=ref.get("url") or ""))
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Publisher")),
-            Input(name="publisher", value=ref.get("publisher") or ""),
-        )
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Language")),
-            Input(name="language", value=ref.get("language") or ""),
-        )
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Keywords")),
-            Input(name="keywords", value="; ".join(ref.get("keywords") or [])),
-        )
-    )
-    if ref:
-        content = ref.content or ""
-        autofocus = True
-    else:
-        content = ""
-        autofocus = False
-    result.append(
-        Fieldset(
-            Legend(Tx("Notes")),
-            Textarea(content, name="notes", rows=10, autofocus=autofocus),
-        )
-    )
-    return result
-
-
 def required():
     return Span(NotStr("&nbsp;*"), style="color: red")
-
-
-def get_reference_from_form(form, ref=None):
-    "Set the values of the reference from a form."
-    if ref is None:
-        type = form.get("type", "").strip()
-        if type not in constants.REFERENCE_TYPES:
-            raise Error(f"invalid reference type '{type}'", HTTP.BAD_REQUEST)
-    authors = [s.strip() for s in form.get("authors", "").split("\n") if s.strip()]
-    if not authors:
-        raise Error("no author(s) provided", HTTP.BAD_REQUEST)
-    title = utils.cleanup_whitespaces(form.get("title", ""))
-    if not title:
-        raise Error("no title provided", HTTP.BAD_REQUEST)
-    year = form.get("year", "").strip()
-    if not year:
-        raise Error("no year provided", HTTP.BAD_REQUEST)
-
-    if ref is None:
-        author = authors[0].split(",")[0].strip()
-        for char in [""] + list(string.ascii_lowercase):
-            name = f"{author} {year}{char}"
-            refid = utils.nameify(name)
-            if books.get_refs().get(refid) is None:
-                break
-        else:
-            raise Error(f"could not form unique id for {name} {year}", HTTP.BAD_REQUEST)
-        try:
-            ref = books.get_refs().create_text(name)
-        except ValueError as message:
-            raise Error(message, HTTP.BAD_REQUEST)
-        ref.set("type", type)
-        ref.set("id", refid)
-        ref.set("name", name)
-
-    # Don't bother selecting keys to add according to type...
-    ref.set("authors", authors)
-    ref.set("title", title)
-    ref.set("year", year)
-    ref.set("subtitle", utils.cleanup_whitespaces(form.get("subtitle", "")))
-    ref.set("edition_published", form.get("edition_published", "").strip())
-    ref.set("date", form.get("date", "").strip())
-    ref.set("journal", utils.cleanup_whitespaces(form.get("journal", "")))
-    ref.set("volume", form.get("volume", "").strip())
-    ref.set("number", form.get("number", "").strip())
-    ref.set("pages", form.get("pages", "").strip())
-    ref.set("language", form.get("language", "").strip())
-    ref.set("publisher", form.get("publisher", "").strip())
-    ref.set(
-        "keywords",
-        [s.strip() for s in form.get("keywords", "").split(";") if s.strip()],
-    ),
-    ref.set("issn", form.get("issn", "").strip())
-    ref.set("isbn", form.get("isbn", "").strip())
-    ref.set("pmid", form.get("pmid", "").strip())
-    ref.set("doi", form.get("doi", "").strip())
-    ref.set("url", form.get("url", "").strip())
-    ref.write(content=form.get("notes", "").strip())
-    return ref

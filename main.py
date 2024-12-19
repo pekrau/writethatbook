@@ -14,14 +14,17 @@ import tarfile
 from fasthtml.common import *
 
 import auth
-import books, book_app
+from books import read_books, get_books, get_refs
+import book_app
 import components
 import constants
 import edit_app
 from errors import *
 import meta_app
-import move_app
-import users, user_app
+import mod_app
+import refs_app
+import users
+import user_app
 import utils
 from utils import Tx
 
@@ -34,9 +37,10 @@ app, rt = utils.get_fast_app(
     routes=[
         Mount("/book", book_app.app),
         Mount("/edit", edit_app.app),
-        Mount("/move", move_app.app),
-        Mount("/user", user_app.app),
+        Mount("/mod", mod_app.app),
         Mount("/meta", meta_app.app),
+        Mount("/refs", refs_app.app),
+        Mount("/user", user_app.app),
     ],
 )
 
@@ -54,9 +58,8 @@ def get(request):
         Th(Tx("Modified")),
     )
     rows = []
-    for book in books.get_books(request):
-        if not auth.authorized(request, *auth.book_view_rules, book=book):
-            continue
+    for book in get_books(request):
+        user = users.get(book.owner)
         rows.append(
             Tr(
                 Td(A(book.title, href=f"/book/{book.id}")),
@@ -69,28 +72,31 @@ def get(request):
                     )
                 ),
                 Td(Tx(utils.thousands(book.frontmatter.get("sum_characters", 0)))),
-                Td(book.owner),
+                Td(user),
+                # Td(user.name or user.id),
                 Td(book.modified),
             )
         )
-    menu = [A(Tx("References"), href="/refs")]
     user = auth.logged_in(request)
+    actions = []
     if user:
-        menu.append(A(Tx("Create or upload book"), href="/book"))
-        menu.append(A(f'{Tx("User")} {user}', href=f"/user/view/{user.id}"))
+        actions.append(["Create or upload book", "/book"])
+    pages = [("References", "/refs")]
+    if user:
+        pages.append([f"User {user.name or user.id}", f"/user/view/{user.id}"])
     if auth.is_admin(request):
-        menu.append(A(Tx("All users"), href="/user/list"))
-        if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-            menu.append(A(Tx("Differences"), href="/differences"))
-        menu.append(A(f'{Tx("Download")} {Tx("dump")}', href="/dump"))
-        menu.append(A(Tx("State (JSON)"), href="/meta/state"))
-        menu.append(A(Tx("System"), href="/meta/system"))
-    menu.append(A(Tx("Software"), href="/meta/software"))
+        pages.append(["All users", "/user/list"])
+        pages.append(["State (JSON)", "/meta/state"])
+        pages.append(["System", "/meta/system"])
+        # if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
+        #     menu.append(A(Tx("Differences"), href="/differences"))
+        actions.append(["Download dump file", "/dump"])
+    pages.append(["Software", "/meta/software"])
 
     title = Tx("Books")
     return (
         Title(title),
-        components.header(request, title, menu=menu),
+        components.header(request, title, actions=actions, pages=pages),
         Main(Table(Thead(*hrows), Tbody(*rows)), cls="container"),
     )
 
@@ -118,183 +124,6 @@ def get(request):
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-
-# @rt("/references")
-# def get(request):
-#     "List of references."
-#     references = books.get_references()
-#     references.write()  # Updates the 'index.md' file, if necessary.
-#     items = []
-#     for ref in references.items:
-#         parts = [
-#             Img(
-#                 src="/clipboard.svg",
-#                 title="Refid to clipboard",
-#                 style="cursor: pointer;",
-#                 cls="to_clipboard",
-#                 data_clipboard_text=f'[@{ref["name"]}]',
-#             ),
-#             components.blank(0.2),
-#             A(
-#                 Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
-#                 href=f'/reference/{ref["id"]}',
-#             ),
-#             components.blank(0.4),
-#         ]
-#         if ref.get("authors"):
-#             authors = [utils.short_name(a) for a in ref["authors"]]
-#             if len(authors) > constants.MAX_DISPLAY_AUTHORS:
-#                 authors = authors[: constants.MAX_DISPLAY_AUTHORS] + ["..."]
-#             parts.append(", ".join(authors))
-#         parts.append(Br())
-#         parts.append(utils.full_title(ref))
-
-#         links = []
-#         if ref["type"] == constants.ARTICLE:
-#             parts.append(Br())
-#             if ref.get("journal"):
-#                 parts.append(I(ref["journal"]))
-#             if ref.get("volume"):
-#                 parts.append(f' {ref["volume"]}')
-#             if ref.get("number"):
-#                 parts.append(f' ({ref["number"]})')
-#             if ref.get("pages"):
-#                 parts.append(f' {ref["pages"].replace("--", "-")}')
-#             if ref.get("year"):
-#                 parts.append(f' ({ref["year"]})')
-#             if ref.get("edition_published"):
-#                 parts.append(f' [{ref["edition_published"]}]')
-#         elif ref["type"] == constants.BOOK:
-#             parts.append(Br())
-#             if ref.get("publisher"):
-#                 parts.append(f'{ref["publisher"]}')
-#             # Edition published later than original publication.
-#             if ref.get("edition_published"):
-#                 parts.append(f' {ref["edition_published"]}')
-#                 if ref.get("year"):
-#                     parts.append(f' [{ref["year"]}]')
-#             # Standard case; publication and edition same year.
-#             elif ref.get("year"):
-#                 parts.append(f' {ref["year"]}')
-#             if ref.get("isbn"):
-#                 symbol, url = constants.REFS_LINKS["isbn"]
-#                 url = url.format(value=ref["isbn"])
-#                 if links:
-#                     links.append(", ")
-#                 links.append(
-#                     A(f'{symbol}:{ref["isbn"]}', href=url.format(value=ref["isbn"]))
-#                 )
-#         elif ref["type"] == constants.LINK:
-#             parts.append(Br())
-#             if ref.get("publisher"):
-#                 parts.append(f'{ref["publisher"]}')
-#             if ref.get("year"):
-#                 parts.append(f' ({ref["year"]})')
-
-#         if ref.get("url"):
-#             parts.append(Br())
-#             parts.append(A(ref["url"], href=ref["url"]))
-#             if ref.get("accessed"):
-#                 parts.append(f' (Accessed: {ref["accessed"]})')
-#         if ref.get("doi"):
-#             symbol, url = constants.REFS_LINKS["doi"]
-#             url = url.format(value=ref["doi"])
-#             if links:
-#                 links.append(", ")
-#             links.append(A(f'{symbol}:{ref["doi"]}', href=url.format(value=ref["doi"])))
-#         if ref.get("pmid"):
-#             symbol, url = constants.REFS_LINKS["pmid"]
-#             url = url.format(value=ref["pmid"])
-#             if links:
-#                 links.append(", ")
-#             links.append(
-#                 A(f'{symbol}:{ref["pmid"]}', href=url.format(value=ref["pmid"]))
-#             )
-
-#         if links:
-#             parts.append(" ")
-#             parts.extend(links)
-
-#         xrefs = []
-#         for book in books.get_books():
-#             texts = book.references.get(ref["id"], [])
-#             for text in sorted(texts, key=lambda t: t.ordinal):
-#                 if xrefs:
-#                     xrefs.append(Br())
-#                 xrefs.append(
-#                     A(
-#                         f"{book.title}: {text.fulltitle}",
-#                         cls="secondary",
-#                         href=f"/book/{book.id}/{text.path}",
-#                     )
-#                 )
-#         if xrefs:
-#             parts.append(Small(Br(), *xrefs))
-
-#         items.append(P(*parts, id=ref["name"]))
-
-#     menu = [A(Tx("Keywords"), href="/references/keywords")]
-#     menu.extend(
-#         [
-#             A(Tx(f'{Tx("Add reference")}: {Tx(type)}'), href=f"/reference/add/{type}")
-#             for type in constants.REFS_TYPES
-#         ]
-#     )
-#     menu.append(A(f'{Tx("Add reference")}: BibTex', href="/reference/bibtex"))
-#     menu.append(components.statuslist_link(references)),
-#     menu.append(A(Tx("Recently modified"), href="/recent/references"))
-#     menu.append(
-#         A(
-#             f'{Tx("Download")} {Tx("references")} {Tx("TGZ file")}',
-#             href="/tgz/references",
-#         )
-#     )
-#     menu.append(
-#         A(
-#             f'{Tx("Upload")} {Tx("references")} {Tx("TGZ file")}',
-#             href="/references/upload",
-#         )
-#     )
-#     menu.append(A(Tx("State (JSON)"), href="/state/references"))
-#     if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-#         menu.append(A(Tx("Differences"), href="/differences/references"))
-
-#     title = f'{Tx("References")} ({len(references.items)})'
-#     return (
-#         Title(title),
-#         components.header(request, title, menu=menu),
-#         Main(components.search_form(f"/search/references"), *items, cls="container"),
-#     )
-
-
-# @rt("/references/keywords")
-# def get():
-#     "List the keyword terms of the references."
-#     book = books.get_references()
-#     items = []
-#     for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].lower()):
-#         refs = []
-#         for text in sorted(texts, key=lambda t: t.ordinal):
-#             refs.append(
-#                 Li(
-#                     A(
-#                         f'{text["name"]}: {text.fulltitle}',
-#                         cls="secondary",
-#                         href=f"/reference/{text.path}",
-#                     )
-#                 )
-#             )
-#         items.append(Li(key, Small(Ul(*refs))))
-
-#     menu = [components.refs_link()]
-
-#     title = f'{Tx("Keywords")}, {Tx("references")}'
-#     return (
-#         Title(title),
-#         components.header(request, title, menu=menu),
-#         Main(Ul(*items), cls="container"),
-#     )
 
 
 # @rt("/references/upload")
@@ -327,301 +156,6 @@ def get(request):
 #     books.get_references(reread=True)
 
 #     return RedirectResponse("/references", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/reference/add/{type:str}")
-# def get(type: str):
-#     "Add reference from scratch."
-#     title = f'{Tx("Add reference")}: {Tx(type)}'
-#     return (
-#         Title(title),
-#         components.header(request, title),
-#         Main(
-#             Form(
-#                 *components.get_reference_fields(type=type),
-#                 Button(Tx("Save")),
-#                 action=f"/reference",
-#                 method="post",
-#             ),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/reference")
-# def post(form: dict):
-#     "Actually add reference from scratch."
-#     reference = components.get_reference_from_form(form)
-#     books.get_references(reread=True)
-
-#     return RedirectResponse(f"/reference/{reference['id']}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/reference/bibtex")
-# def get():
-#     "Add reference(s) from BibTex data."
-#     title = f'{Tx("Add reference")}: BibTex'
-#     return (
-#         Title(title),
-#         components.header(request, title),
-#         Main(
-#             Form(
-#                 Fieldset(
-#                     Legend(Tx("BibTex data")),
-#                     Textarea(name="data", rows="20", autofocus=True),
-#                 ),
-#                 Button("Add"),
-#                 action="/reference/bibtex",
-#                 method="post",
-#             ),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/reference/bibtex")
-# def post(data: str):
-#     "Actually add reference(s) using BibTex data."
-#     result = []
-#     for entry in bibtexparser.loads(data).entries:
-#         form = {
-#             "authors": utils.cleanup_latex(entry["author"]).replace(" and ", "\n"),
-#             "year": entry["year"],
-#             "type": entry.get("ENTRYTYPE") or constants.ARTICLE,
-#         }
-#         for key, value in entry.items():
-#             if key in ("author", "ID", "ENTRYTYPE"):
-#                 continue
-#             form[key] = utils.cleanup_latex(value).strip()
-#         # Do some post-processing.
-#         # Change month into date; sometimes has day number.
-#         month = form.pop("month", "")
-#         parts = month.split("~")
-#         if len(parts) == 2:
-#             month = constants.MONTHS[parts[1].strip().lower()]
-#             day = int("".join([c for c in parts[0] if c in string.digits]))
-#             form["date"] = f'{entry["year"]}-{month:02d}-{day:02d}'
-#         elif len(parts) == 1:
-#             month = constants.MONTHS[parts[0].strip().lower()]
-#             form["date"] = f'{entry["year"]}-{month:02d}-00'
-#         # Change page numbers double dash to single dash.
-#         form["pages"] = form.get("pages", "").replace("--", "-")
-#         # Put abstract into notes.
-#         abstract = form.pop("abstract", None)
-#         if abstract:
-#             form["notes"] = "**Abstract**\n\n" + abstract
-#         try:
-#             reference = components.get_reference_from_form(form)
-#         except Error:
-#             pass
-#         else:
-#             result.append(reference)
-
-#     # Reread the cache.
-#     references = books.get_references(reread=True)
-
-#     title = Tx("Added reference(s)")
-#     return (
-#         Title(title),
-#         components.header(request, title, book=references),
-#         Main(
-#             Ul(*[Li(A(r["name"], href=f'/reference/{r["id"]}')) for r in result]),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/reference/{refid:str}")
-# def get(refid: str):
-#     "Display a reference."
-#     if not refid:
-#         return RedirectResponse(f"/references", status_code=HTTP.SEE_OTHER)
-
-#     references = books.get_references()
-#     try:
-#         ref = references[refid]
-#     except KeyError:
-#         raise Error(f"no such reference '{refid}'", HTTP.NOT_FOUND)
-#     rows = [
-#         Tr(
-#             Td(Tx("Reference")),
-#             Td(
-#                 f'{ref["name"]}',
-#                 components.blank(0.2),
-#                 Img(
-#                     src="/clipboard.svg",
-#                     title=Tx("Reference to clipboard"),
-#                     style="cursor: pointer;",
-#                     cls="to_clipboard",
-#                     data_clipboard_text=f'[@{ref["name"]}]',
-#                 ),
-#             ),
-#         ),
-#         Tr(Td(Tx("Authors"), valign="top"), Td("; ".join(ref.get("authors") or []))),
-#     ]
-#     for key in [
-#         "title",
-#         "subtitle",
-#         "year",
-#         "edition_published",
-#         "date",
-#         "journal",
-#         "volume",
-#         "number",
-#         "pages",
-#         "language",
-#         "publisher",
-#     ]:
-#         value = ref.get(key)
-#         if value:
-#             rows.append(
-#                 Tr(Td((Tx(key.replace("_", " ")).title()), valign="top"), Td(value))
-#             )
-#     if ref.get("keywords"):
-#         rows.append(
-#             Tr(Td(Tx("Keywords"), valign="top"), Td("; ".join(ref["keywords"])))
-#         )
-#     if ref.get("issn"):
-#         rows.append(Tr(Td("ISSN"), Td(ref["issn"])))
-#     if ref.get("isbn"):
-#         url = constants.REFS_LINKS["isbn"][1].format(value=ref["isbn"])
-#         rows.append(Tr(Td("ISBN"), Td(A(ref["isbn"], href=url))))
-#     if ref.get("pmid"):
-#         url = constants.REFS_LINKS["pmid"][1].format(value=ref["pmid"])
-#         rows.append(Tr(Td("PubMed"), Td(A(ref["pmid"], href=url))))
-#     if ref.get("doi"):
-#         url = constants.REFS_LINKS["doi"][1].format(value=ref["doi"])
-#         rows.append(Tr(Td("DOI"), Td(A(ref["doi"], href=url))))
-#     if ref.get("url"):
-#         rows.append(Tr(Td("Url"), Td(A(ref["url"], href=ref["url"]))))
-#     xrefs = []
-#     for book in books.get_books():
-#         texts = book.references.get(ref["id"], [])
-#         for text in sorted(texts, key=lambda t: t.ordinal):
-#             if xrefs:
-#                 xrefs.append(Br())
-#             xrefs.append(
-#                 A(
-#                     f"{book.title}: {text.fulltitle}",
-#                     href=f"/book/{book.id}/{text.path}",
-#                 )
-#             )
-#     rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(*xrefs)))
-
-#     menu = [
-#         A(
-#             Tx("Clipboard"),
-#             href="#",
-#             cls="to_clipboard",
-#             data_clipboard_text=f'[@{ref["name"]}]',
-#         ),
-#         components.refs_link(),
-#         A(Tx("Edit"), href=f"/reference/edit/{refid}"),
-#         A(Tx("Append"), href=f"/append/references/{refid}"),
-#         A(Tx("Delete"), href=f"/delete/references/{refid}"),  # Yes, plural.
-#     ]
-
-#     title = f'{ref["name"]} ({Tx(ref["type"])})'
-#     edit_buttons = Div(
-#         Div(A(Tx("Edit"), role="button", href=f"/reference/edit/{refid}")),
-#         Div(A(Tx("Append"), role="button", href=f"/append/references/{refid}")),
-#         cls="grid",
-#     )
-#     return (
-#         Title(title),
-#         Script(src="/clipboard.min.js"),
-#         Script("new ClipboardJS('.to_clipboard');"),
-#         components.header(request, title, book=references, status=ref.status, menu=menu),
-#         Main(
-#             Table(*rows),
-#             edit_buttons,
-#             Div(NotStr(ref.html), style="margin-top: 1em;"),
-#             edit_buttons,
-#             cls="container",
-#         ),
-#         components.footer(ref),
-#     )
-
-
-# @rt("/reference/edit/{refid:str}")
-# def get(refid: str):
-#     "Edit a reference."
-#     reference = books.get_references()[refid]
-
-#     title = f"{Tx('Edit')} '{reference['name']}' ({Tx(reference['type'])})"
-#     return (
-#         Title(title),
-#         components.header(request, title),
-#         Main(
-#             Form(
-#                 *components.get_reference_fields(ref=reference, type=reference["type"]),
-#                 components.get_status_field(reference),
-#                 Button(Tx("Save")),
-#                 action=f"/reference/edit/{refid}",
-#                 method="post",
-#             ),
-#             components.cancel_button(f"/reference/{refid}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/reference/edit/{refid:str}")
-# def post(refid: str, form: dict):
-#     "Actually edit the reference."
-#     reference = books.get_references()[refid]
-#     try:
-#         reference.status = form.pop("status")
-#     except KeyError:
-#         pass
-#     components.get_reference_from_form(form, ref=reference)
-#     books.get_references(reread=True)
-
-#     return RedirectResponse(f"/reference/{refid}", status_code=HTTP.SEE_OTHER)
-
-
-
-
-# @rt("/copy/{id:str}")
-# def get(auth, id: str):
-#     "Make a copy of the book."
-#     book = books.get_book(id)
-#     new = book.copy(owner=auth)
-
-#     return RedirectResponse(f"/book/{new.id}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/delete/{id:str}")
-# def get(id: str):
-#     "Confirm deleting book."
-#     book = books.get_book(id)
-
-#     if book.items or book.content:
-#         segments = [P(Strong(Tx("Note: all contents will be lost!")))]
-#     else:
-#         segments = []
-
-#     title = f"{Tx('Delete book')} '{book.title}'?"
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=book.status),
-#         Main(
-#             H3(Tx("Delete"), "?"),
-#             *segments,
-#             Form(Button(Tx("Confirm")), action=f"/delete/{id}", method="post"),
-#             components.cancel_button(f"/book/{id}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/delete/{id:str}")
-# def post(id: str):
-#     "Actually delete the book, even if it contains items."
-#     book = books.get_book(id)
-#     book.delete(force=True)
-
-#     return RedirectResponse("/", status_code=HTTP.SEE_OTHER)
 
 
 # @rt("/search/{id:str}")
@@ -665,104 +199,6 @@ def get(request):
 #     )
 
 
-# @rt("/recent/{id:str}")
-# def get(id: str):
-#     "Display the most recently modified items in the book."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-
-#     items = book.all_items
-#     items.sort(key=lambda i: i.modified, reverse=True)
-#     items = items[: constants.MAX_RECENT]
-
-#     menu = [components.index_link(book)]
-
-#     if id == constants.REFSS:
-#         menu.append(components.refs_link())
-#         rows = [
-#             Tr(
-#                 Td(A(i["name"], href=f"/reference/{i.path}"), ": ", i.fulltitle),
-#                 Td(i.modified),
-#             )
-#             for i in items
-#         ]
-#     else:
-#         rows = [
-#             Tr(Td(A(i.fulltitle, href=f"/book/{id}/{i.path}")), Td(i.modified))
-#             for i in items
-#         ]
-
-#     title = Tx("Recently modified")
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=book.status, menu=menu),
-#         Main(
-#             P(Table(Tbody(*rows))),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/append/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Append to the content of an item."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     if path:
-#         item = book[path]
-#     else:
-#         item = book
-
-#     title = f'{Tx("Append")} {item.title}'
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book),
-#         Main(
-#             Form(
-#                 Textarea(name="content", rows="20", autofocus=True),
-#                 Button(Tx("Append")),
-#                 action=f"/append/{id}/{path}",
-#                 method="post",
-#             ),
-#             components.cancel_button(f"/book/{id}/{path}"),  # This works for all.
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/append/{id:str}/{path:path}")
-# def post(id: str, path: str, content: str):
-#     "Actually append to the content of an item."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     if path:
-#         item = book[path]
-#     else:
-#         item = book
-
-#     # Slot in appended content before footnotes, if any.
-#     lines = item.content.split("\n")
-#     for pos, line in enumerate(lines):
-#         if line.startswith("[^"):
-#             lines.insert(pos - 1, content + "\n")
-#             break
-#     else:
-#         lines.append(content)
-#     item.write(content="\n".join(lines))
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write()
-#     book.read()
-
-#     return RedirectResponse(f"/append/{id}/{path}", status_code=HTTP.SEE_OTHER)
-
-
 # @rt("/search/{id:str}/{path:path}")
 # def post(id: str, path: str, form: dict):
 #     "Actually search the item (text or section)  for a given term."
@@ -796,214 +232,6 @@ def get(request):
 #             cls="container",
 #         ),
 #     )
-
-
-# @rt("/copy/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Make a copy of the item (text or section)."
-#     path = books.get_book(id)[path].copy()
-#     return RedirectResponse(f"/book/{id}/{path}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/delete/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Confirm delete of the text or section; section must be empty."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     item = book[path]
-#     if len(item.items) != 0 or item.content:
-#         segments = [P(Strong(Tx("Note: all contents will be lost!")))]
-#     else:
-#         segments = []
-
-#     if id == constants.REFSS:
-#         title = f"{Tx('Delete')} {Tx('reference')} '{item['name']}'?"
-#     else:
-#         title = f"{Tx('Delete')} {Tx(item.type)} '{item.fulltitle}'?"
-
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=item.status),
-#         Main(
-#             H3(Tx("Delete"), "?"),
-#             *segments,
-#             Form(Button(Tx("Confirm")), action=f"/delete/{id}/{path}", method="post"),
-#             components.cancel_button(f"/book/{id}/{path}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/delete/{id:str}/{path:path}")
-# def post(id: str, path: str):
-#     "Delete the text or section."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     item = book[path]
-#     item.delete(force=True)
-
-#     if id == constants.REFSS:
-#         return RedirectResponse("/references", status_code=HTTP.SEE_OTHER)
-#     else:
-#         return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/to_section/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Convert to section containing a text with this text."
-#     book = books.get_book(id)
-#     text = book[path]
-#     assert text.is_text
-
-#     title = f"{Tx('Convert to section')}: '{text.fulltitle}'"
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=text.status),
-#         Main(
-#             Form(
-#                 Button(Tx("Convert")), action=f"/to_section/{id}/{path}", method="post"
-#             ),
-#             components.cancel_button(f"/book/{id}/{path}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/to_section/{id:str}/{path:path}")
-# def post(id: str, path: str):
-#     "Actually convert to section containing a text with this text."
-#     book = books.get_book(id)
-#     text = book[path]
-#     assert text.is_text
-#     section = text.to_section()
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write()
-#     book.read()
-
-#     return RedirectResponse(f"/book/{id}/{section.path}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/text/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Create a new text in the section."
-#     book = books.get_book(id)
-#     if path:
-#         parent = book[path]
-#         assert parent.is_section
-#         title = f"{Tx('Create text in')} '{parent.fulltitle}'"
-#     else:
-#         title = f"{Tx('Create text in')} {Tx('book')}"
-
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book),
-#         Main(
-#             Form(
-#                 Fieldset(
-#                     Label(Tx("Title")),
-#                     Input(name="title", required=True, autofocus=True),
-#                 ),
-#                 Button(Tx("Create")),
-#                 action=f"/text/{id}/{path}",
-#                 method="post",
-#             ),
-#             components.cancel_button(f"/book/{id}/{path}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/text/{id:str}/{path:path}")
-# def post(id: str, path: str, title: str = None):
-#     "Actually create a new text in the section."
-#     book = books.get_book(id)
-#     if path == "":
-#         parent = None
-#     else:
-#         parent = book[path]
-#         assert parent.is_section
-#     new = book.create_text(title, parent=parent)
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write()
-#     book.read()
-
-#     return RedirectResponse(f"/edit/{id}/{new.path}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/section/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Create a new section in the section."
-#     book = books.get_book(id)
-#     if path:
-#         parent = book[path]
-#         assert parent.is_section
-#         title = f"{Tx('Create section in')} '{parent.fulltitle}'"
-#     else:
-#         title = f"{Tx('Create section in')} {Tx('book')}"
-
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book),
-#         Main(
-#             Form(
-#                 Fieldset(
-#                     Label(Tx("Title")),
-#                     Input(name="title", required=True, autofocus=True),
-#                 ),
-#                 Button(Tx("Create")),
-#                 action=f"/section/{id}/{path}",
-#                 method="post",
-#             ),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/section/{id:str}/{path:path}")
-# def post(id: str, path: str, title: str = None):
-#     "Actually create a new section in the section."
-#     book = books.get_book(id)
-#     if path == "":
-#         parent = None
-#     else:
-#         parent = book[path]
-#         assert parent.is_section
-#     new = book.create_section(title, parent=parent)
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write()
-#     book.read()
-
-#     return RedirectResponse(f"/edit/{id}/{new.path}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/index/{id:str}")
-# def get(id: str):
-#     "List the indexed terms of the book."
-#     book = books.get_book(id)
-#     items = []
-#     for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].lower()):
-#         refs = []
-#         for text in sorted(texts, key=lambda t: t.ordinal):
-#             refs.append(
-#                 Li(A(text.fulltitle, cls="secondary", href=f"/book/{id}/{text.path}"))
-#             )
-#         items.append(Li(key, Small(Ul(*refs))))
-
-#     title = Tx("Index")
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book),
-#         Main(Ul(*items), cls="container"),
-#     )
-
-
 
 
 # @rt("/differences")
@@ -1432,6 +660,6 @@ def get(request):
 users.initialize()
 
 # Read in all books and references into memory.
-books.read_books()
+read_books()
 
 serve()

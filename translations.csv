@@ -38,6 +38,8 @@ edit,redigera
 actions,åtgärder
 settings,inställningar
 create,skapa
+create section,skapa sektion
+create text,skapa text
 created,skapad
 file path,filnamn
 footnotes,fotnoter
@@ -63,6 +65,7 @@ text full name,textens hela namn
 text heading,textens titel
 none,ingen
 add reference,lägg till referens
+add reference(s),lägg till referens(er)
 added reference(s),lade till referens(er)
 status list,statuslista
 section,sektion
@@ -70,12 +73,12 @@ text,text
 texts,texter
 convert,omforma
 convert to section,omforma till sektion
-download,ladda ner
+download dump file,ladda ner dump-fil
+Download DOCX file,Ladda ner DOCX-fil
+Download PDF file,Ladda ner PDF-fil
+Download TGZ file,Ladda ner TGZ-fil
 upload,ladda upp
 dump,dump
-TGZ file, TGZ-fil
-DOCX file, DOCX-fil
-PDF file, PDF-fil
 upload references,ladda upp referenser
 save,spara
 cancel,avbryt

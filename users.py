@@ -148,6 +148,10 @@ class Database:
 database = Database()
 
 
+def get(userid):
+    return database.get(userid=userid)
+
+
 def set_current_user(request, session):
     "Set current user, if available in session. To be used as 'before' function."
     try:
@@ -163,8 +167,13 @@ def set_current_user(request, session):
 
 
 def initialize():
-    """Add the admin-role user specified by environment variables,
-    or update its password if it exists."""
+    """Add the system user (owner of refs book), if not done.
+    Add admin-role user specified by environment variables,
+    or update its password if it exists.
+    """
+    if constants.SYSTEM_USERID not in database:
+        with database as db:
+            db.create_user(constants.SYSTEM_USERID, role=constants.ADMIN_ROLE)
     try:
         userid = os.environ["WRITETHATBOOK_USERID"]
         password = os.environ["WRITETHATBOOK_PASSWORD"]

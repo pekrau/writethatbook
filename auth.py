@@ -1,6 +1,6 @@
 "Classes, functions and instances for access authorization."
 
-from json_logic import jsonLogic
+import json_logic
 
 import constants
 from errors import *
@@ -73,7 +73,7 @@ class Allow:
 
     def apply(self, **context):
         "Return None if rule does not apply, True of allowed, False if denied."
-        if jsonLogic(self.logic, context):
+        if json_logic.evaluate(self.logic, context):
             return True
         return None
 
@@ -86,7 +86,7 @@ class Deny:
 
     def apply(self, **context):
         "Return None if rule does not apply, True of allowed, False if denied."
-        if jsonLogic(self.logic, context):
+        if json_logic.evaluate(self.logic, context):
             return False
         return None
 

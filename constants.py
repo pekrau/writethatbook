@@ -19,6 +19,8 @@ TRANSLATIONS_FILEPATH = SOURCE_DIRPATH / "translations.csv"
 USERS_DATABASE_FILENAME = "users.yaml"
 MIN_PASSWORD_LENGTH = 6
 
+SYSTEM_USERID = "system"
+
 # User roles.
 ADMIN_ROLE = "admin"
 USER_ROLE = "user"

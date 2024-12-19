@@ -2,17 +2,15 @@
 https://github.com/jwadhams/json-logic-js
 
 Copied from https://github.com/nadirizr/json-logic-py
+
 Modified by Per Kraulis:
 - Added attempt to access instance member for dot "." notation.
 - Changed operator '!' to 'not'.
 - Changed operator '!!' to 'bool'.
+- Changed 'jsonLogic' to 'evaluate'
 """
 
-import logging
 from functools import reduce
-
-
-logger = logging.getLogger(__name__)
 
 
 def if_(*args):
@@ -172,7 +170,7 @@ operations = {
 }
 
 
-def jsonLogic(tests, data=None):
+def evaluate(tests, data=None):
     """Executes the json-logic with given data."""
     # You've recursed to a primitive, stop!
     if tests is None or not isinstance(tests, dict):
@@ -189,7 +187,7 @@ def jsonLogic(tests, data=None):
         values = [values]
 
     # Recursion!
-    values = [jsonLogic(val, data) for val in values]
+    values = [evaluate(val, data) for val in values]
 
     if operator == "var":
         return get_var(data, *values)

@@ -37,6 +37,10 @@ def read_books():
     refspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.REFS
     if not refspath.exists():
         refspath.mkdir()
+        with open(refspath / "index.md", "w") as outfile:
+            outfile.write("---\n")
+            outfile.write(yaml.dump({"owner": constants.SYSTEM_USERID}))
+            outfile.write("---\n")
     _refs = Book(refspath)
 
     global _books
@@ -54,22 +58,25 @@ def read_books():
 
 
 def get_books(request):
-    "Get list of all books, excluding '_refs'."
-    return sorted(_books.values(), key=lambda b: b.modified, reverse=True)
+    "Get list of all books readable by the current user, excluding '_refs'."
+    return sorted([b for b in _books.values()
+                   if auth.authorized(request, *auth.book_view_rules, book=b)],
+                  key=lambda b: b.modified, reverse=True)
 
 
 def get_book(id, reread=False):
     "Get the book, optionally rereading it. No access test is made."
     global _books
     if not id:
-        raise Error("no book identifier provided", HTTP.BAD_REQUEST)
+        raise Error("no book identifier provided")
     try:
         book = _books[id]
         if reread:
             book.read()
         return book
     except KeyError:
-        try:  # May happen after update here of entire book.
+        # May happen after update here of entire book.
+        try:
             book = Book(Path(os.environ["WRITETHATBOOK_DIR"]) / id)
             _books[book.id] = book
             return book
@@ -112,30 +119,24 @@ def get_state(request):
 def unpack_tgzfile(dirpath, content, is_refs=False):
     "Unpack the contents of a TGZ file into the given directory."
     if not content:
-        raise Error("empty TGZ file", HTTP.BAD_REQUEST)
+        raise Error("empty TGZ file")
     try:
         tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
         if "index.md" not in tf.getnames():
-            raise Error("missing 'index.md' file in TGZ file", HTTP.BAD_REQUEST)
+            raise Error("missing 'index.md' file in TGZ file")
         if is_refs:
             # No subdirectories or non-Markdown files are allowed in references.
             for name in tf.getnames():
                 if not name.endswith(".md"):
-                    raise Error(
-                        "reference TGZ file must contain only *.md files",
-                        HTTP.BAD_REQUEST,
-                    )
+                    raise Error("reference TGZ file must contain only *.md files")
                 if Path(name).name != name:
-                    raise Error(
-                        "reference TGZ file must contain no directories",
-                        HTTP.BAD_REQUEST,
-                    )
+                    raise Error("reference TGZ file must contain no directories")
             filter = lambda tf, path: tf if tf.name != "index.md" else None
         else:
             filter = None
         tf.extractall(path=dirpath, filter=filter)
     except tarfile.TarError as message:
-        raise Error(f"tar file error: {message}", HTTP.BAD_REQUEST)
+        raise Error(f"tar file error: {message}")
 
 
 FRONTMATTER = re.compile(r"^---([\n\r].*?[\n\r])---[\n\r](.*)$", re.DOTALL)
@@ -211,7 +212,7 @@ def get_copy_abspath(abspath):
         if not newpath.exists():
             return newpath, number
     else:
-        raise Error("could not form copy identifier; too many copies", HTTP.BAD_REQUEST)
+        raise Error("could not form copy identifier; too many copies")
 
 
 class Book:
@@ -287,7 +288,7 @@ class Book:
                 self.indexed.setdefault(keyword, set()).add(item)
 
         # Key: reference identifier; value: set of texts.
-        self.references = {}
+        self.refs = {}
         self.find_refs(self, self.ast)
         # for item in self.all_texts:
         for item in self.all_items:
@@ -524,7 +525,7 @@ class Book:
                 if isinstance(child, str):
                     continue
                 if child["element"] == "reference":
-                    self.references.setdefault(child["id"], set()).add(item)
+                    self.refs.setdefault(child["id"], set()).add(item)
                 self.find_refs(item, child)
         except KeyError:
             pass

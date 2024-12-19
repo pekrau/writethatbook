@@ -14,8 +14,7 @@ import psutil
 import yaml
 
 import auth
-import books
-from books import Book
+from books import Book, get_books, get_refs
 import components
 import constants
 from errors import *
@@ -89,9 +88,9 @@ def get(request):
     "Return JSON for the overall state of this site."
     auth.allow_admin(request)
 
-    all_books = {}
-    for book in books.get_books(request) + [books.get_refs()]:
-        all_books[book.id] = dict(
+    books = {}
+    for book in get_books(request) + [get_refs()]:
+        books[book.id] = dict(
             title=book.title,
             modified=utils.timestr(
                 filepath=book.absfilepath, localtime=False, display=False
@@ -105,7 +104,7 @@ def get(request):
         software=constants.SOFTWARE,
         version=constants.__version__,
         now=utils.timestr(localtime=False, display=False),
-        books=all_books,
+        books=books,
     )
 
 
@@ -125,6 +124,53 @@ def get(request):
                     Td(utils.thousands(psutil.Process().memory_info().rss), " bytes"),
                 ),
             ),
+            cls="container",
+        ),
+    )
+
+
+@rt("/index/{book:Book}")
+def get(request, book: Book):
+    "Display the indexed terms of the book."
+    auth.authorize(request, *auth.book_view_rules, book=book)
+
+    items = []
+    for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].lower()):
+        refs = []
+        for text in sorted(texts, key=lambda t: t.ordinal):
+            refs.append(
+                Li(A(text.fulltitle, cls="secondary", href=f"/book/{book}/{text.path}"))
+            )
+        items.append(Li(key, Small(Ul(*refs))))
+
+    title = Tx("Index")
+    return (
+        Title(title),
+        components.header(request, title, book=book),
+        Main(Ul(*items), cls="container"),
+    )
+
+
+@rt("/recent/{book:Book}")
+def get(request, book: Book):
+    "Display the most recently modified items in the book."
+    auth.authorize(request, *auth.book_view_rules, book=book)
+
+    items = sorted(book.all_items, key=lambda i: i.modified, reverse=True)
+    items = items[: constants.MAX_RECENT]
+
+    menu = []
+    rows = [
+        Tr(Td(A(i.fulltitle, href=f"/book/{id}/{i.path}")), Td(i.modified))
+        for i in items
+    ]
+
+    title = Tx("Recently modified")
+    return (
+        Title(title),
+        components.header(request, title, book=book, status=book.status, menu=menu),
+        Main(
+            P(Table(Tbody(*rows))),
             cls="container",
         ),
     )

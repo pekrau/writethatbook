@@ -5,11 +5,18 @@ import urllib
 
 from fasthtml.common import Response, RedirectResponse
 
+__all__ = [
+    "Error",
+    "error_handler",
+    "NotAllowed",
+    "not_allowed_handler"
+]
+
 
 class Error(Exception):
     "Custom exception; return response with message and status code."
 
-    def __init__(self, message, status_code):
+    def __init__(self, message, status_code=HTTP.BAD_REQUEST):
         super().__init__(message)
         self.status_code = status_code
 

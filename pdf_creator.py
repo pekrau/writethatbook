@@ -160,12 +160,12 @@ class Creator:
         self.state.reset()
 
         if self.subtitle:
-            self.state.set(font_size=constants.FONT_LARGE_SIZE + 10)
+            self.state.set(font_size=constants.FONT_LARGE_SIZE + 8)
             self.state.write(self.subtitle)
             self.state.ln()
             self.state.reset()
 
-        self.state.set(font_size=constants.FONT_LARGE_SIZE + 5)
+        self.state.set(font_size=constants.FONT_LARGE_SIZE + 4)
         self.state.ln(0.5)
         for author in self.authors:
             self.state.write(author)

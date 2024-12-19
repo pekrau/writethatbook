@@ -1,7 +1,4 @@
-"User HTTP resources."
-
-from http import HTTPStatus as HTTP
-import os
+"User resources."
 
 from fasthtml.common import *
 
@@ -10,6 +7,7 @@ import components
 import constants
 from errors import *
 import users
+import utils
 from utils import Tx
 
 
@@ -25,31 +23,70 @@ class UserConvertor(Convertor):
 
 register_url_convertor("User", UserConvertor())
 
-# Access rule sets.
-user_view_rules = [
-    auth.Deny({"!": {"var": "current_user"}}),
-    auth.Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-    auth.Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
-]
-user_edit_rules = user_view_rules
+
+app, rt = utils.get_fast_app()
 
 
-app, rt = fast_app(
-    live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
-    static_path="static",
-    before=users.set_current_user,
-    hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
-    exception_handlers={
-        Error: error_handler,
-        NotAllowed: not_allowed_handler,
-    },
-)
-setup_toasts(app)
-
-
-@rt("/list", name="list")
+@rt("/")
 def get(request):
-    "Display a list of all users."
+    "Form page for creating a new user account."
+    auth.allow_admin(request)
+    title = Tx("Create user")
+    return (
+        Title(title),
+        components.header(request, title, menu=[A(Tx("All users"), href="/user/list")]),
+        Main(
+            Form(
+                Fieldset(
+                    Legend(Tx("Identifier")),
+                    Input(name="userid", required=True, autofocus=True),
+                ),
+                Fieldset(
+                    Legend(Tx("Role")),
+                    Label(
+                        Input(type="radio", name="role", value=constants.ADMIN_ROLE),
+                        constants.ADMIN_ROLE,
+                    ),
+                    Label(
+                        Input(
+                            type="radio",
+                            name="role",
+                            value=constants.USER_ROLE,
+                            checked=True,
+                        ),
+                        constants.USER_ROLE,
+                    ),
+                ),
+                Fieldset(
+                    Legend(Tx("Name")),
+                    Input(name="name"),
+                ),
+                Fieldset(Legend(Tx("Email")), Input(type="email", name="email")),
+                Button(Tx("Create")),
+                action="/user/",
+                method="post",
+            ),
+            components.cancel_button("/user/list"),
+            cls="container",
+        ),
+    )
+
+
+@rt("/")
+def post(request, form: dict):
+    "Actually create a new user account."
+    auth.allow_admin(request)
+    with users.database as database:
+        user = database.create_user(form["userid"], role=form["role"])
+        user.name = form.get("name") or None
+        user.email = form.get("email") or None
+        user.reset_password()
+    return utils.redirect(f"/user/view/{user}")
+
+
+@rt("/list")
+def get(request):
+    "View the list of all users."
     auth.allow_admin(request)
     rows = []
     for user in users.database.all():
@@ -64,7 +101,7 @@ def get(request):
     return (
         Title(title),
         components.header(
-            request, title, menu=[A(Tx("Create user"), href="/user/create")]
+            request, title, menu=[A(Tx("Create user"), href="/user/")]
         ),
         Main(
             Table(
@@ -76,10 +113,10 @@ def get(request):
     )
 
 
-@rt("/view/{user:User}", name="view")
+@rt("/view/{user:User}")
 def get(request, user: users.User):
     "User account page."
-    auth.authorize(request, *user_view_rules, user=user)
+    auth.authorize(request, *auth.user_view_rules, user=user)
     title = f'{Tx("User")} {user}'
     if auth.logged_in(request) is user:
         logout = Form(Button("Logout"),
@@ -112,10 +149,10 @@ def get(request, user: users.User):
     )
 
 
-@rt("/edit/{user:User}", name="edit")
+@rt("/edit/{user:User}")
 def get(request, user: users.User):
     "Form page for editing a user account."
-    auth.authorize(request, *user_edit_rules, user=user)
+    auth.authorize(request, *auth.user_edit_rules, user=user)
     fields = []
     if auth.logged_in(request) is not user and auth.is_admin(request):
         fields.append(
@@ -197,10 +234,10 @@ def get(request, user: users.User):
     )
 
 
-@rt("/edit/{user:User}", name="do_edit")
+@rt("/edit/{user:User}")
 def post(request, user: users.User, form: dict):
     "Actually edit the user account."
-    auth.authorize(request, *user_edit_rules, user=user)
+    auth.authorize(request, *auth.user_edit_rules, user=user)
     with users.database:
         if auth.logged_in(request) is not user and auth.is_admin(request):
             if form.get("role") in constants.ROLES:
@@ -216,66 +253,10 @@ def post(request, user: users.User, form: dict):
             new_password = form.get("new_password")
             if old_password and new_password and user.login(old_password):
                 user.set_password(new_password)
-    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
+    return utils.redirect(f"/user/view/{user}")
 
 
-@rt("/create", name="create")
-def get(request):
-    "Form page for creating a new user account."
-    auth.allow_admin(request)
-    title = Tx("Create user")
-    return (
-        Title(title),
-        components.header(request, title, menu=[A(Tx("All users"), href="/user/list")]),
-        Main(
-            Form(
-                Fieldset(
-                    Legend(Tx("Identifier")),
-                    Input(name="userid", required=True, autofocus=True),
-                ),
-                Fieldset(
-                    Legend(Tx("Role")),
-                    Label(
-                        Input(type="radio", name="role", value=constants.ADMIN_ROLE),
-                        constants.ADMIN_ROLE,
-                    ),
-                    Label(
-                        Input(
-                            type="radio",
-                            name="role",
-                            value=constants.USER_ROLE,
-                            checked=True,
-                        ),
-                        constants.USER_ROLE,
-                    ),
-                ),
-                Fieldset(
-                    Legend(Tx("Name")),
-                    Input(name="name"),
-                ),
-                Fieldset(Legend(Tx("Email")), Input(type="email", name="email")),
-                Button(Tx("Create")),
-                action="/user/create",
-                method="post",
-            ),
-            cls="container",
-        ),
-    )
-
-
-@rt("/create", name="do_create")
-def post(request, form: dict):
-    "Actually create a new user account."
-    auth.allow_admin(request)
-    with users.database as database:
-        user = database.create_user(form["userid"], role=form["role"])
-        user.name = form.get("name") or None
-        user.email = form.get("email") or None
-        user.reset_password()
-    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
-
-
-@rt("/login", name="login")
+@rt("/login")
 def get(request, path: str = None):
     "Login page. Also with forms for resetting and setting password."
     auth.allow_anyone(request)
@@ -322,25 +303,25 @@ def get(request, path: str = None):
     )
 
 
-@rt("/login", name="do_login")
+@rt("/login")
 def post(request, userid: str, password: str, path: str = None):
     "Actually do login."
     auth.allow_anyone(request)
     if not userid or not password:
         add_toast(request.session, "Missing user identifier and/or password.", "error")
-        return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
+        return utils.redirect("/user/login")
     try:
         user = users.database[userid]
         if not user.login(password):
             raise KeyError
     except KeyError:
         add_toast(request.session, "Invalid user identifier and/or password.", "error")
-        return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
+        return utils.redirect("/user/login")
     request.session["auth"] = user.id
-    return RedirectResponse(path or "/", status_code=HTTP.SEE_OTHER)
+    return utils.redirect(path or "/")
 
 
-@rt("/reset", name="reset")
+@rt("/reset")
 def post(request, form: dict):
     "Reset the password for an account."
     auth.allow_anyone(request)
@@ -350,10 +331,10 @@ def post(request, form: dict):
     if user:
         with users.database:
             user.reset_password()
-    return RedirectResponse("/", status_code=HTTP.SEE_OTHER)
+    return utils.redirect("/")
 
 
-@rt("/password", name="password")
+@rt("/password")
 def post(request, form: dict):
     "Set the password of a user account."
     auth.allow_anyone(request)
@@ -367,16 +348,16 @@ def post(request, form: dict):
             raise KeyError
     except KeyError:
         add_toast(request.session, "Invalid user identifier, code or too short password.", "error")
-        return RedirectResponse("/user/login", status_code=HTTP.SEE_OTHER)
+        return utils.redirect("/user/login")
     with users.database:
         user.set_password(form["password"])
         user.code = None
     request.session["auth"] = user.id
-    return RedirectResponse(f"/user/view/{user}", status_code=HTTP.SEE_OTHER)
+    return utils.redirect(f"/user/view/{user}")
 
 
-@rt("/logout", name="logout")
+@rt("/logout")
 def post(request):
     "Perform logout."
     request.session.pop("auth", None)
-    return RedirectResponse("/", status_code=HTTP.SEE_OTHER)
+    return utils.redirect("/")

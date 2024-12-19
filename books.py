@@ -49,7 +49,6 @@ def read_books():
         try:
             book = Book(bookpath)
             _books[book.id] = book
-            ic(book, len(book.all_items))
         except FileNotFoundError:
             pass
 

@@ -37,7 +37,7 @@ def allow_anyone(request):
 
 def allow_logged_in(request):
     "Do not allow anonymous users."
-    authorize(request, Allow({"!!": {"var": "current_user"}}))
+    authorize(request, Allow({"bool": {"var": "current_user"}}))
 
 def allow_admin(request):
     "Does the current user have role 'admin'?"
@@ -45,7 +45,7 @@ def allow_admin(request):
               Allow(
                   {
                       "and": [
-                          {"!!": {"var": "current_user"}},
+                          {"bool": {"var": "current_user"}},
                           {"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]},
                       ]
                   }
@@ -89,3 +89,38 @@ class Deny:
         if jsonLogic(self.logic, context):
             return False
         return None
+
+
+# Access rule sets.
+user_view_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
+    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
+]
+
+
+user_edit_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
+    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
+]
+
+
+book_view_rules = [
+    Allow({"var": "book.public"}),
+    Deny({"not": {"var": "current_user"}}),
+    Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
+    Allow({"var": "current_user.is_admin"}),
+]
+
+
+book_create_rules = [
+    Allow({"bool": {"var": "current_user"}}),
+]
+
+
+book_edit_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
+    Allow({"var": "current_user.is_admin"}),
+]

@@ -17,7 +17,10 @@ import auth
 import books, book_app
 import components
 import constants
+import edit_app
 from errors import *
+import meta_app
+import move_app
 import users, user_app
 import utils
 from utils import Tx
@@ -27,24 +30,18 @@ if "WRITETHATBOOK_DIR" not in os.environ:
     raise ValueError("env var WRITETHATBOOK_DIR not defined: cannot execute")
 
 
-app, rt = fast_app(
-    live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
-    static_path="static",
-    before=users.set_current_user,
-    hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
-    exception_handlers={
-        Error: error_handler,
-        NotAllowed: not_allowed_handler,
-    },
+app, rt = utils.get_fast_app(
     routes=[
-        Mount("/book", book_app.app, name="book"),
-        Mount("/user", user_app.app, name="user"),
+        Mount("/book", book_app.app),
+        Mount("/edit", edit_app.app),
+        Mount("/move", move_app.app),
+        Mount("/user", user_app.app),
+        Mount("/meta", meta_app.app),
     ],
 )
-setup_toasts(app)
 
 
-@rt("/", name="home")
+@rt("/")
 def get(request):
     "Home page; list of books."
     auth.allow_anyone(request)
@@ -58,7 +55,7 @@ def get(request):
     )
     rows = []
     for book in books.get_books(request):
-        if not auth.authorized(request, *book_app.book_view_rules, book=book):
+        if not auth.authorized(request, *auth.book_view_rules, book=book):
             continue
         rows.append(
             Tr(
@@ -76,21 +73,19 @@ def get(request):
                 Td(book.modified),
             )
         )
-    menu = [components.refs_link()]
-    if auth.logged_in(request):
-        menu.append(A(Tx("Create or upload book"), href="/book"))
-    if auth.is_admin(request):
-        menu.append(A(f'{Tx("Download")} {Tx("dump")}', href="/dump"))
-        menu.append(A(Tx("State (JSON)"), href="/state"))
-        if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-            menu.append(A(Tx("Differences"), href="/differences"))
+    menu = [A(Tx("References"), href="/refs")]
     user = auth.logged_in(request)
     if user:
+        menu.append(A(Tx("Create or upload book"), href="/book"))
         menu.append(A(f'{Tx("User")} {user}', href=f"/user/view/{user.id}"))
     if auth.is_admin(request):
         menu.append(A(Tx("All users"), href="/user/list"))
-    if user:
-        menu.append(A(Tx("System"), href="/system"))
+        if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
+            menu.append(A(Tx("Differences"), href="/differences"))
+        menu.append(A(f'{Tx("Download")} {Tx("dump")}', href="/dump"))
+        menu.append(A(Tx("State (JSON)"), href="/meta/state"))
+        menu.append(A(Tx("System"), href="/meta/system"))
+    menu.append(A(Tx("Software"), href="/meta/software"))
 
     title = Tx("Books")
     return (
@@ -107,7 +102,7 @@ def get(request):
     return f"Hello, {request.scope.get('current_user') or 'anonymous'}!"
 
 
-@rt("/dump", name="dump")
+@rt("/dump")
 def get(request):
     "Download a gzipped tar file of all data."
     auth.allow_admin(request)
@@ -122,95 +117,6 @@ def get(request):
         content=buffer.getvalue(),
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@rt("/system")
-def get(request):
-    "Display system information."
-    auth.allow_logged_in(request)
-
-    import psutil, sys, fasthtml, marko, docx, fpdf, yaml, bibtexparser
-
-    title = Tx("System")
-    return (
-        Title(title),
-        components.header(request, title),
-        Main(
-            Table(
-                Tr(
-                    Td(Tx("Memory usage")),
-                    Td(utils.thousands(psutil.Process().memory_info().rss), " bytes"),
-                ),
-                Tr(
-                    Td(A(constants.SOFTWARE, href="https://github.com/pekrau/mdbook")),
-                    Td(constants.__version__),
-                ),
-                Tr(
-                    Td(A("Python", href="https://www.python.org/")),
-                    Td(
-                        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-                    ),
-                ),
-                Tr(
-                    Td(A("fastHTML", href="https://fastht.ml/")),
-                    Td(fasthtml.__version__),
-                ),
-                Tr(
-                    Td(A("Marko", href="https://marko-py.readthedocs.io/")),
-                    Td(marko.__version__),
-                ),
-                Tr(
-                    Td(
-                        A(
-                            "python-docx",
-                            href="https://python-docx.readthedocs.io/en/latest/",
-                        )
-                    ),
-                    Td(docx.__version__),
-                ),
-                Tr(
-                    Td(A("fpdf2", href="https://py-pdf.github.io/fpdf2/")),
-                    Td(fpdf.__version__),
-                ),
-                Tr(
-                    Td(A("PyYAML", href="https://pypi.org/project/PyYAML/")),
-                    Td(yaml.__version__),
-                ),
-                Tr(
-                    Td(
-                        A("bibtexparser", href="https://pypi.org/project/bibtexparser/")
-                    ),
-                    Td(bibtexparser.__version__),
-                ),
-            ),
-            cls="container",
-        ),
-    )
-
-
-@rt("/state")
-def get(request):
-    "Return JSON for the overall state of this site."
-    auth.allow_admin(request)
-
-    all_books = {}
-    for book in books.get_books(request) + [books.get_refs()]:
-        all_books[book.id] = dict(
-            title=book.title,
-            modified=utils.timestr(
-                filepath=book.absfilepath, localtime=False, display=False
-            ),
-            n_items=len(book.all_items),
-            sum_characters=book.frontmatter["sum_characters"],
-            digest=book.frontmatter["digest"],
-        )
-
-    return dict(
-        software=constants.SOFTWARE,
-        version=constants.__version__,
-        now=utils.timestr(localtime=False, display=False),
-        books=all_books,
     )
 
 
@@ -674,100 +580,6 @@ def get(request):
 #     return RedirectResponse(f"/reference/{refid}", status_code=HTTP.SEE_OTHER)
 
 
-# @rt("/edit/{id:str}")
-# def get(id: str):
-#     "Edit the book data."
-#     book = books.get_book(id)
-
-#     fields = [
-#         Fieldset(
-#             Legend(Tx("Title")),
-#             Input(
-#                 name="title",
-#                 value=book.frontmatter["title"],
-#                 required=True,
-#                 autofocus=True,
-#             ),
-#         ),
-#         Fieldset(
-#             Legend(Tx("Subtitle")),
-#             Input(name="subtitle", value=book.frontmatter.get("subtitle", "")),
-#         ),
-#         Fieldset(
-#             Legend(Tx("Authors")),
-#             Textarea(
-#                 "\n".join(book.frontmatter.get("authors", [])),
-#                 name="authors",
-#                 rows="10",
-#             ),
-#         ),
-#     ]
-#     if len(book.items) == 0:
-#         fields.append(
-#             Fieldset(
-#                 Legend(Tx("Status")),
-#                 components.get_status_field(book),
-#             )
-#         )
-#     language_options = []
-#     for language in constants.LANGUAGE_CODES:
-#         if book.frontmatter.get("language") == language:
-#             language_options.append(Option(language, selected=True))
-#         else:
-#             language_options.append(Option(language))
-#     fields.append(
-#         Fieldset(Legend(Tx("Language")), Select(*language_options, name="language"))
-#     )
-#     fields.append(
-#         Fieldset(
-#             Legend(Tx("Text")),
-#             Textarea(
-#                 NotStr(book.content),
-#                 name="content",
-#                 rows="10",
-#             ),
-#         )
-#     )
-#     menu = [components.refs_link()]
-
-#     title = f'{Tx("Edit")} {Tx("book")}'
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, menu=menu, status=book.status),
-#         Main(
-#             Form(*fields, Button(Tx("Save")), action=f"/edit/{id}", method="post"),
-#             components.cancel_button(f"/book/{id}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/edit/{id:str}")
-# def post(id: str, form: dict):
-#     "Actually edit the book data."
-#     book = books.get_book(id)
-#     try:
-#         title = form["title"].strip()
-#         if not title:
-#             raise KeyError
-#         book.frontmatter["title"] = title
-#     except KeyError:
-#         raise Error("no title given for book", HTTP.BAD_REQUEST)
-#     book.frontmatter["authors"] = [
-#         a.strip() for a in form.get("authors", "").split("\n")
-#     ]
-#     for key in ["subtitle", "status", "language"]:
-#         value = form.get(key, "").strip()
-#         if value:
-#             book.frontmatter[key] = value
-#         else:
-#             book.frontmatter.pop(key, None)
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write(content=form.get("content"), force=True)
-#     book.read()
-
-#     return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
 
 
 # @rt("/copy/{id:str}")
@@ -893,70 +705,6 @@ def get(request):
 #     )
 
 
-# @rt("/edit/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Edit the item (section or text)."
-#     book = books.get_book(id)
-#     item = book[path]
-
-#     title_field = Fieldset(
-#         Label(Tx("Title")),
-#         Input(name="title", value=item.title, required=True, autofocus=True),
-#     )
-#     if item.is_text:
-#         item.read()
-#         fields = [
-#             Div(
-#                 title_field,
-#                 Fieldset(
-#                     Legend(Tx("Status")),
-#                     components.get_status_field(item),
-#                 ),
-#                 cls="grid",
-#             )
-#         ]
-#     elif item.is_section:
-#         fields = [title_field]
-#     fields.append(
-#         Fieldset(
-#             Legend(Tx("Text")),
-#             Textarea(NotStr(item.content), name="content", rows="20"),
-#         )
-#     )
-
-#     title = f"{Tx('Edit')} '{item.title}'"
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=item.status),
-#         Main(
-#             Form(
-#                 *fields, Button(Tx("Save")), action=f"/edit/{id}/{path}", method="post"
-#             ),
-#             components.cancel_button(f"/book/{id}/{path}"),
-#             cls="container",
-#         ),
-#     )
-
-
-# @rt("/edit/{id:str}/{path:path}")
-# def post(id: str, path: str, title: str, content: str, status: str = None):
-#     "Actually edit the item (section or text)."
-#     book = books.get_book(id)
-#     item = book[path]
-#     item.title = title
-#     item.name = title  # Changes name of directory/file.
-#     if item.is_text:
-#         if status is not None:
-#             item.status = status
-#     item.write(content=content)
-
-#     # Reread the book, ensuring everything is up to date.
-#     book.write()
-#     book.read()
-
-#     return RedirectResponse(f"/book/{id}/{item.path}", status_code=HTTP.SEE_OTHER)
-
-
 # @rt("/append/{id:str}/{path:path}")
 # def get(id: str, path: str):
 #     "Append to the content of an item."
@@ -1048,34 +796,6 @@ def get(request):
 #             cls="container",
 #         ),
 #     )
-
-
-# @rt("/forward/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Move item forward in its sibling list."
-#     books.get_book(id)[path].forward()
-#     return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/backward/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Move item backward in its sibling list."
-#     books.get_book(id)[path].backward()
-#     return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/outof/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Move item out of its section."
-#     books.get_book(id)[path].outof()
-#     return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
-
-
-# @rt("/into/{id:str}/{path:path}")
-# def get(id: str, path: str):
-#     "Move item into the nearest preceding section."
-#     book = books.get_book(id)[path].into()
-#     return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
 
 
 # @rt("/copy/{id:str}/{path:path}")
@@ -1263,40 +983,6 @@ def get(request):
 #     return RedirectResponse(f"/edit/{id}/{new.path}", status_code=HTTP.SEE_OTHER)
 
 
-# @rt("/information/{id:str}")
-# def get(id: str):
-#     "Display information about the book."
-#     book = books.get_book(id)
-
-#     segments = [H3(book.title)]
-#     if book.subtitle:
-#         segments.append(H4(book.subtitle))
-#     for author in book.authors:
-#         segments.append(H5(author))
-#     segments.append(P(f'{Tx("Type")}: {Tx(book.type.capitalize())}'))
-#     segments.append(P(f'{Tx("Status")}: {Tx(book.status)}'))
-#     segments.append(P(f'{Tx("Owner")}: {Tx(book.owner)}'))
-#     segments.append(P(f'{Tx("Modified")}: {book.modified}'))
-#     segments.append(P(f'{Tx("Words")}: {utils.thousands(book.sum_words)}'))
-#     segments.append(P(f'{Tx("Characters")}: {utils.thousands(book.sum_characters)}'))
-#     segments.append(P(f'{Tx("Language")}: {book.frontmatter.get("language") or "-"}'))
-
-#     menu = [
-#         A(f'{Tx("Edit")}', href=f"/edit/{id}"),
-#         A(f'{Tx("Append")}', href=f"/append/{id}"),
-#         A(f'{Tx("Download")} {Tx("DOCX file")}', href=f"/docx/{id}"),
-#         A(f'{Tx("Download")} {Tx("PDF file")}', href=f"/pdf/{id}"),
-#         A(f'{Tx("Download")} {Tx("TGZ file")}', href=f"/tgz/{id}"),
-#     ]
-
-#     title = Tx("Information")
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, menu=menu, status=book.status),
-#         Main(*segments, cls="container"),
-#     )
-
-
 # @rt("/index/{id:str}")
 # def get(id: str):
 #     "List the indexed terms of the book."
@@ -1318,56 +1004,6 @@ def get(request):
 #     )
 
 
-# @rt("/statuslist/{id:str}")
-# def get(id: str):
-#     "List each status and texts of the book in it."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     rows = [Tr(Th(Tx("Status"), Th(Tx("Texts"))))]
-#     for status in constants.STATUSES:
-#         texts = []
-#         for t in book.all_texts:
-#             if t.status == status:
-#                 if texts:
-#                     texts.append(Br())
-#                 texts.append(A(t.heading, href=f"/book/{id}/{t.path}"))
-#         rows.append(
-#             Tr(
-#                 Td(
-#                     components.blank(0.5, f"background-color: {status.color};"),
-#                     components.blank(0.2),
-#                     Tx(str(status)),
-#                     valign="top",
-#                 ),
-#                 Td(*texts),
-#             )
-#         )
-
-#     title = Tx("Status list")
-#     return (
-#         Title(title),
-#         components.header(request, title, book=book, status=book.status),
-#         Main(Table(*rows), cls="container"),
-#     )
-
-
-# @rt("/state/{id:str}")
-# def get(id: str):
-#     "Return JSON for complete state of this book."
-#     if id == constants.REFSS:
-#         book = books.get_references()
-#     else:
-#         book = books.get_book(id)
-#     result = dict(
-#         software=constants.SOFTWARE,
-#         version=constants.__version__,
-#         now=utils.timestr(localtime=False, display=False),
-#     )
-#     result.update(book.state)
-
-#     return result
 
 
 # @rt("/differences")

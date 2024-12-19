@@ -22,22 +22,6 @@ def blank(width, style=None):
     return Span(NotStr("&nbsp;"), style=style)
 
 
-def refs_link():
-    return A(Tx("References"), href="/refs")
-
-
-def index_link(book):
-    return A(Tx("Index"), href=f"/index/{book.id}")
-
-
-def information_link(book):
-    return A(Tx("Information"), href=f"/information/{book.id}")
-
-
-def statuslist_link(book):
-    return (A(Tx("Status list"), href=f"/statuslist/{book.id}"),)
-
-
 def cancel_button(href):
     return Div(
         A(Tx("Cancel"), role="button", href=href, cls="outline secondary"),
@@ -64,20 +48,25 @@ def search_form(action, term=None):
 def header(request, title, book=None, status=None, menu=None):
     "The standard page header with navigation bar."
 
-    # The first cell: icon to home page, and title of book, if any.
+    # The first cell: icon link to home page, and title of book, if any.
+    home = A(Img(src="/writethatbook.png", width=32, height=32), href="/", data_tooltip=constants.SOFTWARE, data_placement="bottom")
     if book:
         if book is books.get_refs():
-            link = A(Strong(Tx("References")), href="/refs")
+            cells = [
+                Ul(
+                    Li(home),
+                    Li(A(Strong(Tx("References")), href="/refs")),
+                )
+            ]
         else:
-            link = A(Strong(book.title), href=f"/book/{book.id}")
-        cells = [
-            Ul(
-                Li(A(Img(src="/mdbook.png", width=32, height=32), href="/")),
-                Li(link),
-            )
-        ]
+            cells = [
+                Ul(
+                    Li(home),
+                    Li(A(Strong(book.title), href=f"/book/{book.id}")),
+                )
+            ]
     else:
-        cells = [Ul(Li(A(Img(src="/mdbook.png"), href="/")))]
+        cells = [Ul(Li(home))]
 
     # The second cell: title.
     cells.append(Ul(Li(Strong(title))))

@@ -4,6 +4,8 @@ https://github.com/jwadhams/json-logic-js
 Copied from https://github.com/nadirizr/json-logic-py
 Modified by Per Kraulis:
 - Added attempt to access instance member for dot "." notation.
+- Changed operator '!' to 'not'.
+- Changed operator '!!' to 'bool'.
 """
 
 import logging
@@ -149,8 +151,8 @@ operations = {
     ">=": lambda a, b: less(b, a) or soft_equals(a, b),
     "<": less,
     "<=": less_or_equal,
-    "!": lambda a: not a,
-    "!!": bool,
+    "not": lambda a: not a,
+    "bool": bool,
     "%": lambda a, b: a % b,
     "and": lambda *args: reduce(lambda total, arg: total and arg, args, True),
     "or": lambda *args: reduce(lambda total, arg: total or arg, args, False),

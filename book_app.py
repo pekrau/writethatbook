@@ -1,11 +1,11 @@
-"Book, section and text HTTP view resources."
+"Book, section and text view resources."
 
 from icecream import ic
 
+from http import HTTPStatus as HTTP
 import os
 
 from fasthtml.common import *
-from json_logic import jsonLogic
 
 import auth
 import books
@@ -21,7 +21,7 @@ import pdf_creator
 
 
 class BookConvertor(Convertor):
-    regex = "[^./][^./]*"
+    regex = "[^_./][^./]*"
 
     def convert(self, value: str) -> Book:
         return books.get_book(value)
@@ -33,40 +33,13 @@ class BookConvertor(Convertor):
 register_url_convertor("Book", BookConvertor())
 
 
-# Access rule sets.
-book_view_rules = [
-    auth.Allow({"var": "book.public"}),
-    auth.Deny({"!": {"var": "current_user"}}),
-    auth.Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
-    auth.Allow({"var": "current_user.is_admin"}),
-]
-book_edit_rules = [
-    auth.Deny({"!": {"var": "current_user"}}),
-    auth.Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
-    auth.Allow({"var": "current_user.is_admin"}),
-]
-book_create_rules = [
-    auth.Allow({"!!": {"var": "current_user"}}),
-]
-
-
-app, rt = fast_app(
-    live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
-    static_path="static",
-    before=users.set_current_user,
-    hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
-    exception_handlers={
-        Error: error_handler,
-        NotAllowed: not_allowed_handler,
-    },
-)
-setup_toasts(app)
+app, rt = utils.get_fast_app()
 
 
 @rt("/")
 def get(request):
     "Create and/or upload book using a gzipped tar file."
-    auth.authorize(request, *book_create_rules)
+    auth.authorize(request, *auth.book_create_rules)
     title = Tx("Create or upload book")
     return (
         Title(title),
@@ -93,14 +66,14 @@ def get(request):
 @rt("/")
 async def post(request, title: str, tgzfile: UploadFile):
     "Actually create and/or upload book using a gzipped tar file."
-    auth.authorize(request, *book_create_rules)
+    auth.authorize(request, *auth.book_create_rules)
     if not title:
-        raise Error("book title may not be empty", HTTP.BAD_REQUEST)
+        raise Error("book title may not be empty")
     if title.startswith("_"):
-        raise Error("book title may not start with an underscore '_'", HTTP.BAD_REQUEST)
+        raise Error("book title may not start with an underscore '_'")
     id = utils.nameify(title)
     if not id:
-        raise Error("book id may not be empty", HTTP.BAD_REQUEST)
+        raise Error("book id may not be empty")
     dirpath = Path(os.environ["WRITETHATBOOK_DIR"]) / id
     if dirpath.exists():
         raise Error(f"book '{id}' already exists", HTTP.CONFLICT)
@@ -110,7 +83,7 @@ async def post(request, title: str, tgzfile: UploadFile):
         try:
             books.unpack_tgzfile(dirpath, content)
         except ValueError as message:
-            raise Error(f"error reading TGZ file: {message}", HTTP.BAD_REQUEST)
+            raise Error(f"error reading TGZ file: {message}")
     # Just create the directory; no content.
     else:
         dirpath.mkdir()
@@ -123,36 +96,38 @@ async def post(request, title: str, tgzfile: UploadFile):
     book.frontmatter["owner"] = auth.logged_in().id
     book.write()
 
-    return RedirectResponse(f"/book/{book}", status_code=HTTP.SEE_OTHER)
+    return utils.redirect(f"/book/{book}")
 
 
-@rt("/{book:Book}", name="view")
+@rt("/{book:Book}")
 def get(request, book: Book):
     "View book; contents list of sections and texts."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     # Update the 'index.md' file, if any previous changes.
     book.write()
 
-    menu = [
-        A(Tx("Edit"), href=f"/edit/{id}"),
-        A(Tx("Append"), href=f"/append/{id}/"),
-        A(f'{Tx("Create")} {Tx("section")}', href=f"/section/{id}"),
-        A(f'{Tx("Create")} {Tx("text")}', href=f"/text/{id}"),
-        A(Tx("Recently modified"), href=f"/recent/{id}"),
-        components.index_link(book),
-        components.statuslist_link(book),
-        components.refs_link(),
-        A(f'{Tx("Download")} {Tx("DOCX file")}', href=f"/book/{book}.docx"),
-        A(f'{Tx("Download")} {Tx("PDF file")}', href=f"/book/{book}.pdf"),
-        A(f'{Tx("Download")} {Tx("TGZ file")}', href=f"/book/{book}.tgz"),
-        A(Tx("Information"), href=f"/information/{id}"),
-        A(Tx("State (JSON)"), href=f"/state/{id}"),
-    ]
+    menu = []
+    if auth.authorized(request, *auth.book_edit_rules, book=book):
+        menu.append(A(Tx("Edit"), href=f"/edit/{book}"))
+        # A(Tx("Append"), href=f"/append/{id}/"),
+        # A(f'{Tx("Create")} {Tx("section")}', href=f"/section/{id}"),
+        # A(f'{Tx("Create")} {Tx("text")}', href=f"/text/{id}"),
+    menu.extend(
+        # A(Tx("Recently modified"), href=f"/book/_recent/{id}"),
+        # A(Tx("Index"), href=f"/book/_index/{book}"),
+        [A(Tx("Status list"), href=f"/meta/status/{book}"),
+         A(Tx("Information"), href=f"/meta/info/{book}"),
+         A(Tx("State (JSON)"), href=f"/meta/state/{book}"),
+         A(f'{Tx("Download")} {Tx("DOCX file")}', href=f"/book/{book}.docx"),
+         A(f'{Tx("Download")} {Tx("PDF file")}', href=f"/book/{book}.pdf"),
+         A(f'{Tx("Download")} {Tx("TGZ file")}', href=f"/book/{book}.tgz"),
+         # A(f'{Tx("Copy")}', href=f"/book/_copy/{id}"),
+         # A(f'{Tx("Delete")}', href=f"/book/_delete/{book}")
+         ]
+    )
     if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
         menu.append(A(f'{Tx("Differences")}', href=f"/differences/{id}"))
-    menu.append(A(f'{Tx("Copy")}', href=f"/copy/{id}"))
-    menu.append(A(f'{Tx("Delete")}', href=f"/delete/{id}"))
 
     segments = [components.search_form(f"/search/{id}")]
 
@@ -172,8 +147,8 @@ def get(request, book: Book):
             *segments,
             Div(NotStr(book.html)),
             Card(
-                Div(A(Tx("Edit"), role="button", href=f"/edit/{id}")),
-                Div(A(Tx("Append"), role="button", href=f"/append/{id}/")),
+                Div(A(Tx("Edit"), role="button", href=f"/edit/{book}")),
+                Div(A(Tx("Append"), role="button", href=f"/append/{book}/")),
                 cls="grid",
             ),
             cls="container",
@@ -186,9 +161,9 @@ def get(request, book: Book):
 def get(request, book: Book, path: str):
     "View book text or section contents."
     if not path:
-        return RedirectResponse(f"/book/{book}", status_code=HTTP.SEE_OTHER)
+        return utils.redirect(f"/book/{book}")
 
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     item = book[path]
 
@@ -206,8 +181,8 @@ def get(request, book: Book, path: str):
         url = f"/book/{book}/{item.next.path}"
         menu.append(A(NotStr(f"&ShortRightArrow; {item.next.title}"), href=url))
 
-    menu.append(A(Tx("Edit"), href=f"/edit/{id}/{path}"))
-    menu.append(A(Tx("Append"), href=f"/append/{id}/{path}"))
+    menu.append(A(Tx("Edit"), href=f"/edit/{book}/{path}"))
+    menu.append(A(Tx("Append"), href=f"/append/{book}/{path}"))
 
     if item.is_text:
         menu.append(A(Tx("Convert to section"), href=f"/to_section/{id}/{path}"))
@@ -225,14 +200,14 @@ def get(request, book: Book, path: str):
             toc(book, item.items),
         ]
 
-    menu.append(components.index_link(book))
-    menu.append(components.refs_link())
+    menu.append(A(Tx("References"), href="/refs"))
+    menu.append(A(Tx("Index"), href=f"/meta/index/{book}"))
     menu.append(A(f'{Tx("Copy")}', href=f"/copy/{id}/{path}"))
     menu.append(A(f'{Tx("Delete")}', href=f"/delete/{id}/{path}"))
 
-    if auth.authorized(request, *book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit_rules, book=book):
         edit_buttons = Card(
-            Div(A(Tx("Edit"), role="button", href=f"/edit/{id}/{path}")),
+            Div(A(Tx("Edit"), role="button", href=f"/edit/{book}/{path}")),
             Div(A(Tx("Append"), role="button", href=f"/append/{id}/{path}")),
             cls="grid",
         )
@@ -264,14 +239,14 @@ def toc(book, items, show_arrows=False):
                     NotStr("&ShortUpArrow;"),
                     title=Tx("Backward"),
                     cls="plain",
-                    href=f"/backward/{book}/{item.path}",
+                    href=f"/move/backward/{book}/{item.path}",
                 ),
                 components.blank(0),
                 A(
                     NotStr("&ShortDownArrow;"),
                     title=Tx("Forward"),
                     cls="plain",
-                    href=f"/forward/{book}/{item.path}",
+                    href=f"/move/forward/{book}/{item.path}",
                 ),
             ]
             if item.parent is not book:
@@ -281,7 +256,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortLeftArrow;"),
                         title=Tx("Out of"),
                         cls="plain",
-                        href=f"/outof/{book}/{item.path}",
+                        href=f"/move/outof/{book}/{item.path}",
                     )
                 )
             if item.prev_section:
@@ -291,7 +266,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortRightArrow;"),
                         title=Tx("Into"),
                         cls="plain",
-                        href=f"/into/{book}/{item.path}",
+                        href=f"/move/into/{book}/{item.path}",
                     )
                 )
         else:
@@ -318,10 +293,10 @@ def toc(book, items, show_arrows=False):
     return Ol(*parts)
 
 
-@rt("/{book:Book}.docx", name="docx-download")
+@rt("/{book:Book}.docx")
 def get(request, book: Book):
     "Download the DOCX for the book. First get the parameters."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
     title_page_metadata = settings.get("title_page_metadata", True)
@@ -408,10 +383,10 @@ def get(request, book: Book):
     )
 
 
-@rt("/{book:Book}.docx", name="do-docx-download")
+@rt("/{book:Book}.docx")
 def post(request, book: Book, form: dict):
     "Actually download the DOCX file of the entire book."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
@@ -421,7 +396,7 @@ def post(request, book: Book, form: dict):
     settings["indexed_font"] = form["indexed_font"]
 
     # Save settings.
-    if auth.authorized(request, *book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit_rules, book=book):
         book.write()
 
     return Response(
@@ -431,10 +406,10 @@ def post(request, book: Book, form: dict):
     )
 
 
-@rt("/{book:Book}.pdf", name="pdf-download")
+@rt("/{book:Book}.pdf")
 def get(request, book: Book):
     "Download the PDF file for the book. First get the parameters."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     title_page_metadata = settings.get("title_page_metadata", True)
@@ -536,10 +511,10 @@ def get(request, book: Book):
     )
 
 
-@rt("/{book:Book}.pdf", name="do-pdf-download")
+@rt("/{book:Book}.pdf")
 def post(request, book: Book, form: dict):
     "Actually download the PDF file for the book."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
@@ -550,7 +525,7 @@ def post(request, book: Book, form: dict):
     settings["indexed_xref"] = form["indexed_xref"]
 
     # Save settings.
-    if auth.authorized(request, *book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit_rules, book=book):
         book.write()
 
     return Response(
@@ -560,10 +535,10 @@ def post(request, book: Book, form: dict):
     )
 
 
-@rt("/{book:Book}.tgz", name="tgz-download")
+@rt("/{book:Book}.tgz")
 def get(request, book: Book):
     "Download a gzipped tar file of the book."
-    auth.authorize(request, *book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view_rules, book=book)
 
     filename = f"writethatbook_{book}_{utils.timestr(safe=True)}.tgz"
 

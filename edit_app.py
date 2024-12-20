@@ -74,14 +74,14 @@ def get(request, book: Book):
     )
     menu = []
 
-    title = f'{Tx("Edit")} {Tx("book")}'
+    title = f"{Tx('Edit')} {Tx('book')} '{book.title}'"
     return (
         Title(title),
         components.header(request, title, book=book, menu=menu, status=book.status),
         Main(
             Form(
                 *fields,
-                Button(Tx("Save")),
+                components.save_button(),
                 action=f"/edit/{book}",
                 method="post"),
             components.cancel_button(f"/book/{book}"),
@@ -150,13 +150,16 @@ def get(request, book: Book, path: str):
         )
     )
 
-    title = f"{Tx('Edit')} '{item.title}'"
+    title = f"{Tx('Edit')} {Tx(item.type)} '{item.title}'"
     return (
         Title(title),
         components.header(request, title, book=book, status=item.status),
         Main(
             Form(
-                *fields, Button(Tx("Save")), action=f"/edit/{book}/{path}", method="post"
+                *fields, 
+                components.save_button(),
+                action=f"/edit/{book}/{path}",
+                method="post"
             ),
             components.cancel_button(f"/book/{book}/{path}"),
             cls="container",

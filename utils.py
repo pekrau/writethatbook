@@ -13,7 +13,6 @@ import time
 import unicodedata
 
 from fasthtml.common import fast_app, Link, setup_toasts, RedirectResponse
-import requests
 
 import constants
 import latex_utf8
@@ -139,33 +138,6 @@ def tolocaltime(utctime):
     mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
     lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
     return lt.strftime(constants.DATETIME_ISO_FORMAT)
-
-
-def get_state_remote(bid=None):
-    "Get the remote site state, optionally for the given bid."
-    if "WRITETHATBOOK_UPDATE_SITE" not in os.environ:
-        raise Error(
-            "remote update site undefined; missing WRITETHATBOOK_UPDATE_SITE",
-            HTTP.INTERNAL_SERVER_ERROR,
-        )
-    if "WRITETHATBOOK_UPDATE_APIKEY" not in os.environ:
-        raise Error(
-            "remote update apikey undefined; missing WRITETHATBOOK_UPDATE_APIKEY",
-            HTTP.INTERNAL_SERVER_ERROR,
-        )
-    url = os.environ["WRITETHATBOOK_UPDATE_SITE"].rstrip("/") + "/state"
-    if bid:
-        url += "/" + bid
-    headers = dict(apikey=os.environ["WRITETHATBOOK_UPDATE_APIKEY"])
-    response = requests.get(url, headers=headers)
-    if response.status_code == 404 or not response.content:
-        return {}
-    elif response.status_code != 200:
-        raise Error(
-            f"remote {url} response error: {response.status_code}; {response.content}",
-            HTTP.INTERNAL_SERVER_ERROR,
-        )
-    return response.json()
 
 
 class Translator:

@@ -2,6 +2,8 @@
 
 from icecream import ic
 
+import os
+import shutil
 import sys
 
 import bibtexparser
@@ -113,6 +115,14 @@ def get(request):
     "View aggregate system information."
     auth.allow_admin(request)
 
+    disk_usage = shutil.disk_usage(os.environ["WRITETHATBOOK_DIR"])
+    dir_size = 0
+    for dirpath, dirnames, filenames in os.walk(os.environ["WRITETHATBOOK_DIR"]):
+        dp = Path(dirpath)
+        for filename in filenames:
+            fp = dp / filename
+            dir_size += os.path.getsize(fp)
+
     title = Tx("System")
     return (
         Title(title),
@@ -120,8 +130,16 @@ def get(request):
         Main(
             Table(
                 Tr(
-                    Td(Tx("Memory usage")),
+                    Td(Tx("RAM usage")),
                     Td(utils.thousands(psutil.Process().memory_info().rss), " bytes"),
+                ),
+                Tr(
+                    Td(Tx("Data size")),
+                    Td(utils.thousands(dir_size), " bytes"),
+                ),
+                Tr(
+                    Td(Tx("Disk free")),
+                    Td(utils.thousands(disk_usage.free), " bytes"),
                 ),
             ),
             cls="container",

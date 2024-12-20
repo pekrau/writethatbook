@@ -22,10 +22,16 @@ def blank(width, style=None):
     return Span(NotStr("&nbsp;"), style=style)
 
 
+def save_button():
+    return Button(Tx("Save"), style="width: 10em;")
+
+
 def cancel_button(href):
     return Div(
-        A(Tx("Cancel"), role="button", href=href, cls="outline secondary"),
-        style="margin-top: 20px;",
+        A(Tx("Cancel"), role="button", href=href, cls="outline secondary",
+          style="width: 10em;"
+        ),
+        style="margin-top: 1em;",
     )
 
 

@@ -124,3 +124,17 @@ book_edit_rules = [
     Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
     Allow({"var": "current_user.is_admin"}),
 ]
+
+
+refs_add_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be more restrictive?!
+    Allow({"var": "current_user.is_admin"}),
+]
+
+
+refs_edit_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be more restrictive?!
+    Allow({"var": "current_user.is_admin"}),
+]

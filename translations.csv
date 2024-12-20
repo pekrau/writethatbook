@@ -21,6 +21,9 @@ year,år
 month,månad
 article,artikel
 book,bok
+section,sektion
+text,text
+texts,texter
 books,böcker
 journal,tidskrift
 volume,volym
@@ -68,9 +71,6 @@ add reference,lägg till referens
 add reference(s),lägg till referens(er)
 added reference(s),lade till referens(er)
 status list,statuslista
-section,sektion
-text,text
-texts,texter
 convert,omforma
 convert to section,omforma till sektion
 download dump file,ladda ner dump-fil
@@ -78,8 +78,8 @@ Download DOCX file,Ladda ner DOCX-fil
 Download PDF file,Ladda ner PDF-fil
 Download TGZ file,Ladda ner TGZ-fil
 upload,ladda upp
+Upload TGZ file,Ladda upp TGZ-fil
 dump,dump
-upload references,ladda upp referenser
 save,spara
 cancel,avbryt
 source,källa
@@ -109,7 +109,9 @@ require new value.,kräv nytt värde.
 API key,API-nyckel
 generate new value.,skapa nytt värde.
 code,kod
-memory usage,minnesanvändning
+RAM usage,RAM-användning
+data size,mängd data
+disk free,ledig lagringsyta
 identifier,identifierare
 modified,modifierad
 differences,skillnader
@@ -135,6 +137,7 @@ BibTex data,BibTex data
 delete book,radera bok
 note: all contents will be lost!,notera: allt innehåll kommer att försvinna!
 search,sök
+search in,sök i
 term,term
 no result,inget resultat
 menu,meny

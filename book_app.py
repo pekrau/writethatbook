@@ -3,7 +3,9 @@
 from icecream import ic
 
 from http import HTTPStatus as HTTP
+import io
 import os
+import tarfile
 
 from fasthtml.common import *
 
@@ -76,16 +78,12 @@ async def post(request, title: str, tgzfile: UploadFile):
         raise Error("book id may not be empty")
     dirpath = Path(os.environ["WRITETHATBOOK_DIR"]) / id
     if dirpath.exists():
-        raise Error(f"book '{id}' already exists", HTTP.CONFLICT)
+        raise Error(f"book '{book}' already exists", HTTP.CONFLICT)
 
     content = await tgzfile.read()
     if content:
-        try:
-            books.unpack_tgzfile(dirpath, content)
-        except ValueError as message:
-            raise Error(f"error reading TGZ file: {message}")
-    # Just create the directory; no content.
-    else:
+        books.unpack_tgzfile(dirpath, content)
+    else:                     # Just create the directory; no content.
         dirpath.mkdir()
 
     # Re-read all books, ensuring everything is up to date.
@@ -101,7 +99,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 
 @rt("/{book:Book}")
 def get(request, book: Book):
-    "View book; contents list of sections and texts."
+    "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     # Update the 'index.md' file, if any previous changes.
@@ -113,11 +111,20 @@ def get(request, book: Book):
             ("Append", f"/mod/append/{book}/"),
             ("Create section", f"/mod/section/{book}"),
             ("Create text", f"/mod/text/{book}"),
-            ("Copy", f"/mod/copy/{book}"),
-            ("Delete", f"/mod/delete/{book}")
+            ("Copy", f"//copy/{book}"),
+            ("Delete", f"/delete/{book}")
         ]
+        kwargs = {"role": "button", "style": "text-align: center;"}
+        button_card = Card(
+            Div(A(Tx("Edit"), href=f"/edit/{book}", **kwargs)),
+            Div(A(Tx("Append"), href=f"/mod/append/{book}", **kwargs)),
+            Div(A(Tx("Create section"), href=f"/mod/section/{book}", **kwargs)),
+            Div(A(Tx("Create text"), href=f"/mod/text/{book}", **kwargs)),
+            cls="grid"
+        )
     else:
         actions = []
+        button_card = ""
     if auth.is_admin(request) and "WRITETHATBOOK_UPDATE_SITE" in os.environ:
         actions.append(("Differences", f"/sync/diffs/{book}"))
     pages = [
@@ -131,7 +138,7 @@ def get(request, book: Book):
         ("Download TGZ file", f"/book/{book}.tgz"),
     ]
 
-    segments = [components.search_form(f"/search/{id}")]
+    segments = [components.search_form(f"/search/{book}")]
 
     if len(book.items) == 0:
         segments.append(H3(book.title))
@@ -148,11 +155,7 @@ def get(request, book: Book):
         Main(
             *segments,
             Div(NotStr(book.html)),
-            Card(
-                Div(A(Tx("Edit"), role="button", href=f"/edit/{book}")),
-                Div(A(Tx("Append"), role="button", href=f"/mod/append/{book}/")),
-                cls="grid",
-            ),
+            button_card,
             cls="container",
         ),
         components.footer(book),
@@ -161,76 +164,91 @@ def get(request, book: Book):
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
-    "View book text or section contents."
+    "Display book text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
         return utils.redirect(f"/book/{book}")
 
     item = book[path]
 
+    neighbours = []
+    style = "text-align: center;"
+    kwargs = {"role": "button", "cls": "secondary outline"}
+    if item.prev:
+        label = NotStr(f"&ShortLeftArrow; {item.prev.title}")
+        url = f"/book/{book}/{item.prev.path}"
+        neighbours.append(Div(A(label, href=url, **kwargs), style=style))
+    else:
+        neighbours.append(Div())
+    label = NotStr(f"&ShortUpArrow; {item.parent.title}")
+    if item.parent.level == 0:  # Book.
+        url = f"/book/{book}"
+    else:
+        url = f"/book/{book}/{item.parent.path}"
+    neighbours.append(Div(A(label, href=url, **kwargs), style=style))
+    if item.next:
+        label = NotStr(f"&ShortRightArrow; {item.next.title}")
+        url = f"/book/{book}/{item.next.path}"
+        neighbours.append(Div(A(label, href=url, **kwargs), style=style))
+    else:
+        neighbours.append(Div())
+    
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        actions = [
-            ("Edit", f"/edit/{book}/{path}"),
-            ("Append", f"/mod/append/{book}/{path}"),
-        ]
+        actions = []
+        buttons = []
+
+        url = f"/edit/{book}/{path}"
+        actions.append(["Edit", url])
+        buttons.append(A(Tx("Edit"), href=url, role="button"))
+
+        url = f"/mod/append/{book}/{path}"
+        actions.append(["Append", url])
+        buttons.append(A(Tx("Append"), href=url, role="button"))
+
         if item.is_text:
-            actions.append(["Convert to section", f"/to_section/{id}/{path}"])
+            actions.append(["Convert to section", f"/to_section/{book}/{path}"])
+            buttons.append(Div())
+            buttons.append(Div())
         elif item.is_section:
-            actions.extend([
-                ("Create section", f"/mod/section/{book}/{path}"),
-                ("Create text", f"/mod/text/{book}/{path}"),
-            ])
-        actions.extend([
-            ("Copy", f"/mod/copy/{book}/{path}"),
-            ("Delete", f"/mod/delete/{book}/{path}")
-        ])
-        edit_buttons = Card(
-            Div(A(Tx("Edit"), role="button", href=f"/edit/{book}/{path}")),
-            Div(A(Tx("Append"), role="button", href=f"/mod/append/{book}/{path}")),
-            cls="grid",
-        )
+            url = f"/mod/section/{book}/{path}"
+            actions.append(["Create section", url])
+            buttons.append(A(Tx("Create section"), href=url, role="button"))
+
+            url = f"/mod/text/{book}/{path}"
+            actions.append(["Create text", url])
+            buttons.append(A(Tx("Create text"), href=url, role="button"))
+        actions.append(["Copy", f"/copy/{book}/{path}"])
+        actions.append(["Delete", f"/delete/{book}/{path}"])
+        button_card = Card(*[Div(b, style=style) for b in buttons], cls="grid")
     else:
         actions = []
-        edit_buttons = ""
+        button_card = ""
     
-    pages = []
-    if item.parent:
-        if item.parent.level == 0:  # Book.
-            url = f"/book/{book}"
-        else:
-            url = f"/book/{book}/{item.parent.path}"
-        pages.append([f"&ShortUpArrow; {item.parent.title}", url])
-    if item.prev:
-        url = f"/book/{book}/{item.prev.path}"
-        pages.append([f"&ShortLeftArrow; {item.prev.title}", url])
-    if item.next:
-        url = f"/book/{book}/{item.next.path}"
-        pages.append([f"&ShortRightArrow; {item.next.title}", url])
-    pages.extend([
+    pages = [
         ("References", "/refs"),
         ("Index", f"/meta/index/{book}")
-    ])
+    ]
 
+    segments = [Card(*neighbours, cls="grid")]
     if item.is_text:
-        segments = [H3(item.heading)]
+        segments.append(H3(item.heading))
     elif item.is_section:
-        segments = [
+        segments.append(
             Div(
                 Div(H3(item.heading)),
-                Div(components.search_form(f"/search/{id}/{path}")),
+                Div(components.search_form(f"/search/{book}/{path}")),
                 cls="grid",
-            ),
-            toc(book, item.items),
-        ]
+            )
+        )
+        segments.append(toc(book, item.items))
 
     return (
         Title(item.title),
         components.header(request, item.title, book=book, status=item.status, actions=actions, pages=pages),
         Main(
             *segments,
-            edit_buttons,
             Div(NotStr(item.html), style="margin-top: 1em;"),
-            edit_buttons,
+            button_card,
             cls="container",
         ),
         components.footer(item),
@@ -248,14 +266,14 @@ def toc(book, items, show_arrows=False):
                     NotStr("&ShortUpArrow;"),
                     title=Tx("Backward"),
                     cls="plain",
-                    href=f"/mod/backward/{book}/{item.path}",
+                    href=f"/move/backward/{book}/{item.path}",
                 ),
                 components.blank(0),
                 A(
                     NotStr("&ShortDownArrow;"),
                     title=Tx("Forward"),
                     cls="plain",
-                    href=f"/mod/forward/{book}/{item.path}",
+                    href=f"/move/forward/{book}/{item.path}",
                 ),
             ]
             if item.parent is not book:
@@ -265,7 +283,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortLeftArrow;"),
                         title=Tx("Out of"),
                         cls="plain",
-                        href=f"/mod/outof/{book}/{item.path}",
+                        href=f"/move/outof/{book}/{item.path}",
                     )
                 )
             if item.prev_section:
@@ -275,7 +293,7 @@ def toc(book, items, show_arrows=False):
                         NotStr("&ShortRightArrow;"),
                         title=Tx("Into"),
                         cls="plain",
-                        href=f"/mod/into/{book}/{item.path}",
+                        href=f"/move/into/{book}/{item.path}",
                     )
                 )
         else:

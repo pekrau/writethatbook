@@ -224,7 +224,7 @@ def get(request, user: users.User):
         Main(
             Form(
                 *fields,
-                Button(Tx("Save")),
+                components.save_button(),
                 action=f"/user/edit/{user}",
                 method="post",
             ),

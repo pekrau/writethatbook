@@ -116,29 +116,6 @@ def get_state(request):
     )
 
 
-def unpack_tgzfile(dirpath, content, is_refs=False):
-    "Unpack the contents of a TGZ file into the given directory."
-    if not content:
-        raise Error("empty TGZ file")
-    try:
-        tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
-        if "index.md" not in tf.getnames():
-            raise Error("missing 'index.md' file in TGZ file")
-        if is_refs:
-            # No subdirectories or non-Markdown files are allowed in references.
-            for name in tf.getnames():
-                if not name.endswith(".md"):
-                    raise Error("reference TGZ file must contain only *.md files")
-                if Path(name).name != name:
-                    raise Error("reference TGZ file must contain no directories")
-            filter = lambda tf, path: tf if tf.name != "index.md" else None
-        else:
-            filter = None
-        tf.extractall(path=dirpath, filter=filter)
-    except tarfile.TarError as message:
-        raise Error(f"tar file error: {message}")
-
-
 FRONTMATTER = re.compile(r"^---([\n\r].*?[\n\r])---[\n\r](.*)$", re.DOTALL)
 
 
@@ -213,6 +190,47 @@ def get_copy_abspath(abspath):
             return newpath, number
     else:
         raise Error("could not form copy identifier; too many copies")
+
+
+def unpack_tgz_content(dirpath, content, is_refs=False):
+    "Put contents of a TGZ file for a book into the given directory."
+    try:
+        tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
+        # Check validity: file 'index.md' must be included when not refs.
+        if not is_refs and "index.md" not in tf.getnames():
+            raise Error("missing 'index.md' file in TGZ file")
+        # Check validity: possibly malicious paths.
+        for name in tf.getnames():
+            # Absolute path: possibly malicious?
+            if Path(name).is_absolute():
+                raise Error(f"reference TGZ file contains absolute file name '{name}'")
+            # Attempt to navigate outside of directory: possibly malicious?
+            if ".." in name:
+                raise Error(f"reference TGZ file contains disallowed file name '{name}'")
+        # When refs: Additional checks for validity.
+        if is_refs:
+            rx = re.compile(ref_apps.RefConvertor.regex)
+            for name in tf.getnames():
+                if name == "index.md":
+                    continue
+                # No non-Markdown files allowed.
+                if not name.endswith(".md"):
+                    raise Error("refs TGZ file must contain only *.md files")
+                # No subdirectories allowed.
+                if Path(name).name != name:
+                    raise Error("refs TGZ file must contain no directories")
+                # File name must match reference id pattern.
+                if not rx.match(Path(name).stem):
+                    raise Error("refs TGZ file contains invalid file name '{name}'")
+            # Skip 'index.md' and anything that is not a file.
+            filter=lambda f, path: f if f.name != "index.md" and f.isfile() else None
+        else:
+            # Skip anything that is not a file or directory.
+            filter = lambda f, path: f if f.isfile() or f.isdir() else None
+
+        tf.extractall(path=dirpath, filter=filter)
+    except tarfile.TarError as message:
+        raise Error(f"tar file error: {message}")
 
 
 class Book:
@@ -603,8 +621,8 @@ class Book:
         shutil.rmtree(self.abspath)
         get_refs(reread=True)
 
-    def get_tgzfile(self):
-        """Return the contents of a gzipped tar file containing
+    def get_tgz_content(self):
+        """Return the contents of the gzipped tar file containing
         all files for the items of this book.
         """
         buffer = io.BytesIO()

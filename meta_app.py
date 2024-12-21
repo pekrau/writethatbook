@@ -93,9 +93,7 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
-    pages = [
-        ("All users", "/user/list")
-    ]
+    pages = [("All users", "/user/list")]
 
     title = Tx("System")
     return (

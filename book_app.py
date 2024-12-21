@@ -143,8 +143,10 @@ def get(request, book: Book):
     else:
         actions = []
         button_card = ""
-    if (auth.authorized(request, *auth.book_edit_rules, book=book) and
-        "WRITETHATBOOK_UPDATE_SITE" in os.environ):
+    if (
+        auth.authorized(request, *auth.book_edit_rules, book=book)
+        and "WRITETHATBOOK_UPDATE_SITE" in os.environ
+    ):
         actions.append(("Differences", f"/diff/{book}"))
     pages = [
         ("Index", f"/meta/index/{book}"),
@@ -664,7 +666,8 @@ def get_books_table(request, books):
                 Td(Tx(book.frontmatter.get("type", constants.BOOK).capitalize())),
                 Td(
                     Tx(
-                        book.frontmatter.get("status", repr(constants.STARTED)
+                        book.frontmatter.get(
+                            "status", repr(constants.STARTED)
                         ).capitalize()
                     )
                 ),
@@ -674,14 +677,18 @@ def get_books_table(request, books):
             )
         )
     if rows:
-        return Table(Thead(Tr(
-            Th(Tx("Title")),
-            Th(Tx("Type")),
-            Th(Tx("Status")),
-            Th(Tx("Characters")),
-            Th(Tx("Owner")),
-            Th(Tx("Modified")),
-        )),
-                     Tbody(*rows))
+        return Table(
+            Thead(
+                Tr(
+                    Th(Tx("Title")),
+                    Th(Tx("Type")),
+                    Th(Tx("Status")),
+                    Th(Tx("Characters")),
+                    Th(Tx("Owner")),
+                    Th(Tx("Modified")),
+                )
+            ),
+            Tbody(*rows),
+        )
     else:
         return I(Tx("No books"))

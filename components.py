@@ -145,7 +145,13 @@ def footer(request, item=None):
     user = auth.logged_in(request)
     if user:
         if auth.authorized(request, *auth.user_view_rules, user=user):
-            cells.append(Div(A(user.name or user.id, href=f"/user/view/{user.id}"), style="text-align: right;"))
+            cells.append(
+                Div(
+                    A(user.name or user.id, href=f"/user/view/{user.id}"),
+                    title=Tx("Logged in"),
+                    style="text-align: right;",
+                )
+            )
         else:
             cells.append(Div(user.name or user.id), style="text-align: right;")
     else:

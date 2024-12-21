@@ -128,10 +128,14 @@ def get(request):
         components.header(request, title, actions=actions, pages=pages),
         Main(
             Table(
-                Thead(Tr(Th(Tx("User"), scope="col"),
-                         Th(Tx("Name")),
-                         Th(Tx("Role")),
-                         Th(Tx("# books")))),
+                Thead(
+                    Tr(
+                        Th(Tx("User"), scope="col"),
+                        Th(Tx("Name")),
+                        Th(Tx("Role")),
+                        Th(Tx("# books")),
+                    )
+                ),
                 Tbody(*rows),
             ),
             cls="container",
@@ -149,7 +153,9 @@ def get(request, user: users.User):
 
     title = f'{Tx("User")} {user}'
     if auth.logged_in(request) is user:
-        logout = Form(components.save_button("Logout"), action="/user/logout", method="post")
+        logout = Form(
+            components.save_button("Logout"), action="/user/logout", method="post"
+        )
     else:
         logout = ""
 
@@ -173,10 +179,14 @@ def get(request, user: users.User):
                 Tr(Td(Tx("Code")), Td(user.code or "-")),
             ),
             Card(
-                Div(A(Tx("Edit"),
-                      href=f"/user/edit/{user}",
-                      role="button",
-                      style="width: 10em;")),
+                Div(
+                    A(
+                        Tx("Edit"),
+                        href=f"/user/edit/{user}",
+                        role="button",
+                        style="width: 10em;",
+                    )
+                ),
                 Div(logout),
                 Div(),
                 Div(),

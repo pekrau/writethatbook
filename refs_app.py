@@ -170,8 +170,10 @@ def get(request):
         ("Download TGZ file", "/refs/all.tgz"),
     ]
 
-    if (auth.authorized(request, *auth.refs_edit_rules, refs=refs) and
-        "WRITETHATBOOK_UPDATE_SITE" in os.environ):
+    if (
+        auth.authorized(request, *auth.refs_edit_rules, refs=refs)
+        and "WRITETHATBOOK_UPDATE_SITE" in os.environ
+    ):
         actions.append(A(Tx("Differences"), href=f"/diff/{constants.REFS}"))
 
     title = f'{len(refs.items)} {Tx("references")}'
@@ -283,7 +285,12 @@ def get(request, ref: Text):
         Script(src="/clipboard.min.js"),
         Script("new ClipboardJS('.to_clipboard');"),
         components.header(
-            request, title, book=get_refs(), status=ref.status, actions=actions, pages=pages,
+            request,
+            title,
+            book=get_refs(),
+            status=ref.status,
+            actions=actions,
+            pages=pages,
         ),
         Main(
             Table(*rows),
@@ -583,7 +590,7 @@ def get(request, ref: Text):
             Form(
                 components.save_button("Confirm"),
                 action=f"/refs/delete/{ref['id']}",
-                method="post"
+                method="post",
             ),
             components.cancel_button(f"/refs/{ref['id']}"),
             cls="container",

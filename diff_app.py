@@ -73,7 +73,7 @@ def get(request):
                         Form(
                             Button(Tx("Update here")),
                             method="post",
-                            action=f"/pull/{id}",
+                            action=f"/diff/pull/{id}",
                         )
                     ),
                 )
@@ -169,7 +169,7 @@ def get(request, id: str):
                 H4(f'{Tx("Not present in")} {os.environ["WRITETHATBOOK_REMOTE_SITE"]}'),
                 Form(
                     Button(f'{Tx("Update")} {os.environ["WRITETHATBOOK_REMOTE_SITE"]}'),
-                    action=f"/push/{id}",
+                    action=f"/diff/push/{id}",
                     method="post",
                 ),
             )
@@ -178,7 +178,7 @@ def get(request, id: str):
                 H4(Tx("Not present here")),
                 Form(
                     Button(Tx("Update here")),
-                    action=f"/pull/{id}",
+                    action=f"/diff/pull/{id}",
                     method="post",
                 ),
             )
@@ -207,14 +207,14 @@ def get(request, id: str):
                         f'{Tx("Update")} {os.environ["WRITETHATBOOK_REMOTE_SITE"]}',
                         cls=None if rflag else "outline",
                     ),
-                    action=f"/push/{id}",
+                    action=f"/diff/push/{id}",
                     method="post",
                 )
             ),
             Td(
                 Form(
                     Button(Tx("Update here"), cls=None if lflag else "outline"),
-                    action=f"/pull/{id}",
+                    action=f"/diff/pull/{id}",
                     method="post",
                 ),
                 colspan=3,
@@ -406,7 +406,7 @@ def post(request, id: str):
     if id != constants.REFS and id.startswith("_"):
         raise Error("book id may not start with an underscore '_'")
 
-    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/receive/{book}"
+    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/diff/receive/{book}"
     content = book.get_tgz_content(dirpath)
     headers = dict(apikey=os.environ["WRITETHATBOOK_REMOTE_APIKEY"])
     response = requests.post(

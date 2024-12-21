@@ -4,9 +4,9 @@ from fasthtml.common import *
 import requests
 
 import auth
-import books
-from books import Book
+from books import get_state, get_refs, get_book, unpack_tgz_content
 import components
+import constants
 from errors import *
 import utils
 from utils import Tx
@@ -24,8 +24,7 @@ def get(request):
     if not remote_state:
         raise Error("No response from remote site.", HTTP.INTERNAL_SERVER_ERROR)
 
-    local_state = books.get_state(request)
-    ic(local_state)
+    local_state = get_state(request)
     local_books = local_state["books"].copy()
     rows = []
     for id, rbook in remote_state["books"].items():
@@ -115,7 +114,7 @@ def get(request):
     )
 
 
-@rt("/diffs/{id:str}")
+@rt("/{id:str}")
 def get(request, id: str):
     """Compare local book with the remote site book.
     One of them may not exist.
@@ -133,11 +132,11 @@ def get(request, id: str):
         raise Error(message, HTTP.INTERNAL_SERVER_ERROR)
 
     if id == constants.REFS:
-        book = books.get_refs()
+        book = get_refs()
         local_state = book.state
     else:
         try:
-            book = books.get_book(id)
+            book = get_book(id)
             local_state = book.state
         except Error:
             local_state = {}
@@ -377,7 +376,7 @@ def post(id: str):
     else:
         saved_dirpath = None
     try:
-        books.unpack_tgz_content(dirpath, content, references=id == constants.REFSS)
+        unpack_tgz_content(dirpath, content, references=id == constants.REFSS)
     except ValueError as message:
         # If failure, reinstate saved contents.
         if saved_dirpath:
@@ -389,10 +388,10 @@ def post(id: str):
             shutil.rmtree(saved_dirpath)
 
     if id == constants.REFSS:
-        books.get_references(reread=True)
+        get_refs(reread=True)
         return RedirectResponse("/references", status_code=HTTP.SEE_OTHER)
     else:
-        books.get_book(id, reread=True)
+        get_book(id, reread=True)
         return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
 
 
@@ -403,11 +402,15 @@ def post(request, id: str):
 
     if not id:
         raise Error("book id may not be empty")
-    if id != constants.REFS and id.startswith("_"):
-        raise Error("book id may not start with an underscore '_'")
+    if id == constants.REFS:
+        book = get_refs()
+    else:
+        if id.startswith("_"):
+            raise Error("book id may not start with an underscore '_'")
+        book = get_book(id)
 
-    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/diff/receive/{book}"
-    content = book.get_tgz_content(dirpath)
+    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/diff/receive/{id}"
+    content = book.get_tgz_content()
     headers = dict(apikey=os.environ["WRITETHATBOOK_REMOTE_APIKEY"])
     response = requests.post(
         url,
@@ -441,7 +444,7 @@ async def post(request, id: str, tgzfile: UploadFile = None):
     else:
         saved_dirpath = None
     try:
-        books.unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
+        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
         if saved_dirpath:
             shutil.rmtree(saved_dirpath)
     except ValueError as message:
@@ -450,9 +453,9 @@ async def post(request, id: str, tgzfile: UploadFile = None):
         raise Error(f"error reading TGZ file: {message}")
 
     if id == constants.REFS:
-        books.get_references(reread=True)
+        get_refs(reread=True)
     else:
-        books.get_book(id, reread=True)
+        get_book(id, reread=True)
     return "success"
 
 

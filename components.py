@@ -1,5 +1,6 @@
-"Page components and functions."
+"FastHTML components and functions."
 
+import os
 import string
 
 from fasthtml.common import *
@@ -8,8 +9,30 @@ import auth
 import books
 import constants
 from errors import *
+import users
 import utils
 from utils import Tx
+
+
+def get_fast_app(routes=None):
+    app, rt = fast_app(
+        live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
+        static_path="static",
+        before=users.set_current_user,
+        hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
+        exception_handlers={
+            Error: error_handler,
+            NotAllowed: not_allowed_handler,
+        },
+        routes=routes,
+    )
+    setup_toasts(app)
+    return app, rt
+
+
+def redirect(href):
+    "Redirect with the usually more appropriate 303 status code."
+    return RedirectResponse(href, status_code=HTTP.SEE_OTHER)
 
 
 def blank(width, style=None):
@@ -62,7 +85,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
     home = A(
         Img(src="/writethatbook.png", width=32, height=32),
         href="/",
-        title=constants.SOFTWARE,
+        title=f"{constants.SOFTWARE} {constants.__version__}",
     )
     if book:
         if book is books.get_refs():

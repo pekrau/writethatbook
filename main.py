@@ -31,7 +31,7 @@ from utils import Tx
 import book_app, edit_app, append_app, move_app, copy_app, delete_app, diff_app, meta_app, refs_app, search_app, state_app, user_app
 
 
-app, rt = utils.get_fast_app(
+app, rt = components.get_fast_app(
     routes=[
         Mount("/book", book_app.app),
         Mount("/edit", edit_app.app),

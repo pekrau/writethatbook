@@ -10,7 +10,7 @@ import utils
 from utils import Tx
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}")

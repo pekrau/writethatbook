@@ -5,13 +5,11 @@ from pathlib import Path
 import sys
 import requests
 
-import utils
-
 
 def fetch_and_save(url, apikey, dirpath):
     "Fetch the gzipped tar file and save to local disk."
 
-    print(f"fetching mdbook.tgz from {url}")
+    print(f"fetching WriteThatBook TGZ dump from {url}")
     response = requests.get(url, headers=dict(apikey=apikey))
 
     if response.status_code != 200:
@@ -27,11 +25,11 @@ def fetch_and_save(url, apikey, dirpath):
     filepath = dirpath.joinpath(parts[1])
     with filepath.open("wb") as outfile:
         outfile.write(response.content)
-    print(f"wrote mdbook.tgz to {filepath}")
+    print(f"wrote WriteThatBook TGZ dump to {filepath}")
 
 
 if __name__ == "__main__":
     dirpath = Path(sys.argv[1])
     with dirpath.joinpath("config.json").open() as infile:
         config = json.load(infile)
-    fetch_and_save(config["site"].rstrip("/") + "/tgz", config["apikey"], dirpath)
+    fetch_and_save(config["site"].rstrip("/") + "/dump", config["apikey"], dirpath)

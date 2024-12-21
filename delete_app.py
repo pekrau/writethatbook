@@ -1,15 +1,14 @@
-"Delete an item (book, text or section)."
+"Pages for deleting an item (book, text or section)."
 
 from fasthtml.common import *
 
 import auth
 from books import Book
 import components
-import utils
 from utils import Tx
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}")
@@ -45,7 +44,7 @@ def post(request, book: Book):
     "Actually delete the book, even if it contains items."
     auth.authorize(request, *auth.book_edit_rules, book=book)
     book.delete(force=True)
-    return utils.redirect("/")
+    return components.redirect("/")
 
 
 @rt("/{book:Book}/{path:path}")
@@ -82,4 +81,4 @@ def post(request, book: Book, path: str):
     "Delete the text or section."
     auth.authorize(request, *auth.book_edit_rules, book=book)
     book[path].delete(force=True)
-    return utils.redirect(f"/book/{book}")
+    return components.redirect(f"/book/{book}")

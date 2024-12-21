@@ -3,43 +3,15 @@
 import csv
 import datetime
 import hashlib
-from http import HTTPStatus as HTTP
 import json
-import os
-from pathlib import Path
+import os.path
 import re
 import string
 import time
 import unicodedata
 
-from fasthtml.common import fast_app, Link, setup_toasts, RedirectResponse
-
-import auth
 import constants
 import latex_utf8
-from errors import *
-import users
-
-
-def get_fast_app(routes=None):
-    app, rt = fast_app(
-        live="WRITETHATBOOK_DEVELOPMENT" in os.environ,
-        static_path="static",
-        before=users.set_current_user,
-        hdrs=(Link(rel="stylesheet", href="/mods.css", type="text/css"),),
-        exception_handlers={
-            Error: error_handler,
-            NotAllowed: not_allowed_handler,
-        },
-        routes=routes,
-    )
-    setup_toasts(app)
-    return app, rt
-
-
-def redirect(href):
-    "Redirect with the usually more appropriate 303 status code."
-    return RedirectResponse(href, status_code=HTTP.SEE_OTHER)
 
 
 def short_name(name):

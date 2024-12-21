@@ -1,4 +1,4 @@
-"References list, view and edit."
+"References list, view and edit pages."
 
 import io
 import re
@@ -30,7 +30,7 @@ class RefConvertor(Convertor):
 register_url_convertor("Ref", RefConvertor())
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/")

@@ -1,4 +1,4 @@
-"Information about system and state."
+"Pages for information about system and state."
 
 import os
 import shutil
@@ -23,7 +23,7 @@ import utils
 from utils import Tx
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/software")

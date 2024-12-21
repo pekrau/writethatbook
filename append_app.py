@@ -1,15 +1,14 @@
-"Append text to the book, section or text."
+"Pages to pppend text to the book, section or text."
 
 from fasthtml.common import *
 
 import auth
 from books import Book
 import components
-import utils
 from utils import Tx
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}/{path:path}")
@@ -63,4 +62,4 @@ def post(request, book: Book, path: str, content: str):
     book.write()
     book.read()
 
-    return utils.redirect(f"/book/{book}/{path}")  # This works for book.
+    return components.redirect(f"/book/{book}/{path}")  # This works for book.

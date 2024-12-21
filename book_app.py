@@ -1,4 +1,4 @@
-"Book, section and text view resources."
+"Book, section and text view pages."
 
 import os
 
@@ -30,7 +30,7 @@ class BookConvertor(Convertor):
 register_url_convertor("Book", BookConvertor())
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/")
@@ -91,7 +91,7 @@ async def post(request, title: str, tgzfile: UploadFile):
     book.frontmatter["owner"] = str(auth.logged_in(request))
     book.write()
 
-    return utils.redirect(f"/book/{book}")
+    return components.redirect(f"/book/{book}")
 
 
 @rt("/{book:Book}")
@@ -196,7 +196,7 @@ def get(request, book: Book, path: str):
     "Display book text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
-        return utils.redirect(f"/book/{book}")
+        return components.redirect(f"/book/{book}")
 
     item = book[path]
 
@@ -325,7 +325,7 @@ def post(request, book: Book, path: str, form: dict):
     book.write()
     book.read()
 
-    return utils.redirect(f"/edit/{book}/{new.path}")
+    return components.redirect(f"/edit/{book}/{new.path}")
 
 
 def toc(book, items, show_arrows=False):

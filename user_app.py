@@ -1,4 +1,4 @@
-"User resources."
+"User pages."
 
 from fasthtml.common import *
 
@@ -9,7 +9,6 @@ import components
 import constants
 from errors import *
 import users
-import utils
 from utils import Tx
 
 
@@ -26,7 +25,7 @@ class UserConvertor(Convertor):
 register_url_convertor("User", UserConvertor())
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/")
@@ -93,7 +92,7 @@ def post(request, form: dict):
         user.name = form.get("name") or None
         user.email = form.get("email") or None
         user.reset_password()
-    return utils.redirect(f"/user/view/{user}")
+    return components.redirect(f"/user/view/{user}")
 
 
 @rt("/list")
@@ -305,7 +304,7 @@ def post(request, user: users.User, form: dict):
             new_password = form.get("new_password")
             if old_password and new_password and user.login(old_password):
                 user.set_password(new_password)
-    return utils.redirect(f"/user/view/{user}")
+    return components.redirect(f"/user/view/{user}")
 
 
 @rt("/login")
@@ -387,16 +386,16 @@ def post(request, userid: str, password: str, path: str = None):
     auth.allow_anyone(request)
     if not userid or not password:
         add_toast(request.session, "Missing user identifier and/or password.", "error")
-        return utils.redirect("/user/login")
+        return components.redirect("/user/login")
     try:
         user = users.database[userid]
         if not user.login(password):
             raise KeyError
     except KeyError:
         add_toast(request.session, "Invalid user identifier and/or password.", "error")
-        return utils.redirect("/user/login")
+        return components.redirect("/user/login")
     request.session["auth"] = user.id
-    return utils.redirect(path or "/")
+    return components.redirect(path or "/")
 
 
 @rt("/reset")
@@ -409,7 +408,7 @@ def post(request, form: dict):
     if user:
         with users.database:
             user.reset_password()
-    return utils.redirect("/")
+    return components.redirect("/")
 
 
 @rt("/password")
@@ -430,16 +429,16 @@ def post(request, form: dict):
             "Invalid user identifier, code or too short password.",
             "error",
         )
-        return utils.redirect("/user/login")
+        return components.redirect("/user/login")
     with users.database:
         user.set_password(form["password"])
         user.code = None
     request.session["auth"] = user.id
-    return utils.redirect(f"/user/view/{user}")
+    return components.redirect(f"/user/view/{user}")
 
 
 @rt("/logout")
 def post(request):
     "Perform logout."
     request.session.pop("auth", None)
-    return utils.redirect("/")
+    return components.redirect("/")

@@ -2,11 +2,12 @@
 
 import auth
 from books import Book, get_books, get_refs
+import components
 import constants
 import utils
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/")

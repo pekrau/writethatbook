@@ -1,4 +1,4 @@
-"Book, section and text edit resources."
+"Book, section and text edit pages."
 
 from fasthtml.common import *
 
@@ -9,11 +9,10 @@ import components
 import constants
 from errors import *
 import users
-import utils
 from utils import Tx
 
 
-app, rt = utils.get_fast_app()
+app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}")
@@ -113,7 +112,7 @@ def post(request, book: Book, form: dict):
     book.write(content=form.get("content"), force=True)
     book.read()
 
-    return utils.redirect(f"/book/{book}")
+    return components.redirect(f"/book/{book}")
 
 
 @rt("/{book:Book}/{path:path}")
@@ -183,4 +182,4 @@ def post(request, book: Book, path: str, form: dict):
     book.read()
 
     # Must use new path, since name may have been changed.
-    return utils.redirect(f"/book/{book}/{item.path}")
+    return components.redirect(f"/book/{book}/{item.path}")

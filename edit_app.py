@@ -1,7 +1,5 @@
 "Book, section and text edit resources."
 
-from icecream import ic
-
 from fasthtml.common import *
 
 import auth
@@ -80,13 +78,12 @@ def get(request, book: Book):
         components.header(request, title, book=book, menu=menu, status=book.status),
         Main(
             Form(
-                *fields,
-                components.save_button(),
-                action=f"/edit/{book}",
-                method="post"),
+                *fields, components.save_button(), action=f"/edit/{book}", method="post"
+            ),
             components.cancel_button(f"/book/{book}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -156,14 +153,15 @@ def get(request, book: Book, path: str):
         components.header(request, title, book=book, status=item.status),
         Main(
             Form(
-                *fields, 
+                *fields,
                 components.save_button(),
                 action=f"/edit/{book}/{path}",
-                method="post"
+                method="post",
             ),
             components.cancel_button(f"/book/{book}/{path}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 

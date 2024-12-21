@@ -1,6 +1,4 @@
-"Sync book contents between local site and remote site."
-
-from icecream import ic
+"Find and remedy differences in content between local site and remote site."
 
 from fasthtml.common import *
 import requests
@@ -9,6 +7,7 @@ import auth
 import books
 from books import Book
 import components
+from errors import *
 import utils
 from utils import Tx
 
@@ -16,19 +15,19 @@ from utils import Tx
 app, rt = utils.get_fast_app()
 
 
-@rt("/diffs")
+@rt("/")
 def get(request):
-    "Compare ocal site with the remote site."
+    "Compare local site with the remote site."
     auth.allow_admin(request)
 
-    try:
-        remote_state = get_remote_state()
-    except ValueError as message:
-        raise Error(message, HTTP.INTERNAL_SERVER_ERROR)
+    remote_state = get_remote_state()
+    if not remote_state:
+        raise Error("No response from remote site.", HTTP.INTERNAL_SERVER_ERROR)
 
-    local_state = books.get_state()
+    local_state = books.get_state(request)
+    ic(local_state)
+    local_books = local_state["books"].copy()
     rows = []
-    local_books = local["books"].copy()
     for id, rbook in remote_state["books"].items():
         rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
         lbook = local_books.pop(id, {})
@@ -37,7 +36,7 @@ def get(request):
             if lbook["digest"] == rbook["digest"]:
                 action = Tx("Identical")
             else:
-                action = A(Tx("Differences"), href=f"/differences/{id}", role="button")
+                action = A(Tx("Differences"), href=f"/diff/{id}", role="button")
             rows.append(
                 Tr(
                     Th(Strong(title), scope="row"),
@@ -72,7 +71,7 @@ def get(request):
                     Td("-"),
                     Td(
                         Form(
-                            Button(Tx("Update here"), type="submit"),
+                            Button(Tx("Update here")),
                             method="post",
                             action=f"/pull/{id}",
                         )
@@ -442,7 +441,7 @@ async def post(request, id: str, tgzfile: UploadFile = None):
     else:
         saved_dirpath = None
     try:
-        books.unpack_tgz_content(dirpath, content, is_refs=id==constants.REFS)
+        books.unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
         if saved_dirpath:
             shutil.rmtree(saved_dirpath)
     except ValueError as message:

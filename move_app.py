@@ -1,7 +1,5 @@
 "Move item (text or section) within the book."
 
-from icecream import ic
-
 import auth
 from books import Book
 import utils

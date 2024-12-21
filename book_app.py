@@ -1,11 +1,6 @@
 "Book, section and text view resources."
 
-from icecream import ic
-
-from http import HTTPStatus as HTTP
-import io
 import os
-import tarfile
 
 from fasthtml.common import *
 
@@ -14,12 +9,12 @@ import books
 from books import Book
 import components
 import constants
+import docx_creator
 from errors import *
+import pdf_creator
 import users
 import utils
 from utils import Tx
-import docx_creator
-import pdf_creator
 
 
 class BookConvertor(Convertor):
@@ -49,19 +44,21 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("Title")),
+                    Legend(Tx("Title"), components.required()),
                     Input(name="title", required=True, autofocus=True),
                 ),
                 Fieldset(
-                    Legend(Tx(f'{Tx("Upload")} {Tx("TGZ file")} ({Tx("optional")}).')),
+                    Legend(Tx("Upload TGZ file (optional)")),
                     Input(type="file", name="tgzfile"),
                 ),
-                Button(Tx("Create")),
+                components.save_button("Create"),
                 action="/book",
                 method="post",
             ),
+            components.cancel_button("/"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -82,8 +79,8 @@ async def post(request, title: str, tgzfile: UploadFile):
 
     content = await tgzfile.read()
     if content:
-        books.unpack_tgzfile(dirpath, content)
-    else:                     # Just create the directory; no content.
+        books.unpack_tgz_content(dirpath, content)
+    else:  # Just create the directory; no content.
         dirpath.mkdir()
 
     # Re-read all books, ensuring everything is up to date.
@@ -91,7 +88,7 @@ async def post(request, title: str, tgzfile: UploadFile):
     # Set the title and owner of the new book.
     book = books.get_book(id)
     book.frontmatter["title"] = title or book.title
-    book.frontmatter["owner"] = str(auth.logged_in())
+    book.frontmatter["owner"] = str(auth.logged_in(request))
     book.write()
 
     return utils.redirect(f"/book/{book}")
@@ -102,40 +99,63 @@ def get(request, book: Book):
     "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
-    # Update the 'index.md' file, if any previous changes.
-    book.write()
-
     if auth.authorized(request, *auth.book_edit_rules, book=book):
         actions = [
             ("Edit", f"/edit/{book}"),
-            ("Append", f"/mod/append/{book}/"),
-            ("Create section", f"/mod/section/{book}"),
-            ("Create text", f"/mod/text/{book}"),
-            ("Copy", f"//copy/{book}"),
-            ("Delete", f"/delete/{book}")
+            ("Append", f"/append/{book}/"),
+            ("Copy", f"/copy/{book}"),
+            ("Delete", f"/delete/{book}"),
         ]
-        kwargs = {"role": "button", "style": "text-align: center;"}
-        button_card = Card(
-            Div(A(Tx("Edit"), href=f"/edit/{book}", **kwargs)),
-            Div(A(Tx("Append"), href=f"/mod/append/{book}", **kwargs)),
-            Div(A(Tx("Create section"), href=f"/mod/section/{book}", **kwargs)),
-            Div(A(Tx("Create text"), href=f"/mod/text/{book}", **kwargs)),
-            cls="grid"
-        )
+        buttons = [
+            Div(
+                A(
+                    Tx("Edit"),
+                    href=f"/edit/{book}",
+                    role="button",
+                    style="width: 10em;",
+                ),
+            ),
+            Div(
+                A(
+                    Tx("Append"),
+                    href=f"/append/{book}",
+                    role="button",
+                    style="width: 10em;",
+                ),
+            ),
+        ]
+        for type in [constants.SECTION, constants.TEXT]:
+            buttons.append(
+                Div(
+                    Details(
+                        Summary(Tx(f"Create {type}"), role="button", cls="secondary"),
+                        Form(
+                            Hidden(name="type", value=type),
+                            Input(name="title", required=True, placeholder=Tx("Title")),
+                            components.save_button("Create"),
+                            action=f"/book/{book}/",  # Yes, trailing '/'; empty path string.
+                            method="post",
+                        ),
+                    ),
+                )
+            )
+        button_card = Card(*buttons, cls="grid")
     else:
         actions = []
         button_card = ""
-    if auth.is_admin(request) and "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-        actions.append(("Differences", f"/sync/diffs/{book}"))
+    if (auth.authorized(request, *auth.book_edit_rules, book=book) and
+        "WRITETHATBOOK_UPDATE_SITE" in os.environ):
+        actions.append(("Differences", f"/diff/{book}"))
     pages = [
         ("Index", f"/meta/index/{book}"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Status list", f"/meta/status/{book}"),
         ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/meta/state/{book}"),
+        ("State (JSON)", f"/state/{book}"),
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
+        ("References", "/refs"),
     ]
 
     segments = [components.search_form(f"/search/{book}")]
@@ -151,14 +171,21 @@ def get(request, book: Book):
 
     return (
         Title(book.title),
-        components.header(request, Tx("Contents"), book=book, status=book.status, actions=actions, pages=pages),
+        components.header(
+            request,
+            Tx("Contents"),
+            book=book,
+            status=book.status,
+            actions=actions,
+            pages=pages,
+        ),
         Main(
             *segments,
             Div(NotStr(book.html)),
             button_card,
             cls="container",
         ),
-        components.footer(book),
+        components.footer(request, book),
     )
 
 
@@ -192,41 +219,52 @@ def get(request, book: Book, path: str):
         neighbours.append(Div(A(label, href=url, **kwargs), style=style))
     else:
         neighbours.append(Div())
-    
+
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        actions = []
-        buttons = []
-
-        url = f"/edit/{book}/{path}"
-        actions.append(["Edit", url])
-        buttons.append(A(Tx("Edit"), href=url, role="button"))
-
-        url = f"/mod/append/{book}/{path}"
-        actions.append(["Append", url])
-        buttons.append(A(Tx("Append"), href=url, role="button"))
+        kwargs = {"role": "button", "style": "width: 10em;"}
+        actions = [
+            ("Edit", f"/edit/{book}/{path}"),
+            ("Append", f"/append/{book}/{path}"),
+        ]
+        buttons = [
+            Div(A(Tx("Edit"), href=f"/edit/{book}/{path}", **kwargs)),
+            Div(A(Tx("Append"), href=f"/append/{book}/{path}", **kwargs)),
+        ]
 
         if item.is_text:
-            actions.append(["Convert to section", f"/to_section/{book}/{path}"])
             buttons.append(Div())
             buttons.append(Div())
         elif item.is_section:
-            url = f"/mod/section/{book}/{path}"
-            actions.append(["Create section", url])
-            buttons.append(A(Tx("Create section"), href=url, role="button"))
+            for type in [constants.SECTION, constants.TEXT]:
+                buttons.append(
+                    Div(
+                        Details(
+                            Summary(
+                                Tx(f"Create {type}"), role="button", cls="secondary"
+                            ),
+                            Form(
+                                Hidden(name="type", value=type),
+                                Input(
+                                    name="title", required=True, placeholder=Tx("Title")
+                                ),
+                                components.save_button("Create"),
+                                action=f"/book/{book}/{path}",
+                                method="post",
+                            ),
+                        ),
+                    )
+                )
 
-            url = f"/mod/text/{book}/{path}"
-            actions.append(["Create text", url])
-            buttons.append(A(Tx("Create text"), href=url, role="button"))
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
-        button_card = Card(*[Div(b, style=style) for b in buttons], cls="grid")
+        button_card = Card(*buttons, cls="grid")
     else:
         actions = []
         button_card = ""
-    
+
     pages = [
+        ("Index", f"/meta/index/{book}"),
         ("References", "/refs"),
-        ("Index", f"/meta/index/{book}")
     ]
 
     segments = [Card(*neighbours, cls="grid")]
@@ -244,15 +282,48 @@ def get(request, book: Book, path: str):
 
     return (
         Title(item.title),
-        components.header(request, item.title, book=book, status=item.status, actions=actions, pages=pages),
+        components.header(
+            request,
+            item.title,
+            book=book,
+            status=item.status,
+            actions=actions,
+            pages=pages,
+        ),
         Main(
             *segments,
             Div(NotStr(item.html), style="margin-top: 1em;"),
             button_card,
             cls="container",
         ),
-        components.footer(item),
+        components.footer(request, item),
     )
+
+
+@rt("/{book:Book}/{path:path}")
+def post(request, book: Book, path: str, form: dict):
+    "Create and add item (text or section)."
+    auth.authorize(request, *auth.book_edit_rules, book=book)
+
+    if path == "":
+        parent = None
+    else:
+        parent = book[path]
+        if not parent.is_section:
+            raise Error("Cannot create text or section in non-section.")
+    if not form.get("title"):
+        raise Error("No title given.")
+
+    if form["type"] == constants.TEXT:
+        new = book.create_text(form["title"], parent=parent)
+    elif form["type"] == constants.SECTION:
+        new = book.create_section(form["title"], parent=parent)
+
+    # Reread the book, ensuring everything is up to date.
+    book.write()
+    book.read()
+
+    return utils.redirect(f"/edit/{book}/{new.path}")
 
 
 def toc(book, items, show_arrows=False):
@@ -400,13 +471,14 @@ def get(request, book: Book):
         Main(
             Form(
                 *fields,
-                Button(f'{Tx("Download")} {Tx("DOCX file")}'),
+                components.save_button("Download DOCX file"),
                 action=f"/book/{book}.docx",
                 method="post",
             ),
             components.cancel_button(f"/book/{book}"),
             cls="container",
         ),
+        components.footer(request, book),
     )
 
 
@@ -518,7 +590,7 @@ def get(request, book: Book):
         Fieldset(
             Legend(Tx("Display of indexed term reference")),
             Select(*indexed_options, name="indexed_xref"),
-        )
+        ),
     ]
 
     title = f'{Tx("Download")} {Tx("PDF file")}'
@@ -528,13 +600,14 @@ def get(request, book: Book):
         Main(
             Form(
                 *fields,
-                Button(f'{Tx("Download")} {Tx("PDF file")}'),
+                components.save_button("Download PDF file"),
                 action=f"/book/{book}.pdf",
                 method="post",
             ),
             components.cancel_button(f"/book/{book}"),
             cls="container",
         ),
+        components.footer(request, book),
     )
 
 
@@ -570,7 +643,45 @@ def get(request, book: Book):
     filename = f"writethatbook_{book}_{utils.timestr(safe=True)}.tgz"
 
     return Response(
-        content=book.get_tgzfile(),
+        content=book.get_tgz_content(),
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def get_books_table(request, books):
+    "Return a table containing the given books."
+    rows = []
+    for book in books:
+        owner = users.get(book.owner)
+        if auth.authorized(request, *auth.user_view_rules, user=owner):
+            owner = A(owner.name or owner.id, href=f"/user/view/{owner}")
+        else:
+            owner = owner.name or owner.id
+        rows.append(
+            Tr(
+                Td(A(book.title, href=f"/book/{book.id}")),
+                Td(Tx(book.frontmatter.get("type", constants.BOOK).capitalize())),
+                Td(
+                    Tx(
+                        book.frontmatter.get("status", repr(constants.STARTED)
+                        ).capitalize()
+                    )
+                ),
+                Td(Tx(utils.thousands(book.frontmatter.get("sum_characters", 0)))),
+                Td(owner),
+                Td(book.modified),
+            )
+        )
+    if rows:
+        return Table(Thead(Tr(
+            Th(Tx("Title")),
+            Th(Tx("Type")),
+            Th(Tx("Status")),
+            Th(Tx("Characters")),
+            Th(Tx("Owner")),
+            Th(Tx("Modified")),
+        )),
+                     Tbody(*rows))
+    else:
+        return I(Tx("No books"))

@@ -1,7 +1,5 @@
 "Information about system and state."
 
-from icecream import ic
-
 import os
 import shutil
 import sys
@@ -34,79 +32,51 @@ def get(request):
     auth.allow_anyone(request)
 
     title = Tx("Software")
-    menu = []
+    pages = []
     if auth.is_admin(request):
-        menu.append(A(Tx("State (JSON)"), href="/meta/state"))
-        menu.append(A(Tx("System"), href="/meta/system"))
+        pages.append(["State (JSON)", "/state"])
+        pages.append(["System", "/meta/system"])
     rows = []
-    for name, href, version in [(constants.SOFTWARE,
-                                 "https://github.com/pekrau/mdbook",
-                                 constants.__version__),
-                                ("Python",
-                                 "https://www.python.org/",
-                                 f"{'.'.join([str(v) for v in sys.version_info[0:3]])}"),
-                                ("fastHTML",
-                                 "https://fastht.ml/",
-                                 fasthtml.__version__),
-                                ("Marko",
-                                 "https://marko-py.readthedocs.io/",
-                                 marko.__version__),
-                                ("python-docx",
-                                 "https://python-docx.readthedocs.io/en/latest/",
-                                 docx.__version__),
-                                ("fpdf2",
-                                 "https://py-pdf.github.io/fpdf2/",
-                                 fpdf.__version__),
-                                ("PyYAML",
-                                 "https://pypi.org/project/PyYAML/",
-                                 yaml.__version__),
-                                ("bibtexparser",
-                                 "https://pypi.org/project/bibtexparser/",
-                                 bibtexparser.__version__)]:
-        rows.append(Tr(
-            Td(
-                A(name, href=href)
-            ),
-            Td(version),
+    for name, href, version in [
+        (constants.SOFTWARE, "https://github.com/pekrau/mdbook", constants.__version__),
+        (
+            "Python",
+            "https://www.python.org/",
+            f"{'.'.join([str(v) for v in sys.version_info[0:3]])}",
+        ),
+        ("fastHTML", "https://fastht.ml/", fasthtml.__version__),
+        ("Marko", "https://marko-py.readthedocs.io/", marko.__version__),
+        (
+            "python-docx",
+            "https://python-docx.readthedocs.io/en/latest/",
+            docx.__version__,
+        ),
+        ("fpdf2", "https://py-pdf.github.io/fpdf2/", fpdf.__version__),
+        ("PyYAML", "https://pypi.org/project/PyYAML/", yaml.__version__),
+        (
+            "bibtexparser",
+            "https://pypi.org/project/bibtexparser/",
+            bibtexparser.__version__,
+        ),
+    ]:
+        rows.append(
+            Tr(
+                Td(A(name, href=href)),
+                Td(version),
+            )
         )
-                    )
-                                
+
     return (
         Title(title),
-        components.header(request, title, menu=menu),
+        components.header(request, title, pages=pages),
         Main(
             Table(
-                Thead(
-                    Tr(Th(Tx("Software")), Th(Tx("Version")))),
+                Thead(Tr(Th(Tx("Software")), Th(Tx("Version")))),
                 Tbody(*rows),
             ),
             cls="container",
         ),
-    )
-
-
-@rt("/state")
-def get(request):
-    "Return JSON for the overall state of this site."
-    auth.allow_admin(request)
-
-    books = {}
-    for book in get_books(request) + [get_refs()]:
-        books[book.id] = dict(
-            title=book.title,
-            modified=utils.timestr(
-                filepath=book.absfilepath, localtime=False, display=False
-            ),
-            n_items=len(book.all_items),
-            sum_characters=book.frontmatter["sum_characters"],
-            digest=book.frontmatter["digest"],
-        )
-
-    return dict(
-        software=constants.SOFTWARE,
-        version=constants.__version__,
-        now=utils.timestr(localtime=False, display=False),
-        books=books,
+        components.footer(request),
     )
 
 
@@ -123,10 +93,14 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
+    pages = [
+        ("All users", "/user/list")
+    ]
+
     title = Tx("System")
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, pages=pages),
         Main(
             Table(
                 Tr(
@@ -141,9 +115,18 @@ def get(request):
                     Td(Tx("Disk free")),
                     Td(utils.thousands(disk_usage.free), " bytes"),
                 ),
+                Tr(
+                    Td(Tx("# users")),
+                    Td(str(len(users.database))),
+                ),
+                Tr(
+                    Td(Tx("# books")),
+                    Td(str(len(get_books(request)))),
+                ),
             ),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -161,11 +144,23 @@ def get(request, book: Book):
             )
         items.append(Li(key, Small(Ul(*refs))))
 
+    pages = [
+        ("Recently modified", f"/meta/recent/{book}"),
+        ("Status list", f"/meta/status/{book}"),
+        ("Information", f"/meta/info/{book}"),
+        ("State (JSON)", f"/state/{book}"),
+        ("Download DOCX file", f"/book/{book}.docx"),
+        ("Download PDF file", f"/book/{book}.pdf"),
+        ("Download TGZ file", f"/book/{book}.tgz"),
+        ("References", "/refs"),
+    ]
+
     title = Tx("Index")
     return (
         Title(title),
-        components.header(request, title, book=book),
+        components.header(request, title, book=book, status=book.status, pages=pages),
         Main(Ul(*items), cls="container"),
+        components.footer(request),
     )
 
 
@@ -177,20 +172,30 @@ def get(request, book: Book):
     items = sorted(book.all_items, key=lambda i: i.modified, reverse=True)
     items = items[: constants.MAX_RECENT]
 
-    menu = []
     rows = [
         Tr(Td(A(i.fulltitle, href=f"/book/{id}/{i.path}")), Td(i.modified))
         for i in items
     ]
 
+    pages = [
+        ("Index", f"/meta/index/{book}"),
+        ("Status list", f"/meta/status/{book}"),
+        ("State (JSON)", f"/state/{book}"),
+        ("Download DOCX file", f"/book/{book}.docx"),
+        ("Download PDF file", f"/book/{book}.pdf"),
+        ("Download TGZ file", f"/book/{book}.tgz"),
+        ("References", "/refs"),
+    ]
+
     title = Tx("Recently modified")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, menu=menu),
+        components.header(request, title, book=book, status=book.status, pages=pages),
         Main(
             P(Table(Tbody(*rows))),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -205,42 +210,41 @@ def get(request, book: Book):
     for author in book.authors:
         segments.append(H5(author))
 
+    owner = users.get(book.owner)
+    if auth.authorized(request, *auth.user_view_rules, user=owner):
+        owner = A(owner.name or owner.id, href=f"/user/view/{owner}")
+    else:
+        owner = owner.name or owner.id
     segments.append(
         Table(
-            Tr(Th(Tx("Title")),
-               Td(book.title)),
-            Tr(Th(Tx("Type")),
-               Td(Tx(book.type.capitalize()))),
-            Tr(Th(Tx("Status")),
-               Td(Tx(book.status))),
-            Tr(Th(Tx("Owner")),
-               Td(Tx(book.owner))),
-            Tr(Th(Tx("Modified")),
-               Td(Tx(book.modified))),
-            Tr(Th(Tx("Words")),
-               Td(Tx(utils.thousands(book.sum_words)))),
-            Tr(Th(Tx("Characters")),
-               Td(Tx(utils.thousands(book.sum_characters)))),
-            Tr(Th(Tx("Language")),
-               Td(Tx(book.frontmatter.get("language") or "-"))),
+            Tr(Th(Tx("Title")), Td(book.title)),
+            Tr(Th(Tx("Type")), Td(Tx(book.type.capitalize()))),
+            Tr(Th(Tx("Status")), Td(Tx(book.status))),
+            Tr(Th(Tx("Owner")), Td(owner)),
+            Tr(Th(Tx("Modified")), Td(Tx(book.modified))),
+            Tr(Th(Tx("Words")), Td(Tx(utils.thousands(book.sum_words)))),
+            Tr(Th(Tx("Characters")), Td(utils.thousands(book.sum_characters))),
+            Tr(Th(Tx("Language")), Td(Tx(book.frontmatter.get("language") or "-"))),
         )
     )
 
-    menu = [
-        A(f'{Tx("Edit")}', href=f"/edit/{book}"),
-        # A(f'{Tx("Append")}', href=f"/append/{id}"),
-        A(Tx("Status list"), href=f"/book/_status/{book}"),
-        A(Tx("State (JSON)"), href=f"/book/_state/{book}"),
-        A(f'{Tx("Download")} {Tx("DOCX file")}', href=f"/book/{book}.docx"),
-        A(f'{Tx("Download")} {Tx("PDF file")}', href=f"/book/{book}.pdf"),
-        A(f'{Tx("Download")} {Tx("TGZ file")}', href=f"/book/{book}.tgz"),
+    pages = [
+        ("Index", f"/meta/index/{book}"),
+        ("Recently modified", f"/meta/recent/{book}"),
+        ("Status list", f"/meta/status/{book}"),
+        ("State (JSON)", f"/state/{book}"),
+        ("Download DOCX file", f"/book/{book}.docx"),
+        ("Download PDF file", f"/book/{book}.pdf"),
+        ("Download TGZ file", f"/book/{book}.tgz"),
+        ("References", "/refs"),
     ]
 
     title = Tx("Information")
     return (
         Title(title),
-        components.header(request, title, book=book, menu=menu, status=book.status),
+        components.header(request, title, book=book, status=book.status, pages=pages),
         Main(*segments, cls="container"),
+        components.footer(request),
     )
 
 
@@ -269,24 +273,21 @@ def get(request, book: Book):
             )
         )
 
+    pages = [
+        ("Index", f"/meta/index/{book}"),
+        ("Recently modified", f"/meta/recent/{book}"),
+        ("Information", f"/meta/info/{book}"),
+        ("State (JSON)", f"/state/{book}"),
+        ("Download DOCX file", f"/book/{book}.docx"),
+        ("Download PDF file", f"/book/{book}.pdf"),
+        ("Download TGZ file", f"/book/{book}.tgz"),
+        ("References", "/refs"),
+    ]
+
     title = Tx("Status list")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book, status=book.status, pages=pages),
         Main(Table(*rows), cls="container"),
+        components.footer(request),
     )
-
-
-@rt("/state/{book:Book}")
-def get(request, book: Book):
-    "Get the state (JSON) for the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    result = dict(
-        software=constants.SOFTWARE,
-        version=constants.__version__,
-        now=utils.timestr(localtime=False, display=False),
-    )
-    result.update(book.state)
-
-    return result

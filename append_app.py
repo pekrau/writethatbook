@@ -1,7 +1,5 @@
 "Append text to the book, section or text."
 
-from icecream import ic
-
 from fasthtml.common import *
 
 import auth
@@ -31,8 +29,8 @@ def get(request, book: Book, path: str):
         Main(
             Form(
                 Textarea(name="content", rows="20", autofocus=True),
-                Button(Tx("Append")),
-                action=f"/mod/append/{book}/{path}",
+                components.save_button("Append"),
+                action=f"/append/{book}/{path}",
                 method="post",
             ),
             components.cancel_button(f"/book/{book}/{path}"),  # This works for book.
@@ -42,7 +40,7 @@ def get(request, book: Book, path: str):
 
 
 @rt("/{book:Book}/{path:path}")
-def post(request, book:Book, path: str, content: str):
+def post(request, book: Book, path: str, content: str):
     "Actually append to the content of the item (book, text or section)."
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
@@ -65,6 +63,4 @@ def post(request, book:Book, path: str, content: str):
     book.write()
     book.read()
 
-    return utils.redirect(f"/book/{book}/{path}") # This works for book.
-
-
+    return utils.redirect(f"/book/{book}/{path}")  # This works for book.

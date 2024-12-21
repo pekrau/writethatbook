@@ -80,6 +80,9 @@ class Database:
             self.write()
         return False
 
+    def __len__(self):
+        return len(self.users)
+
     def read(self):
         "Read the entire database."
         self.users = {}

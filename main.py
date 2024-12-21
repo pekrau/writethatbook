@@ -3,31 +3,31 @@ Write books in a web-based app using Markdown files, allowing
 references and indexing, creating DOCX or PDF.
 """
 
-from icecream import ic
+from icecream import install
+install()
 
-import io
-from http import HTTPStatus as HTTP
 import os
-from pathlib import Path
-import re
-import tarfile
+
+if "WRITETHATBOOK_DIR" not in os.environ:
+    dirpath = "/tmp/writethatbook"
+    if not os.path.exists(dirpath):
+        os.mkdir(dirpath)
+    os.environ["WRITETHATBOOK_DIR"] = dirpath
+    print("WARNING: Env var WRITETHATBOOK_DIR is not defined.")
+    print(f"         Using '{dirpath}' as fallback.")
+
 
 from fasthtml.common import *
 
 import auth
-from books import read_books, get_books, get_refs
+from books import Book, read_books, get_books, get_refs, get_dump_tgz_content
 import components
 import constants
 from errors import *
 import users
 import utils
 from utils import Tx
-import book_app, edit_app, append_app, mod_app, move_app, copy_app, delete_app, \
-    meta_app, refs_app, search_app, user_app, sync_app
-
-
-if "WRITETHATBOOK_DIR" not in os.environ:
-    raise ValueError("env var WRITETHATBOOK_DIR not defined: cannot execute")
+import book_app, edit_app, append_app, move_app, copy_app, delete_app, diff_app, meta_app, refs_app, search_app, state_app, user_app
 
 
 app, rt = utils.get_fast_app(
@@ -35,15 +35,15 @@ app, rt = utils.get_fast_app(
         Mount("/book", book_app.app),
         Mount("/edit", edit_app.app),
         Mount("/append", append_app.app),
-        Mount("/mod", mod_app.app),
         Mount("/move", move_app.app),
         Mount("/copy", copy_app.app),
         Mount("/delete", delete_app.app),
-        Mount("/meta", meta_app.app),
         Mount("/refs", refs_app.app),
+        Mount("/meta", meta_app.app),
+        Mount("/state", state_app.app),
         Mount("/search", search_app.app),
         Mount("/user", user_app.app),
-        Mount("/sync", sync_app.app),
+        Mount("/diff", diff_app.app),
     ],
 )
 
@@ -52,63 +52,34 @@ app, rt = utils.get_fast_app(
 def get(request):
     "Home page; list of books."
     auth.allow_anyone(request)
-    hrows = Tr(
-        Th(Tx("Title")),
-        Th(Tx("Type")),
-        Th(Tx("Status")),
-        Th(Tx("Characters")),
-        Th(Tx("Owner")),
-        Th(Tx("Modified")),
-    )
-    rows = []
-    for book in get_books(request):
-        user = users.get(book.owner)
-        rows.append(
-            Tr(
-                Td(A(book.title, href=f"/book/{book.id}")),
-                Td(Tx(book.frontmatter.get("type", constants.BOOK).capitalize())),
-                Td(
-                    Tx(
-                        book.frontmatter.get(
-                            "status", repr(constants.STARTED)
-                        ).capitalize()
-                    )
-                ),
-                Td(Tx(utils.thousands(book.frontmatter.get("sum_characters", 0)))),
-                Td(user),
-                # Td(user.name or user.id),
-                Td(book.modified),
-            )
-        )
-    user = auth.logged_in(request)
+
     actions = []
-    if user:
+    if auth.authorized(request, *auth.book_create_rules):
         actions.append(["Create or upload book", "/book"])
     pages = [("References", "/refs")]
-    if user:
-        pages.append([f"User {user.name or user.id}", f"/user/view/{user.id}"])
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])
-        pages.append(["State (JSON)", "/meta/state"])
-        pages.append(["System", "/meta/system"])
-        # if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-        #     menu.append(A(Tx("Differences"), href="/differences"))
         pages.append(["Download dump file", "/dump"])
+        pages.append(["State (JSON)", "/state"])
+        if auth.is_admin(request) and "WRITETHATBOOK_REMOTE_SITE" in os.environ:
+            pages.append(["Differences", "/diff"])
+        pages.append(["System", "/meta/system"])
     pages.append(["Software", "/meta/software"])
 
     title = Tx("Books")
     return (
         Title(title),
         components.header(request, title, actions=actions, pages=pages),
-        Main(Table(Thead(*hrows), Tbody(*rows)), cls="container"),
+        Main(book_app.get_books_table(request, get_books(request)), cls="container"),
+        components.footer(request),
     )
 
 
 @rt("/ping")
 def get(request):
-    "Health check."
+    "Health check of web app instance."
     auth.allow_anyone(request)
-    return f"Hello, {request.scope.get('current_user') or 'anonymous'}!"
+    return f"Hello, {auth.logged_in(request) or 'anonymous'}, from {constants.SOFTWARE} {constants.__version__}"
 
 
 @rt("/dump")
@@ -116,14 +87,9 @@ def get(request):
     "Download a gzipped tar file of all data."
     auth.allow_admin(request)
 
-    buffer = io.BytesIO()
-    with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
-        for path in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
-            tgzfile.add(path, arcname=path.name, recursive=True)
     filename = f"writethatbook_{utils.timestr(safe=True)}.tgz"
-
     return Response(
-        content=buffer.getvalue(),
+        content=get_dump_tgz_content(),
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

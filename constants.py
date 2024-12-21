@@ -26,9 +26,9 @@ ADMIN_ROLE = "admin"
 USER_ROLE = "user"
 ROLES = (ADMIN_ROLE, USER_ROLE)
 
-# Actions on resources.
-GET = "GET"
-POST = "POST"
+# Item types
+TEXT = "text"
+SECTION = "section"
 
 DATETIME_ISO_FORMAT = "%Y-%m-%d %H:%M:%S"
 MONTHS = {

@@ -14,6 +14,7 @@ import unicodedata
 
 from fasthtml.common import fast_app, Link, setup_toasts, RedirectResponse
 
+import auth
 import constants
 import latex_utf8
 from errors import *

@@ -1,7 +1,5 @@
 "Delete an item (book, text or section)."
 
-from icecream import ic
-
 from fasthtml.common import *
 
 import auth
@@ -31,9 +29,11 @@ def get(request, book: Book):
         Main(
             H3(Tx("Delete"), "?"),
             *segments,
-            Form(Button(Tx("Confirm")),
-                 action=f"/delete/{book}",
-                 method="post"),
+            Form(
+                components.save_button("Confirm"),
+                action=f"/delete/{book}",
+                method="post",
+            ),
             components.cancel_button(f"/book/{book}"),
             cls="container",
         ),
@@ -66,9 +66,11 @@ def get(request, book: Book, path: str):
         Main(
             H3(Tx("Delete"), "?"),
             *segments,
-            Form(Button(Tx("Confirm")),
-                 action=f"/delete/{book}/{path}",
-                 method="post"),
+            Form(
+                components.save_button("Confirm"),
+                action=f"/delete/{book}/{path}",
+                method="post",
+            ),
             components.cancel_button(f"/book/{book}/{path}"),
             cls="container",
         ),

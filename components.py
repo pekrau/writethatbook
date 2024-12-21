@@ -1,6 +1,5 @@
 "Page components and functions."
 
-from http import HTTPStatus as HTTP
 import string
 
 from fasthtml.common import *
@@ -8,8 +7,9 @@ from fasthtml.common import *
 import auth
 import books
 import constants
+from errors import *
 import utils
-from utils import Tx, Error
+from utils import Tx
 
 
 def blank(width, style=None):
@@ -22,14 +22,18 @@ def blank(width, style=None):
     return Span(NotStr("&nbsp;"), style=style)
 
 
-def save_button():
-    return Button(Tx("Save"), style="width: 10em;")
+def save_button(text="Save"):
+    return Button(Tx(text), style="width: 10em;")
 
 
 def cancel_button(href):
     return Div(
-        A(Tx("Cancel"), role="button", href=href, cls="outline secondary",
-          style="width: 10em;"
+        A(
+            Tx("Cancel"),
+            role="button",
+            href=href,
+            cls="outline secondary",
+            style="width: 10em;",
         ),
         style="margin-top: 1em;",
     )
@@ -55,7 +59,11 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
     "The standard page header with navigation bar."
 
     # The first cell: icon link to home page, and title of book, if any.
-    home = A(Img(src="/writethatbook.png", width=32, height=32), href="/", title=constants.SOFTWARE)
+    home = A(
+        Img(src="/writethatbook.png", width=32, height=32),
+        href="/",
+        title=constants.SOFTWARE,
+    )
     if book:
         if book is books.get_refs():
             cells = [
@@ -85,7 +93,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
         items.append(
             Li(
                 Details(
-                    Summary(Tx("Actions"),  style="width: 8em;"),
+                    Summary(Tx("Actions"), style="width: 8em;"),
                     Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in actions]),
                     cls="dropdown",
                 ),
@@ -122,17 +130,30 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
     return Header(Nav(*cells, style=nav_style), cls="container")
 
 
-def footer(item):
-    return Footer(
-        Hr(),
-        Div(
-            Div(Tx(item.status)),
-            Div(item.modified),
+def footer(request, item=None):
+    if item:
+        cells = [
+            Div(Tx(item.status), title=Tx("Status")),
+            Div(item.modified, title=Tx("Modified")),
             Div(
                 f'{utils.thousands(item.n_words)} {Tx("words")}; ',
                 f'{utils.thousands(item.n_characters)} {Tx("characters")}',
             ),
-            cls="grid"),
+        ]
+    else:
+        cells = [Div(), Div(), Div()]
+    user = auth.logged_in(request)
+    if user:
+        if auth.authorized(request, *auth.user_view_rules, user=user):
+            cells.append(Div(A(user.name or user.id, href=f"/user/view/{user.id}"), style="text-align: right;"))
+        else:
+            cells.append(Div(user.name or user.id), style="text-align: right;")
+    else:
+        cells.append(Div())
+
+    return Footer(
+        Hr(),
+        Div(*cells, cls="grid"),
         cls="container",
     )
 

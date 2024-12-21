@@ -1,7 +1,5 @@
 "References list, view and edit."
 
-from icecream import ic
-
 import io
 import re
 import string
@@ -41,7 +39,6 @@ def get(request):
     auth.allow_anyone(request)
 
     refs = get_refs()
-    refs.write()  # Updates the 'index.md' file, if necessary.
     items = []
     for ref in refs.items:
         parts = [
@@ -55,7 +52,7 @@ def get(request):
             components.blank(0.2),
             A(
                 Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
-                href=f'/refs/{ref}',
+                href=f"/refs/{ref}",
             ),
             components.blank(0.4),
         ]
@@ -64,10 +61,14 @@ def get(request):
         if ref.get("authors"):
             authors = [utils.short_name(a) for a in ref["authors"]]
             if len(authors) > constants.MAX_DISPLAY_AUTHORS:
-                authors = authors[: constants.MAX_DISPLAY_AUTHORS - 1] + ["..."] + [authors[-1]]
+                authors = (
+                    authors[: constants.MAX_DISPLAY_AUTHORS - 1]
+                    + ["..."]
+                    + [authors[-1]]
+                )
             parts.append("; ".join(authors))
 
-        parts.append(components.blank(0.6))
+        parts.append(Br())
         links = []
         if ref["type"] == constants.ARTICLE:
             if ref.get("journal"):
@@ -151,28 +152,34 @@ def get(request):
 
     actions = []
     if auth.authorized(request, *auth.refs_add_rules, refs=refs):
-        actions.extend([
-            (f'{Tx("Add reference")}: {Tx(type)}', f"/refs/add/{type}")
-            for type in constants.REFS_TYPES
-        ])
-        actions.extend([
-            (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
-            (Tx("Upload TGZ file"), "/refs/upload"),
-        ])
+        actions.extend(
+            [
+                (f'{Tx("Add reference")}: {Tx(type)}', f"/refs/add/{type}")
+                for type in constants.REFS_TYPES
+            ]
+        )
+        actions.extend(
+            [
+                (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
+                (Tx("Upload TGZ file"), "/refs/upload"),
+            ]
+        )
     pages = [
         ("Keywords", "/refs/keywords"),
-        ("Download TGZ file", "/refs/all.tgz")
+        ("Recently modified", "/refs/recent"),
+        ("Download TGZ file", "/refs/all.tgz"),
     ]
-    # menu.append(A(Tx("Recently modified"), href="/recent/refses"))
 
-    # if "WRITETHATBOOK_UPDATE_SITE" in os.environ:
-    #     menu.append(A(Tx("Differences"), href="/differences/references"))
+    if (auth.authorized(request, *auth.refs_edit_rules, refs=refs) and
+        "WRITETHATBOOK_UPDATE_SITE" in os.environ):
+        actions.append(A(Tx("Differences"), href=f"/diff/{constants.REFS}"))
 
     title = f'{len(refs.items)} {Tx("references")}'
     return (
         Title(title),
         components.header(request, title, book=refs, actions=actions, pages=pages),
         Main(components.search_form(f"/search/references"), *items, cls="container"),
+        components.footer(request),
     )
 
 
@@ -247,38 +254,50 @@ def get(request, ref: Text):
             )
     rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(*xrefs)))
 
-    actions = [
-        ("Edit", f"/refs/edit/{ref['id']}"),
-        ("Append", f"/refs/append/{ref['id']}"),
-        ("Delete", f"/refs/delete/{ref['id']}"),
+    if auth.authorized(request, *auth.ref_edit_rules, ref=ref):
+        actions = [
+            ("Edit", f"/refs/edit/{ref['id']}"),
+            ("Append", f"/refs/append/{ref['id']}"),
+            ("Delete", f"/refs/delete/{ref['id']}"),
+        ]
+
+        title = f"{ref['name']} ({Tx(ref['type'])})"
+        kwargs = {"role": "button", "style": "width: 10em;"}
+        buttons = [
+            Div(A(Tx("Edit"), href=f"/refs/edit/{ref['id']}", **kwargs)),
+            Div(A(Tx("Append"), href=f"/refs/append/{ref['id']}", **kwargs)),
+            Div(),
+            Div(),
+        ]
+    else:
+        actions = []
+
+    pages = [
+        ("References", "/refs/"),
+        ("Keywords", "/refs/keywords"),
+        ("Recently modified", "/refs/recent"),
     ]
 
-    title = f"{ref['name']} ({Tx(ref['type'])})"
-    edit_buttons = Div(
-        Div(A(Tx("Edit"), role="button", href=f"/refs/edit/{ref['id']}")),
-        Div(A(Tx("Append"), role="button", href=f"/refs/append/{ref['id']}")),
-        cls="grid",
-    )
     return (
         Title(title),
         Script(src="/clipboard.min.js"),
         Script("new ClipboardJS('.to_clipboard');"),
-        components.header(request, title, book=get_refs(), status=ref.status, actions=actions),
+        components.header(
+            request, title, book=get_refs(), status=ref.status, actions=actions, pages=pages,
+        ),
         Main(
             Table(*rows),
-            edit_buttons,
-            Div(NotStr(ref.html), style="margin-top: 1em;"),
-            edit_buttons,
+            Card(*buttons, cls="grid"),
             cls="container",
         ),
-        components.footer(ref),
+        components.footer(request, ref),
     )
 
 
 @rt("/edit/{ref:Ref}")
 def get(request, ref: Text):
     "Edit the reference."
-    auth.authorize(request, *auth.refs_edit_rules, ref=ref)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
     title = f"{Tx('Edit')} '{ref['name']}' ({Tx(ref['type'])})"
     return (
         Title(title),
@@ -294,13 +313,14 @@ def get(request, ref: Text):
             components.cancel_button(f"/refs/{ref['id']}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
 @rt("/edit/{ref:Ref}")
 def post(request, ref: Text, form: dict):
     "Actually edit the reference."
-    auth.authorize(request, *auth.refs_edit_rules, ref=ref)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
     try:
         ref.status = form.pop("status")
     except KeyError:
@@ -314,7 +334,7 @@ def post(request, ref: Text, form: dict):
 @rt("/append/{ref:Ref}")
 def get(request, ref: Text):
     "Append to the content of the reference."
-    auth.authorize(request, *auth.refs_edit_rules, ref=ref)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
 
     title = f'{Tx("Append")} {ref["name"]}'
     return (
@@ -323,20 +343,21 @@ def get(request, ref: Text):
         Main(
             Form(
                 Textarea(name="content", rows="20", autofocus=True),
-                Button(Tx("Append")),
+                components.save_button("Append"),
                 action=f"/refs/append/{ref['id']}",
                 method="post",
             ),
             components.cancel_button(f"/refs/{ref['id']}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
 @rt("/append/{ref:Ref}")
 def post(request, ref: Text, content: str):
     "Actually append to the content of the reference."
-    auth.authorize(request, *auth.refs_edit_rules, ref=ref)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
 
     # Slot in appended content before footnotes, if any.
     lines = ref.content.split("\n")
@@ -364,9 +385,9 @@ def get(request):
     refs = get_refs()
     items = []
     for key, texts in sorted(refs.indexed.items(), key=lambda tu: tu[0].lower()):
-        refs = []
+        xrefs = []
         for text in sorted(texts, key=lambda t: t.ordinal):
-            refs.append(
+            xrefs.append(
                 Li(
                     A(
                         f'{text["name"]}: {text.fulltitle}',
@@ -375,13 +396,63 @@ def get(request):
                     )
                 )
             )
-        items.append(Li(key, Small(Ul(*refs))))
+        items.append(Li(key, Small(Ul(*xrefs))))
 
-    title = f'{Tx("Keywords")}, {Tx("references")}'
+    title = Tx("Keywords")
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, book=refs),
         Main(Ul(*items), cls="container"),
+        components.footer(request),
+    )
+
+
+@rt("/recent")
+def get(request):
+    "Display the most recently modified reference items."
+    auth.allow_anyone(request)
+
+    refs = get_refs()
+    items = sorted(refs.all_items, key=lambda i: i.modified, reverse=True)
+    items = items[: constants.MAX_RECENT]
+
+    rows = [
+        Tr(
+            Td(
+                Img(
+                    src="/clipboard.svg",
+                    title="Copy refid to clipboard",
+                    style="cursor: pointer;",
+                    cls="to_clipboard",
+                    data_clipboard_text=f"[@{ref['name']}]",
+                ),
+                components.blank(0.2),
+                A(
+                    Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
+                    href=f"/refs/{ref}",
+                ),
+                components.blank(0.4),
+                utils.full_title(ref),
+            ),
+            Td(ref.modified),
+        )
+        for ref in items
+    ]
+
+    pages = [
+        ("References", "/refs/"),
+        ("Keywords", "/refs/keywords"),
+    ]
+
+    title = Tx("Recently modified")
+    return (
+        Title(title),
+        components.header(request, title, book=refs, pages=pages),
+        Main(
+            P(Table(Tbody(*rows))),
+            cls="container",
+        ),
+        components.footer(request),
     )
 
 
@@ -398,13 +469,14 @@ def get(request):
                     Legend(Tx("BibTex data")),
                     Textarea(name="data", rows="20", autofocus=True),
                 ),
-                Button("Add reference(s)"),
+                components.save_button("Add reference(s)"),
                 action="/refs/bibtex",
                 method="post",
             ),
             components.cancel_button(f"/refs"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -457,6 +529,7 @@ def post(request, data: str):
             Ul(*[Li(A(r["name"], href=f'/refs/{r["id"]}')) for r in result]),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -466,17 +539,18 @@ def get(request, type: str):
     title = f'{Tx("Add reference")}: {Tx(type)}'
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, book=get_refs()),
         Main(
             Form(
                 *get_ref_fields(type=type),
-                Button(Tx("Add reference")),
+                components.save_button("Add reference"),
                 action=f"/refs/add",
                 method="post",
             ),
             components.cancel_button("/refs"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -492,8 +566,7 @@ def post(request, form: dict):
 @rt("/delete/{ref:Ref}")
 def get(request, ref: Text):
     "Confirm delete of the text or section; section must be empty."
-    refs = get_refs()
-    auth.authorize(request, *auth.refs_edit_rules, book=refs)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
 
     if ref.content:
         segments = [P(Strong(Tx("Note: all contents will be lost!")))]
@@ -503,24 +576,26 @@ def get(request, ref: Text):
     title = f"{Tx('Delete')} '{ref['name']}'?"
     return (
         Title(title),
-        components.header(request, title, book=refs, status=ref.status),
+        components.header(request, title, book=get_refs(), status=ref.status),
         Main(
             H3(Tx("Delete"), "?"),
             *segments,
-            Form(Button(Tx("Confirm")),
-                 action=f"/refs/delete/{ref['id']}",
-                 method="post"),
+            Form(
+                components.save_button("Confirm"),
+                action=f"/refs/delete/{ref['id']}",
+                method="post"
+            ),
             components.cancel_button(f"/refs/{ref['id']}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
 @rt("/delete/{ref:Ref}")
 def post(request, ref: Text):
     "Actually delete the reference."
-    refs = get_refs()
-    auth.authorize(request, *auth.refs_edit_rules, book=refs)
+    auth.authorize(request, *auth.ref_edit_rules, ref=ref)
     ref.delete(force=True)
     return utils.redirect("/refs")
 
@@ -540,35 +615,45 @@ def get(request):
 
 
 @rt("/upload")
-def get():
+def get(request):
     """Upload a gzipped tar file of references;
     replace any reference with the same name.
     """
-    title = Tx("Upload references")
+    refs = get_refs()
+    auth.authorize(request, *auth.refs_edit_rules, refs=refs)
+
+    title = Tx("Upload reference(s)")
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, book=refs),
         Main(
             Form(
-                Input(type="file", name="tgzfile"),
-                Button(Tx("Upload TGZ file")),
+                Fieldset(
+                    Legend(Tx("Reference(s) TGZ file"), components.required()),
+                    Input(type="file", name="tgzfile", required=True),
+                ),
+                components.save_button("Upload"),
                 action="/refs/upload",
                 method="post",
             ),
             components.cancel_button("/refs"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
 @rt("/upload")
-async def post(tgzfile: UploadFile):
+async def post(request, tgzfile: UploadFile):
     "Actually add or replace references by contents of the uploaded file."
+    auth.authorize(request, *auth.refs_edit_rules, book=get_refs())
+
     content = await tgzfile.read()
     if not content:
         raise Error("empty TGZ file")
     books.unpack_tgz_content(get_refs().abspath, content)
     get_refs(reread=True)
+
     return utils.redirect("/refs")
 
 

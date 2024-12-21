@@ -3,6 +3,8 @@
 from fasthtml.common import *
 
 import auth
+import book_app
+from books import get_books
 import components
 import constants
 from errors import *
@@ -31,10 +33,18 @@ app, rt = utils.get_fast_app()
 def get(request):
     "Form page for creating a new user account."
     auth.allow_admin(request)
+
+    pages = [
+        ("All users", "/user/list"),
+        ("Login", "/user/login"),
+        ("System", "/meta/system"),
+        ("References", "/refs"),
+    ]
+
     title = Tx("Create user")
     return (
         Title(title),
-        components.header(request, title, menu=[A(Tx("All users"), href="/user/list")]),
+        components.header(request, title, pages=pages),
         Main(
             Form(
                 Fieldset(
@@ -62,13 +72,14 @@ def get(request):
                     Input(name="name"),
                 ),
                 Fieldset(Legend(Tx("Email")), Input(type="email", name="email")),
-                Button(Tx("Create")),
+                components.save_button("Create"),
                 action="/user/",
                 method="post",
             ),
             components.cancel_button("/user/list"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -76,6 +87,7 @@ def get(request):
 def post(request, form: dict):
     "Actually create a new user account."
     auth.allow_admin(request)
+
     with users.database as database:
         user = database.create_user(form["userid"], role=form["role"])
         user.name = form.get("name") or None
@@ -88,6 +100,9 @@ def post(request, form: dict):
 def get(request):
     "View the list of all users."
     auth.allow_admin(request)
+
+    books = get_books(request)
+
     rows = []
     for user in users.database.all():
         rows.append(
@@ -95,21 +110,33 @@ def get(request):
                 Td(A(user.id, href=f"/user/view/{user}")),
                 Td(user.name or "-"),
                 Td(user.role),
+                Td(str(len([b for b in books if b.owner == user.id]))),
             )
         )
+
+    actions = [("Create user", "/user/")]
+    pages = [
+        ("All users", "/user/list"),
+        ("Login", "/user/login"),
+        ("System", "/meta/system"),
+        ("References", "/refs"),
+    ]
+
     title = Tx("All users")
     return (
         Title(title),
-        components.header(
-            request, title, menu=[A(Tx("Create user"), href="/user/")]
-        ),
+        components.header(request, title, actions=actions, pages=pages),
         Main(
             Table(
-                Thead(Tr(Th(Tx("User"), scope="col"), Th(Tx("Name")), Th(Tx("Role")))),
+                Thead(Tr(Th(Tx("User"), scope="col"),
+                         Th(Tx("Name")),
+                         Th(Tx("Role")),
+                         Th(Tx("# books")))),
                 Tbody(*rows),
             ),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -117,19 +144,25 @@ def get(request):
 def get(request, user: users.User):
     "User account page."
     auth.authorize(request, *auth.user_view_rules, user=user)
+
+    books = [b for b in get_books(request) if b.owner == user.id]
+
     title = f'{Tx("User")} {user}'
     if auth.logged_in(request) is user:
-        logout = Form(Button("Logout"),
-                      action="/user/logout",
-                      method="post")
+        logout = Form(components.save_button("Logout"), action="/user/logout", method="post")
     else:
         logout = ""
-    menu = []
+
+    pages = []
     if auth.is_admin(request):
-        menu.append(A(Tx("All users"), href="/user/list"))
+        pages.append(["All users", "/user/list"])
+        pages.append(["Login", "/user/login"])
+        pages.append(["System", "/meta/system"])
+    pages.append(["References", "/refs"])
+
     return (
         Title(title),
-        components.header(request, title, menu=menu),
+        components.header(request, title, pages=pages),
         Main(
             Table(
                 Tr(Td(Tx("Identifier")), Td(user.id)),
@@ -140,12 +173,20 @@ def get(request, user: users.User):
                 Tr(Td(Tx("Code")), Td(user.code or "-")),
             ),
             Card(
-                Div(A(Tx("Edit"), role="button", href=f"/user/edit/{user}")),
+                Div(A(Tx("Edit"),
+                      href=f"/user/edit/{user}",
+                      role="button",
+                      style="width: 10em;")),
                 Div(logout),
-                cls="grid"
+                Div(),
+                Div(),
+                cls="grid",
             ),
+            H3(Tx("Books")),
+            book_app.get_books_table(request, books),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -231,6 +272,7 @@ def get(request, user: users.User):
             components.cancel_button(f"/user/view/{user}"),
             cls="container",
         ),
+        components.footer(request),
     )
 
 
@@ -264,42 +306,68 @@ def get(request, path: str = None):
         hidden = [Input(type="hidden", name="path", value=path)]
     else:
         hidden = []
+
+    pages = []
+    if auth.is_admin(request):
+        pages.append(["All users", "/user/list"])
+        pages.append(["System", "/meta/system"])
+    pages.append(["References", "/refs"])
+
     title = "Login"
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, pages=pages),
         Main(
             Article(
                 Form(
-                H2("Login"),
-                *hidden,
-                Input(id="userid", placeholder=Tx("Identifier"), autofocus=True, required=True),
-                Input(id="password", type="password", placeholder=Tx("Password"), required=True),
-                Button("Login"),
-                action="/user/login",
-                method="post",
-            )),
+                    H2("Login"),
+                    *hidden,
+                    Input(
+                        id="userid",
+                        placeholder=Tx("Identifier"),
+                        autofocus=True,
+                        required=True,
+                    ),
+                    Input(
+                        id="password",
+                        type="password",
+                        placeholder=Tx("Password"),
+                        required=True,
+                    ),
+                    components.save_button("Login"),
+                    action="/user/login",
+                    method="post",
+                )
+            ),
             Article(
-            Form(
-                H2(Tx("Reset password")),
-                Input(id="userid", placeholder=Tx("Identifier")),
-                Input(id="email", placeholder=Tx("Email")),
-                Button(Tx("Reset password")),
-                action="/user/reset",
-                method="post",
-            )),
+                Form(
+                    H2(Tx("Reset password")),
+                    Input(id="userid", placeholder=Tx("Identifier")),
+                    Input(id="email", placeholder=Tx("Email")),
+                    components.save_button("Reset password"),
+                    action="/user/reset",
+                    method="post",
+                )
+            ),
             Article(
-            Form(
-                H2(Tx("Set password")),
-                Input(id="userid", placeholder=Tx("Identifier"), required=True),
-                Input(id="password", type="password", placeholder=Tx("Password"), required=True),
-                Input(id="code", placeholder=Tx("Code"), required=True),
-                Button(Tx("Set password")),
-                action="/user/password",
-                method="post",
-            )),
+                Form(
+                    H2(Tx("Set password")),
+                    Input(id="userid", placeholder=Tx("Identifier"), required=True),
+                    Input(
+                        id="password",
+                        type="password",
+                        placeholder=Tx("Password"),
+                        required=True,
+                    ),
+                    Input(id="code", placeholder=Tx("Code"), required=True),
+                    components.save_button("Set password"),
+                    action="/user/password",
+                    method="post",
+                )
+            ),
             cls="container",
-        )
+        ),
+        components.footer(request),
     )
 
 
@@ -347,7 +415,11 @@ def post(request, form: dict):
         if len(form["password"]) < constants.MIN_PASSWORD_LENGTH:
             raise KeyError
     except KeyError:
-        add_toast(request.session, "Invalid user identifier, code or too short password.", "error")
+        add_toast(
+            request.session,
+            "Invalid user identifier, code or too short password.",
+            "error",
+        )
         return utils.redirect("/user/login")
     with users.database:
         user.set_password(form["password"])

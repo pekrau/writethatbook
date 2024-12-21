@@ -1,7 +1,5 @@
 "Copy an item (book, text or section)."
 
-from icecream import ic
-
 import auth
 from books import Book
 import utils

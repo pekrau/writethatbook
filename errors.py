@@ -5,12 +5,7 @@ import urllib
 
 from fasthtml.common import Response, RedirectResponse
 
-__all__ = [
-    "Error",
-    "error_handler",
-    "NotAllowed",
-    "not_allowed_handler"
-]
+__all__ = ["Error", "error_handler", "NotAllowed", "not_allowed_handler", "HTTP"]
 
 
 class Error(Exception):

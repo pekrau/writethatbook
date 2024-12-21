@@ -25,6 +25,9 @@ section,sektion
 text,text
 texts,texter
 books,böcker
+# books,antal böcker
+# users,antal användare
+no books,inga böcker
 journal,tidskrift
 volume,volym
 number,nummer
@@ -45,6 +48,7 @@ create section,skapa sektion
 create text,skapa text
 created,skapad
 file path,filnamn
+owner,ägare
 footnotes,fotnoter
 footnotes location,placering av fotnoter
 page break level,nivå för radbrytning
@@ -70,15 +74,16 @@ none,ingen
 add reference,lägg till referens
 add reference(s),lägg till referens(er)
 added reference(s),lade till referens(er)
+upload reference(s),ladda upp referens(er)
+Reference(s) TGZ file,Referens(er) TGZ-fil
 status list,statuslista
-convert,omforma
-convert to section,omforma till sektion
 download dump file,ladda ner dump-fil
 Download DOCX file,Ladda ner DOCX-fil
 Download PDF file,Ladda ner PDF-fil
 Download TGZ file,Ladda ner TGZ-fil
 upload,ladda upp
 Upload TGZ file,Ladda upp TGZ-fil
+Upload TGZ file (optional),Ladda upp TGZ-fil (valfritt)
 dump,dump
 save,spara
 cancel,avbryt

@@ -1,7 +1,5 @@
 "Search text in book or section."
 
-from icecream import ic
-
 from fasthtml.common import *
 
 import auth
@@ -19,6 +17,7 @@ app, rt = utils.get_fast_app()
 def post(request, book: Book, form: dict):
     "Actually search the book for a given term."
     auth.authorize(request, *auth.book_view_rules, book=book)
+
     term = form.get("term")
     if term:
         # Ignore case only when term is in all lower-case.
@@ -26,9 +25,7 @@ def post(request, book: Book, form: dict):
         items = [
             Li(A(i.fulltitle, href=f"/book/{book}/{i.path}"))
             for i in sorted(
-                book.search(
-                    utils.wildcard_to_regexp(term), ignorecase=ignorecase
-                ),
+                book.search(utils.wildcard_to_regexp(term), ignorecase=ignorecase),
                 key=lambda i: i.ordinal,
             )
         ]
@@ -39,10 +36,12 @@ def post(request, book: Book, form: dict):
     else:
         result = P()
 
+    pages = [("References", "/refs")]
+
     title = f"{Tx('Search in')} '{book.title}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book, status=book.status, pages=pages),
         Main(
             components.search_form(f"/search/{book}", term=term),
             result,
@@ -55,6 +54,7 @@ def post(request, book: Book, form: dict):
 def post(request, book: Book, path: str, form: dict):
     "Actually search the item (text or section) for a given term."
     auth.authorize(request, *auth.book_view_rules, book=book)
+
     item = book[path]
     term = form.get("term")
     if term:
@@ -63,9 +63,7 @@ def post(request, book: Book, path: str, form: dict):
         items = [
             Li(A(i.fulltitle, href=i.path))
             for i in sorted(
-                item.search(
-                    utils.wildcard_to_regexp(term), ignorecase=ignorecase
-                ),
+                item.search(utils.wildcard_to_regexp(term), ignorecase=ignorecase),
                 key=lambda i: i.ordinal,
             )
         ]
@@ -76,10 +74,12 @@ def post(request, book: Book, path: str, form: dict):
     else:
         result = P()
 
+    pages = [("References", "/refs")]
+
     title = f"{Tx('Search in')} '{book.title}'; '{item.fulltitle}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, status=item.status, pages=pages),
         Main(
             components.search_form(f"/search/{book}/{path}", term=term),
             result,

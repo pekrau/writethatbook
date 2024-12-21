@@ -1,11 +1,8 @@
 "Markdown book texts in files and directories."
 
-from icecream import ic
-
 import copy
 import datetime
 import hashlib
-from http import HTTPStatus as HTTP
 import io
 import os
 from pathlib import Path
@@ -59,9 +56,15 @@ def read_books():
 
 def get_books(request):
     "Get list of all books readable by the current user, excluding '_refs'."
-    return sorted([b for b in _books.values()
-                   if auth.authorized(request, *auth.book_view_rules, book=b)],
-                  key=lambda b: b.modified, reverse=True)
+    return sorted(
+        [
+            b
+            for b in _books.values()
+            if auth.authorized(request, *auth.book_view_rules, book=b)
+        ],
+        key=lambda b: b.modified,
+        reverse=True,
+    )
 
 
 def get_book(id, reread=False):
@@ -192,6 +195,15 @@ def get_copy_abspath(abspath):
         raise Error("could not form copy identifier; too many copies")
 
 
+def get_dump_tgz_content():
+    "Get the entire dataset as the content of a TGZ file."
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
+        for path in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
+            tgzfile.add(path, arcname=path.name, recursive=True)
+    return buffer.getvalue()
+
+
 def unpack_tgz_content(dirpath, content, is_refs=False):
     "Put contents of a TGZ file for a book into the given directory."
     try:
@@ -206,7 +218,9 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
                 raise Error(f"reference TGZ file contains absolute file name '{name}'")
             # Attempt to navigate outside of directory: possibly malicious?
             if ".." in name:
-                raise Error(f"reference TGZ file contains disallowed file name '{name}'")
+                raise Error(
+                    f"reference TGZ file contains disallowed file name '{name}'"
+                )
         # When refs: Additional checks for validity.
         if is_refs:
             rx = re.compile(ref_apps.RefConvertor.regex)
@@ -223,7 +237,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
                 if not rx.match(Path(name).stem):
                     raise Error("refs TGZ file contains invalid file name '{name}'")
             # Skip 'index.md' and anything that is not a file.
-            filter=lambda f, path: f if f.name != "index.md" and f.isfile() else None
+            filter = lambda f, path: f if f.name != "index.md" and f.isfile() else None
         else:
             # Skip anything that is not a file or directory.
             filter = lambda f, path: f if f.isfile() or f.isdir() else None
@@ -554,7 +568,7 @@ class Book:
 
     def create_section(self, title, parent=None):
         """Create a new empty section inside the book or parent section.
-        Raise ValueError if there is a problem.
+        Raise Error if there is a problem.
         """
         assert parent is None or isinstance(parent, Section)
         if parent is None:
@@ -563,7 +577,7 @@ class Book:
         dirpath = parent.abspath / name
         filepath = dirpath.with_suffix(constants.MARKDOWN_EXT)
         if dirpath.exists() or filepath.exists():
-            raise ValueError(f"The title '{title}' is already used within '{parent}'.")
+            raise Error(f"The title '{title}' is already used within '{parent}'.")
         dirpath.mkdir()
         section = Section(self, parent, name)
         section.title = title
@@ -584,7 +598,7 @@ class Book:
         dirpath = parent.abspath / name
         filepath = dirpath.with_suffix(constants.MARKDOWN_EXT)
         if dirpath.exists() or filepath.exists():
-            raise ValueError(f"The title '{title}' is already used within '{parent}'.")
+            raise Error(f"The title '{title}' is already used within '{parent}'.")
         text = Text(self, parent, name)
         text.title = title
         parent.items.append(text)
@@ -1271,20 +1285,6 @@ class Text(Item):
             return utils.nameify(new) + constants.MARKDOWN_EXT
         else:
             return self.name + constants.MARKDOWN_EXT
-
-    def to_section(self):
-        "Create a section with the title of this text and move this text into it."
-        oldtextpath = self.abspath
-        sectionpath = oldtextpath.with_suffix("")
-        sectionpath.mkdir()
-        oldtextpath.rename(sectionpath / self.filename())
-        section = Section(self.book, self.parent, self.name)
-        section.title = self.title
-        section.items[0] = self
-        self.parent.items[self.index] = section
-        section.write()
-        self.book.read()
-        return section
 
     def copy(self):
         "Make a copy of this text."

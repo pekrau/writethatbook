@@ -31,26 +31,36 @@ def authorize(request, *rules, **context):
     if not authorized(request, *rules, **context):
         raise NotAllowed
 
+
 def allow_anyone(request):
     "For clarity."
     pass
+
 
 def allow_logged_in(request):
     "Do not allow anonymous users."
     authorize(request, Allow({"bool": {"var": "current_user"}}))
 
+
 def allow_admin(request):
     "Does the current user have role 'admin'?"
-    authorize(request,
-              Allow(
-                  {
-                      "and": [
-                          {"bool": {"var": "current_user"}},
-                          {"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]},
-                      ]
-                  }
-              )
-              )
+    authorize(
+        request,
+        Allow(
+            {
+                "and": [
+                    {"bool": {"var": "current_user"}},
+                    {
+                        "==": [
+                            {"var": "current_user.role"},
+                            {"var": "constants.ADMIN_ROLE"},
+                        ]
+                    },
+                ]
+            }
+        ),
+    )
+
 
 def logged_in(request):
     "Return the current user (logged in)."
@@ -95,14 +105,14 @@ class Deny:
 user_view_rules = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
+    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
 ]
 
 
 user_edit_rules = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]})
+    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
 ]
 
 
@@ -134,6 +144,12 @@ refs_add_rules = [
 
 
 refs_edit_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be more restrictive?!
+    Allow({"var": "current_user.is_admin"}),
+]
+
+ref_edit_rules = [
     Deny({"not": {"var": "current_user"}}),
     # XXX Should be more restrictive?!
     Allow({"var": "current_user.is_admin"}),

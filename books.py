@@ -417,7 +417,7 @@ class Book:
 
     @owner.setter
     def owner(self, userid):
-        if not users.get(userud):
+        if not users.get(userid):
             raise ValueError("no such user '{userid]'")
         self.frontmatter["owner"] = userid
 

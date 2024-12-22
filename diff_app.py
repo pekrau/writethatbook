@@ -100,10 +100,18 @@ def get(request):
             ),
         )
 
+    pages = [("References", "/refs")]
+    if auth.is_admin(request):
+        pages.append(["All users", "/user/list"])
+        pages.append(["Download dump file", "/dump"])
+        pages.append(["State (JSON)", "/state"])
+        pages.append(["System", "/meta/system"])
+    pages.append(["Software", "/meta/software"])
+
     title = Tx("Differences")
     return (
         Title(title),
-        components.header(request, title),
+        components.header(request, title, pages=pages),
         Main(
             Table(
                 Thead(
@@ -133,10 +141,7 @@ def get(request, id: str):
     if id != constants.REFS and id.startswith("_"):
         raise Error("book id may not start with an underscore '_'")
 
-    try:
-        remote_state = get_remote_state(id)
-    except ValueError as message:
-        raise Error(message, HTTP.INTERNAL_SERVER_ERROR)
+    remote_state = get_remote_state(id)
 
     if id == constants.REFS:
         book = get_refs()
@@ -471,12 +476,12 @@ def get_remote_state(id=None):
     if "WRITETHATBOOK_REMOTE_SITE" not in os.environ:
         raise Error(
             "remote site undefined; missing WRITETHATBOOK_REMOTE_SITE",
-            HTTP.INTERNAL_SERVER_ERROR,
+            HTTP.INTERNAL_SERVER_ERROR
         )
     if "WRITETHATBOOK_REMOTE_APIKEY" not in os.environ:
         raise Error(
             "remote apikey undefined; missing WRITETHATBOOK_REMOTE_APIKEY",
-            HTTP.INTERNAL_SERVER_ERROR,
+            HTTP.INTERNAL_SERVER_ERROR
         )
 
     url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + "/state"
@@ -491,7 +496,8 @@ def get_remote_state(id=None):
 
     if response.status_code != 200:
         raise Error(
-            f"remote {url} response error: {response.status_code}; {response.content}",
-            HTTP.INTERNAL_SERVER_ERROR,
+            f"remote {url} response error: {response.status_code}",
+            HTTP.INTERNAL_SERVER_ERROR
         )
+
     return response.json()

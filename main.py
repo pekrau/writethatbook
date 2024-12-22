@@ -57,6 +57,7 @@ def get(request):
     actions = []
     if auth.authorized(request, *auth.book_create_rules):
         actions.append(["Create or upload book", "/book"])
+        actions.append(["Reread books", "/reread"])
     pages = [("References", "/refs")]
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])

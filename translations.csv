@@ -28,6 +28,7 @@ books,böcker
 # books,antal böcker
 # users,antal användare
 no books,inga böcker
+reread books,läs in böcker igen
 journal,tidskrift
 volume,volym
 number,nummer

@@ -165,7 +165,7 @@ book_diff_rules = [
     Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
 ]
 
-book_receive_rules = [
+receive_diff_rules = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"var": "current_user.is_admin"}),
 ]

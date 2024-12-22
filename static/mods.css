@@ -1,3 +1,12 @@
+.home_icon {
+    display: block;
+    max-width:32px;
+    max-height:32px;
+    width: auto;
+    height: auto;
+    background-color: white;
+}
+
 .footnote-ref {outline-color: blue;
                outline-width: 2px;
                outline-style: solid;

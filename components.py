@@ -83,7 +83,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
 
     # The first cell: icon link to home page, and title of book, if any.
     home = A(
-        Img(src="/writethatbook.png", width=32, height=32),
+        Img(src="/writethatbook.png", cls="home_icon"),
         href="/",
         title=f"{constants.SOFTWARE} {constants.__version__}",
     )

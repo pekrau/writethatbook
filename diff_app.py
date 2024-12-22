@@ -1,5 +1,7 @@
 "Find and remedy differences in content between local site and remote site."
 
+import os
+from pathlib import Path
 import shutil
 
 from fasthtml.common import *

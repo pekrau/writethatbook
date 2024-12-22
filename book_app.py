@@ -144,21 +144,18 @@ def get(request, book: Book):
         actions = []
         button_card = ""
     pages = [
+        ("References", "/refs"),
         ("Index", f"/meta/index/{book}"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Status list", f"/meta/status/{book}"),
         ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/state/{book}")
-    ]
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
-    pages.extend([
+        ("State (JSON)", f"/state/{book}"),
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-    ])
-    if auth.authorized(request, *auth.book_diff_rules):
-        pages.append(["References", "/refs"])
+    ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
 
     segments = [components.search_form(f"/search/{book}")]
 
@@ -268,8 +265,8 @@ def get(request, book: Book, path: str):
         button_card = ""
 
     pages = [
-        ("Index", f"/meta/index/{book}"),
         ("References", "/refs"),
+        ("Index", f"/meta/index/{book}"),
     ]
 
     segments = [Card(*neighbours, cls="grid")]

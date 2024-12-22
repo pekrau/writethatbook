@@ -180,7 +180,7 @@ def get(request):
     return (
         Title(title),
         components.header(request, title, book=refs, actions=actions, pages=pages),
-        Main(components.search_form(f"/search/references"), *items, cls="container"),
+        Main(components.search_form(f"/search/{constants.REFS}"), *items, cls="container"),
         components.footer(request),
     )
 

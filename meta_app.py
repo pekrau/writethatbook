@@ -32,7 +32,7 @@ def get(request):
     auth.allow_anyone(request)
 
     title = Tx("Software")
-    pages = []
+    pages = [("References", "/refs")]
     if auth.is_admin(request):
         pages.append(["State (JSON)", "/state"])
         pages.append(["System", "/meta/system"])
@@ -93,7 +93,7 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
-    pages = [("All users", "/user/list")]
+    pages = [("References", "/refs"), ("All users", "/user/list")]
 
     title = Tx("System")
     return (
@@ -143,6 +143,7 @@ def get(request, book: Book):
         items.append(Li(key, Small(Ul(*refs))))
 
     pages = [
+        ("References", "/refs"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Status list", f"/meta/status/{book}"),
         ("Information", f"/meta/info/{book}"),
@@ -150,7 +151,6 @@ def get(request, book: Book):
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-        ("References", "/refs"),
     ]
 
     title = Tx("Index")
@@ -176,13 +176,13 @@ def get(request, book: Book):
     ]
 
     pages = [
+        ("References", "/refs"),
         ("Index", f"/meta/index/{book}"),
         ("Status list", f"/meta/status/{book}"),
         ("State (JSON)", f"/state/{book}"),
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-        ("References", "/refs"),
     ]
 
     title = Tx("Recently modified")
@@ -227,6 +227,7 @@ def get(request, book: Book):
     )
 
     pages = [
+        ("References", "/refs"),
         ("Index", f"/meta/index/{book}"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Status list", f"/meta/status/{book}"),
@@ -234,7 +235,6 @@ def get(request, book: Book):
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-        ("References", "/refs"),
     ]
 
     title = Tx("Information")
@@ -272,6 +272,7 @@ def get(request, book: Book):
         )
 
     pages = [
+        ("References", "/refs"),
         ("Index", f"/meta/index/{book}"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Information", f"/meta/info/{book}"),
@@ -279,7 +280,6 @@ def get(request, book: Book):
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-        ("References", "/refs"),
     ]
 
     title = Tx("Status list")

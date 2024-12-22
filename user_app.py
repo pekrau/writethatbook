@@ -37,7 +37,6 @@ def get(request):
         ("All users", "/user/list"),
         ("Login", "/user/login"),
         ("System", "/meta/system"),
-        ("References", "/refs"),
     ]
 
     title = Tx("Create user")
@@ -118,7 +117,6 @@ def get(request):
         ("All users", "/user/list"),
         ("Login", "/user/login"),
         ("System", "/meta/system"),
-        ("References", "/refs"),
     ]
 
     title = Tx("All users")
@@ -158,12 +156,11 @@ def get(request, user: users.User):
     else:
         logout = ""
 
-    pages = []
+    pages = [("References", "/refs")]
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])
         pages.append(["Login", "/user/login"])
         pages.append(["System", "/meta/system"])
-    pages.append(["References", "/refs"])
 
     return (
         Title(title),
@@ -316,11 +313,10 @@ def get(request, path: str = None):
     else:
         hidden = []
 
-    pages = []
+    pages = [("References", "/refs")]
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])
         pages.append(["System", "/meta/system"])
-    pages.append(["References", "/refs"])
 
     title = "Login"
     return (

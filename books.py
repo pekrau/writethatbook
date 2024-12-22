@@ -405,7 +405,7 @@ class Book:
 
     @property
     def type(self):
-        return "book" if len(self.frontmatter["items"]) else "article"
+        return constants.BOOK if len(self.items) else constants.ARTICLE
 
     @property
     def modified(self):
@@ -439,6 +439,19 @@ class Book:
         else:
             status = constants.Status.lookup(self.frontmatter.get("status"))
         return status
+
+    @status.setter
+    def status(self, status):
+        "If this is an article, then set the status."
+        if len(self.items) != 0:
+            raise ValueError("Cannot set status for book with items.")
+        if type(status) == str:
+            status = constants.Status.lookup(status)
+            if status is None:
+                raise ValueError("Invalid status value.")
+        elif not isinstance(status, constants.Status):
+            raise ValueError("Invalid instance for status.")
+        self.frontmatter["status"] = repr(status)
 
     @property
     def subtitle(self):
@@ -733,7 +746,7 @@ class Item:
         return self._name
 
     @name.setter
-    def set_name(self, name):
+    def name(self, name):
         """Set the name for the item.
         Changes the file or directory name of the item.
         Raise ValueError if any problem.
@@ -769,7 +782,7 @@ class Item:
         return self.frontmatter.get("title") or self.name
 
     @title.setter
-    def set_title(self, title):
+    def title(self, title):
         self.frontmatter["title"] = title
 
     @property
@@ -1262,13 +1275,13 @@ class Text(Item):
         return constants.Status.lookup(self.frontmatter.get("status"))
 
     @status.setter
-    def set_status(self, status):
+    def status(self, status):
         if type(status) == str:
             status = constants.Status.lookup(status)
             if status is None:
                 raise ValueError("Invalid status value.")
         elif not isinstance(status, constants.Status):
-            raise ValueError("Invalid status instance.")
+            raise ValueError("Invalid instance for status.")
         self.frontmatter["status"] = repr(status)
 
     @property

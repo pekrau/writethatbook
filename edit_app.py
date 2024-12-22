@@ -43,38 +43,42 @@ def get(request, book: Book):
             ),
         ),
     ]
-    if len(book.items) == 0:
-        fields.append(
-            Fieldset(
-                Legend(Tx("Status")),
-                components.get_status_field(book),
-            )
-        )
     language_options = []
     for language in constants.LANGUAGE_CODES:
         if book.language == language:
             language_options.append(Option(language, selected=True))
         else:
             language_options.append(Option(language))
-    fields.append(
+    divs = [
         Div(
+            Fieldset(
+                Legend(Tx("Language")),
+                Select(*language_options, name="language")
+            )
+        )
+    ]
+    if book.type == constants.ARTICLE:
+        divs.append(
             Div(
                 Fieldset(
-                    Legend(Tx("Language")),
-                    Select(*language_options, name="language")
-                ),
-            ),
-            Div(
-                Fieldset(
-                    Legend(Tx("Public")),
-                    Label(
-                        Input(type="checkbox", role="switch", name="public", checked=book.public),
-                        Tx("Readable by anyone."))
+                    Legend(Tx("Status")),
+                    components.get_status_field(book),
                 )
-            ),
-            cls="grid",
+            )
+        )
+    else:
+        divs.append(Div())
+    divs.append(
+        Div(
+            Fieldset(
+                Legend(Tx("Public")),
+                Label(
+                    Input(type="checkbox", role="switch", name="public", checked=book.public),
+                    Tx("Readable by anyone."))
+            )
         )
     )
+    fields.append(Div(*divs, cls="grid"))
     fields.append(
         Fieldset(
             Legend(Tx("Text")),
@@ -119,6 +123,8 @@ def post(request, book: Book, form: dict):
     ]
     book.subtitle = form.get("subtitle", "").strip()
     book.public = bool(form.get("public", ""))
+    if book.type == constants.ARTICLE:
+        book.status = form.get("status")
     book.language = form.get("language", "").strip()
 
     # Reread the book, ensuring everything is up to date.

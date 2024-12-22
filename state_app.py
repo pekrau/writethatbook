@@ -37,7 +37,7 @@ def get(request):
 
 @rt(f"/{constants.REFS}")
 def get(request):
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.book_view_rules)
     return get_state(get_refs())
 
 

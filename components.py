@@ -83,9 +83,11 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
 
     # The first cell: icon link to home page, and title of book, if any.
     home = A(
-        Img(src="/writethatbook.png", cls="home_icon"),
+        Img(src="/writethatbook.png"),
         href="/",
+        role="button",
         title=f"{constants.SOFTWARE} {constants.__version__}",
+        cls="outline contrast",
     )
     if book:
         if book is books.get_refs():
@@ -116,7 +118,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
         items.append(
             Li(
                 Details(
-                    Summary(Tx("Actions"), style="width: 8em;"),
+                    Summary(Tx("Actions"), style="width: 7em;"),
                     Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in actions]),
                     cls="dropdown",
                 ),
@@ -126,7 +128,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
         items.append(
             Li(
                 Details(
-                    Summary(Tx("Pages"), style="width: 8em;"),
+                    Summary(Tx("Pages"), style="width: 7em;"),
                     Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in pages]),
                     cls="dropdown",
                 ),
@@ -136,7 +138,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
         items.append(
             Li(
                 Details(
-                    Summary(Tx("Menu"), style="width: 10em;"),
+                    Summary(Tx("Menu"), style="width: 7em;"),
                     Ul(*[Li(i) for i in menu]),
                     cls="dropdown",
                 ),

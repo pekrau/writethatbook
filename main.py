@@ -62,7 +62,7 @@ def get(request):
         pages.append(["All users", "/user/list"])
         pages.append(["Download dump file", "/dump"])
         pages.append(["State (JSON)", "/state"])
-        if ic(auth.authorized(request, *auth.book_diff_rules)):
+        if auth.authorized(request, *auth.book_diff_rules):
             pages.append(["Differences", "/diff"])
         pages.append(["System", "/meta/system"])
     pages.append(["Software", "/meta/software"])

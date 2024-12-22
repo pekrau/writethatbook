@@ -176,7 +176,7 @@ def get(request):
     ):
         actions.append(A(Tx("Differences"), href=f"/diff/{constants.REFS}"))
 
-    title = f'{len(refs.items)} {Tx("references")}'
+    title = f'{len(refs.items)}'
     return (
         Title(title),
         components.header(request, title, book=refs, actions=actions, pages=pages),

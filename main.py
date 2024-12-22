@@ -102,4 +102,9 @@ users.initialize()
 # Read in all books and references into memory.
 read_books()
 
+refs = get_refs()
+if not refs.frontmatter.get("owner"):
+    refs.frontmatter["owner"] = "system"
+refs.write()
+
 serve()

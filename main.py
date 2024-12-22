@@ -83,6 +83,13 @@ def get(request):
     return f"Hello, {auth.logged_in(request) or 'anonymous'}, from {constants.SOFTWARE} {constants.__version__}"
 
 
+@rt("/reread")
+def get(request):
+    auth.allow_admin(request)
+    read_books()
+    return components.redirect("/")
+
+
 @rt("/dump")
 def get(request):
     "Download a gzipped tar file of all data."
@@ -101,9 +108,5 @@ users.initialize()
 
 # Read in all books and references into memory.
 read_books()
-
-refs = get_refs()
-refs.title = "References"
-refs.write()
 
 serve()

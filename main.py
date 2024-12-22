@@ -102,4 +102,8 @@ users.initialize()
 # Read in all books and references into memory.
 read_books()
 
+refs = get_refs()
+refs.title = "References"
+refs.write()
+
 serve()

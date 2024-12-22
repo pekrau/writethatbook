@@ -37,6 +37,7 @@ def read_books():
         refspath.mkdir()
         with open(refspath / "index.md", "w") as outfile:
             outfile.write("---\n")
+            outfile.write(yaml.dump({"title": "References"}))
             outfile.write(yaml.dump({"owner": constants.SYSTEM_USERID}))
             outfile.write("---\n")
     _refs = Book(refspath)

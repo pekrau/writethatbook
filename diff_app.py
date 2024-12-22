@@ -333,11 +333,11 @@ def item_diff(ritem, riurl, litem, liurl):
     if litem["digest"] == ritem["digest"]:
         return None, 0, 0
     if litem["modified"] < ritem["modified"]:
-        age = "Older"
+        age = "Newer"
         rflag = 0
         lflag = 1
     elif litem["modified"] > ritem["modified"]:
-        age = "Newer"
+        age = "Older"
         rflag = 1
         lflag = 0
     else:
@@ -444,7 +444,7 @@ def post(request, id: str):
 @rt("/receive/{id:str}")
 async def post(request, id: str, tgzfile: UploadFile = None):
     "Update book at local site by another site uploading it."
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.receive_diff_rules)
 
     if not id:
         raise Error("book id may not be empty")
@@ -482,12 +482,12 @@ def get_remote_state(id=None):
     "Get the remote site state, optionally for the given book id."
     if "WRITETHATBOOK_REMOTE_SITE" not in os.environ:
         raise Error(
-            "remote site undefined; missing WRITETHATBOOK_REMOTE_SITE",
+            "WRITETHATBOOK_REMOTE_SITE undefined",
             HTTP.INTERNAL_SERVER_ERROR
         )
     if "WRITETHATBOOK_REMOTE_APIKEY" not in os.environ:
         raise Error(
-            "remote apikey undefined; missing WRITETHATBOOK_REMOTE_APIKEY",
+            "WRITETHATBOOK_REMOTE_APIKEY undefined",
             HTTP.INTERNAL_SERVER_ERROR
         )
 

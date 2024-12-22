@@ -17,6 +17,7 @@ import auth
 import constants
 from errors import *
 import markdown
+import users
 import utils
 from utils import Tx
 
@@ -391,7 +392,7 @@ class Book:
 
     @title.setter
     def title(self, title):
-        self.frontmatter["title"] = title
+        self.frontmatter["title"] = title or None
 
     @property
     def fulltitle(self):
@@ -414,9 +415,19 @@ class Book:
     def owner(self):
         return self.frontmatter.get("owner")
 
+    @owner.setter
+    def owner(self, userid):
+        if not users.get(userud):
+            raise ValueError("no such user '{userid]'")
+        self.frontmatter["owner"] = userid
+
     @property
     def public(self):
         return bool(self.frontmatter.get("public"))
+
+    @public.setter
+    def public(self, yes):
+        self.frontmatter["public"] = bool(yes)
 
     @property
     def status(self):
@@ -435,7 +446,7 @@ class Book:
 
     @subtitle.setter
     def subtitle(self, subtitle):
-        self.frontmatter["subtitle"] = subtitle
+        self.frontmatter["subtitle"] = subtitle or None
 
     @property
     def authors(self):
@@ -443,6 +454,8 @@ class Book:
 
     @authors.setter
     def authors(self, authors):
+        if not isinstance(authors, list):
+            raise TypeError("authors must be a list")
         self.frontmatter["authors"] = authors
 
     @property
@@ -451,7 +464,7 @@ class Book:
 
     @language.setter
     def language(self, language):
-        self.frontmatter["language"] = language
+        self.frontmatter["language"] = language or None
 
     @property
     def parent(self):
@@ -720,7 +733,7 @@ class Item:
         return self._name
 
     @name.setter
-    def name(self, name):
+    def set_name(self, name):
         """Set the name for the item.
         Changes the file or directory name of the item.
         Raise ValueError if any problem.
@@ -756,7 +769,7 @@ class Item:
         return self.frontmatter.get("title") or self.name
 
     @title.setter
-    def title(self, title):
+    def set_title(self, title):
         self.frontmatter["title"] = title
 
     @property
@@ -1249,7 +1262,7 @@ class Text(Item):
         return constants.Status.lookup(self.frontmatter.get("status"))
 
     @status.setter
-    def status(self, status):
+    def set_status(self, status):
         if type(status) == str:
             status = constants.Status.lookup(status)
             if status is None:

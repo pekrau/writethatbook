@@ -87,8 +87,8 @@ async def post(request, title: str, tgzfile: UploadFile):
     books.read_books()
     # Set the title and owner of the new book.
     book = books.get_book(id)
-    book.frontmatter["title"] = title or book.title
-    book.frontmatter["owner"] = str(auth.logged_in(request))
+    book.title = title or book.title
+    book.owner = str(auth.logged_in(request))
     book.write()
 
     return components.redirect(f"/book/{book}")
@@ -143,22 +143,22 @@ def get(request, book: Book):
     else:
         actions = []
         button_card = ""
-    if (
-        auth.authorized(request, *auth.book_edit_rules, book=book)
-        and "WRITETHATBOOK_UPDATE_SITE" in os.environ
-    ):
-        actions.append(("Differences", f"/diff/{book}"))
     pages = [
         ("Index", f"/meta/index/{book}"),
         ("Recently modified", f"/meta/recent/{book}"),
         ("Status list", f"/meta/status/{book}"),
         ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/state/{book}"),
+        ("State (JSON)", f"/state/{book}")
+    ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
+    pages.extend([
         ("Download DOCX file", f"/book/{book}.docx"),
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
-        ("References", "/refs"),
-    ]
+    ])
+    if auth.authorized(request, *auth.book_diff_rules):
+        pages.append(["References", "/refs"])
 
     segments = [components.search_form(f"/search/{book}")]
 
@@ -171,11 +171,14 @@ def get(request, book: Book):
     else:
         segments.append(toc(book, book.items, show_arrows=True))
 
+    title = Tx("Contents")
+    if book.public:
+        title += "; " + Tx("public")
     return (
         Title(book.title),
         components.header(
             request,
-            Tx("Contents"),
+            title,
             book=book,
             status=book.status,
             actions=actions,
@@ -663,16 +666,11 @@ def get_books_table(request, books):
         rows.append(
             Tr(
                 Td(A(book.title, href=f"/book/{book.id}")),
-                Td(Tx(book.frontmatter.get("type", constants.BOOK).capitalize())),
-                Td(
-                    Tx(
-                        book.frontmatter.get(
-                            "status", repr(constants.STARTED)
-                        ).capitalize()
-                    )
-                ),
-                Td(Tx(utils.thousands(book.frontmatter.get("sum_characters", 0)))),
+                Td(Tx(book.type.capitalize())),
+                Td(Tx(book.status)),
+                Td(Tx(utils.thousands(book.sum_characters))),
                 Td(owner),
+                Td(Tx(book.public and "Yes" or "No")),
                 Td(book.modified),
             )
         )
@@ -685,6 +683,7 @@ def get_books_table(request, books):
                     Th(Tx("Status")),
                     Th(Tx("Characters")),
                     Th(Tx("Owner")),
+                    Th(Tx("Public")),
                     Th(Tx("Modified")),
                 )
             ),

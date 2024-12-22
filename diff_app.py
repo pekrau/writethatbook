@@ -1,5 +1,7 @@
 "Find and remedy differences in content between local site and remote site."
 
+import shutil
+
 from fasthtml.common import *
 import requests
 
@@ -18,7 +20,7 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Compare local site with the remote site."
-    auth.allow_admin(request)
+    auth.authorize(request, *auth.book_diff_rules)
 
     remote_state = get_remote_state()
     if not remote_state:
@@ -119,7 +121,7 @@ def get(request, id: str):
     """Compare local book with the remote site book.
     One of them may not exist.
     """
-    auth.allow_admin(request)
+    auth.authorize(request, *auth.book_diff_rules)
 
     if not id:
         raise Error("book id may not be empty")
@@ -348,14 +350,14 @@ def item_diff(ritem, riurl, litem, liurl):
 
 
 @rt("/pull/{id:str}")
-def post(id: str):
+def post(request, id: str):
     "Update book at this site by downloading it from the remote site."
-    auth.allow_admin(request)
+    auth.authorize(request, *auth.book_diff_rules)
 
     if not id:
         raise Error("no book id provided")
 
-    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/tgz/{id}"
+    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}.tgz"
     dirpath = Path(os.environ["WRITETHATBOOK_DIR"]) / id
     headers = dict(apikey=os.environ["WRITETHATBOOK_REMOTE_APIKEY"])
 
@@ -376,7 +378,7 @@ def post(id: str):
     else:
         saved_dirpath = None
     try:
-        unpack_tgz_content(dirpath, content, references=id == constants.REFSS)
+        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
     except ValueError as message:
         # If failure, reinstate saved contents.
         if saved_dirpath:
@@ -387,18 +389,18 @@ def post(id: str):
         if saved_dirpath:
             shutil.rmtree(saved_dirpath)
 
-    if id == constants.REFSS:
+    if id == constants.REFS:
         get_refs(reread=True)
-        return RedirectResponse("/references", status_code=HTTP.SEE_OTHER)
+        return components.redirect("/references")
     else:
         get_book(id, reread=True)
-        return RedirectResponse(f"/book/{id}", status_code=HTTP.SEE_OTHER)
+        return components.redirect(f"/book/{id}")
 
 
 @rt("/push/{id:str}")
 def post(request, id: str):
     "Update book at the remote site by uploading it from this site."
-    auth.allow_admin(request)
+    auth.authorize(request, *auth.book_diff_rules)
 
     if not id:
         raise Error("book id may not be empty")
@@ -419,13 +421,13 @@ def post(request, id: str):
     )
     if response.status_code != HTTP.OK:
         raise Error(f"remote did not accept push: {response.content}")
-    return RedirectResponse("/", status_code=HTTP.SEE_OTHER)
+    return components.redirect("/")
 
 
 @rt("/receive/{id:str}")
 async def post(request, id: str, tgzfile: UploadFile = None):
     "Update book at local site by another site uploading it."
-    auth.allow_admin(request)
+    auth.authorize(request, *auth.book_diff_rules)
 
     if not id:
         raise Error("book id may not be empty")

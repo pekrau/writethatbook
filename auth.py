@@ -1,5 +1,7 @@
 "Classes, functions and instances for access authorization."
 
+import os
+
 import json_logic
 
 import constants
@@ -13,6 +15,7 @@ def authorized(request, *rules, **context):
     Return False if the rule applies and denies access.
     Return False if no rule applies.
     """
+    context["environ"] = os.environ
     context["current_user"] = request.scope.get("current_user")
     context["constants"] = constants
     for rule in rules:
@@ -138,14 +141,14 @@ book_edit_rules = [
 
 refs_add_rules = [
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be more restrictive?!
+    # XXX Should be less restrictive?! Define and use ownership of each ref?
     Allow({"var": "current_user.is_admin"}),
 ]
 
 
 refs_edit_rules = [
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be more restrictive?!
+    # XXX Should be less restrictive?! Define and use ownership of each ref?
     Allow({"var": "current_user.is_admin"}),
 ]
 
@@ -153,4 +156,11 @@ ref_edit_rules = [
     Deny({"not": {"var": "current_user"}}),
     # XXX Should be more restrictive?!
     Allow({"var": "current_user.is_admin"}),
+]
+
+book_diff_rules = [
+    Deny({"not": {"var": "current_user"}}),
+    Deny({"not": {"in": ["WRITETHATBOOK_REMOTE_SITE", {"var": "environ"}]}}),
+    Allow({"var": "current_user.is_admin"}),
+    Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
 ]

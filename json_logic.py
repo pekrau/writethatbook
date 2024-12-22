@@ -200,3 +200,12 @@ def evaluate(tests, data=None):
         raise ValueError("Unrecognized operation %s" % operator)
 
     return operations[operator](*values)
+
+
+if __name__ == "__main__":
+    print(evaluate({"not": {"var": "blah"}}, data=dict(blah=True)))
+    print(evaluate({"not": {"var": "blah"}}, data=dict(blah=False)))
+    print(evaluate({"not": {"var": "blah"}}))
+    print(evaluate({"not": {"var": "blah.blopp"}}, data=dict(blah=dict(blopp=True))))
+    print(evaluate({"not": {"var": "blah.blopp"}}, data=dict(blah=dict(blopp=False))))
+    print(evaluate({"not": {"var": "blah.blopp"}}))

@@ -25,19 +25,19 @@ def get(request, book: Book):
             Legend(Tx("Title")),
             Input(
                 name="title",
-                value=book.frontmatter["title"],
+                value=book.title,
                 required=True,
                 autofocus=True,
             ),
         ),
         Fieldset(
             Legend(Tx("Subtitle")),
-            Input(name="subtitle", value=book.frontmatter.get("subtitle", "")),
+            Input(name="subtitle", value=book.subtitle or ""),
         ),
         Fieldset(
             Legend(Tx("Authors")),
             Textarea(
-                "\n".join(book.frontmatter.get("authors", [])),
+                "\n".join(book.authors or[]),
                 name="authors",
                 rows="10",
             ),
@@ -52,12 +52,28 @@ def get(request, book: Book):
         )
     language_options = []
     for language in constants.LANGUAGE_CODES:
-        if book.frontmatter.get("language") == language:
+        if book.language == language:
             language_options.append(Option(language, selected=True))
         else:
             language_options.append(Option(language))
     fields.append(
-        Fieldset(Legend(Tx("Language")), Select(*language_options, name="language"))
+        Div(
+            Div(
+                Fieldset(
+                    Legend(Tx("Language")),
+                    Select(*language_options, name="language")
+                ),
+            ),
+            Div(
+                Fieldset(
+                    Legend(Tx("Public")),
+                    Label(
+                        Input(type="checkbox", role="switch", name="public", checked=book.public),
+                        Tx("Readable by anyone."))
+                )
+            ),
+            cls="grid",
+        )
     )
     fields.append(
         Fieldset(
@@ -95,18 +111,15 @@ def post(request, book: Book, form: dict):
         title = form["title"].strip()
         if not title:
             raise KeyError
-        book.frontmatter["title"] = title
+        book.title = title
     except KeyError:
         raise Error("no title given for book")
-    book.frontmatter["authors"] = [
+    book.authors = [
         a.strip() for a in form.get("authors", "").split("\n")
     ]
-    for key in ["subtitle", "status", "language"]:
-        value = form.get(key, "").strip()
-        if value:
-            book.frontmatter[key] = value
-        else:
-            book.frontmatter.pop(key, None)
+    book.subtitle = form.get("subtitle", "").strip()
+    book.public = bool(form.get("public", ""))
+    book.language = form.get("language", "").strip()
 
     # Reread the book, ensuring everything is up to date.
     book.write(content=form.get("content"), force=True)

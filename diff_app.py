@@ -371,7 +371,10 @@ def post(request, id: str):
     if not id:
         raise Error("no book id provided")
 
-    url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}.tgz"
+    if id == constants.REFS:
+        url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + "/refs/all.tgz"
+    else:
+        url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}.tgz"
     dirpath = Path(os.environ["WRITETHATBOOK_DIR"]) / id
     headers = dict(apikey=os.environ["WRITETHATBOOK_REMOTE_APIKEY"])
 

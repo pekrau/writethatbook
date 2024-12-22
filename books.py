@@ -225,6 +225,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
                 )
         # When refs: Additional checks for validity.
         if is_refs:
+            import ref_apps
             rx = re.compile(ref_apps.RefConvertor.regex)
             for name in tf.getnames():
                 if name == "index.md":

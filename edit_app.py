@@ -37,7 +37,7 @@ def get(request, book: Book):
         Fieldset(
             Legend(Tx("Authors")),
             Textarea(
-                "\n".join(book.authors or[]),
+                "\n".join(book.authors or []),
                 name="authors",
                 rows="10",
             ),
@@ -51,10 +51,7 @@ def get(request, book: Book):
             language_options.append(Option(language))
     divs = [
         Div(
-            Fieldset(
-                Legend(Tx("Language")),
-                Select(*language_options, name="language")
-            )
+            Fieldset(Legend(Tx("Language")), Select(*language_options, name="language"))
         )
     ]
     if book.type == constants.ARTICLE:
@@ -73,8 +70,14 @@ def get(request, book: Book):
             Fieldset(
                 Legend(Tx("Public")),
                 Label(
-                    Input(type="checkbox", role="switch", name="public", checked=book.public),
-                    Tx("Readable by anyone."))
+                    Input(
+                        type="checkbox",
+                        role="switch",
+                        name="public",
+                        checked=book.public,
+                    ),
+                    Tx("Readable by anyone."),
+                ),
             )
         )
     )
@@ -118,9 +121,7 @@ def post(request, book: Book, form: dict):
         book.title = title
     except KeyError:
         raise Error("no title given for book")
-    book.authors = [
-        a.strip() for a in form.get("authors", "").split("\n")
-    ]
+    book.authors = [a.strip() for a in form.get("authors", "").split("\n")]
     book.subtitle = form.get("subtitle", "").strip()
     book.public = bool(form.get("public", ""))
     if book.type == constants.ARTICLE:

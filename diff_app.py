@@ -21,17 +21,20 @@ app, rt = components.get_fast_app()
 
 @rt("/")
 def get(request):
-    "Compare local site with the remote site."
+    "Compare local site with the remote site. References are excluded."
     auth.authorize(request, *auth.book_diff_rules)
 
     remote_state = get_remote_state()
     if not remote_state:
         raise Error("No response from remote site.", HTTP.INTERNAL_SERVER_ERROR)
+    remote_books = remote_state["books"]
+    remote_books.pop(constants.REFS, None)
 
-    local_state = get_state(request)
-    local_books = local_state["books"].copy()
+    local_books = get_state(request)["books"].copy()
+    local_books.pop(constants.REFS, None)
+
     rows = []
-    for id, rbook in remote_state["books"].items():
+    for id, rbook in remote_books.items():
         rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
         lbook = local_books.pop(id, {})
         title = lbook.get("title") or rbook.get("title")
@@ -393,7 +396,7 @@ def post(request, id: str):
 
     if id == constants.REFS:
         get_refs(reread=True)
-        return components.redirect("/references")
+        return components.redirect(f"/{constants.REFS}")
     else:
         get_book(id, reread=True)
         return components.redirect(f"/book/{id}")
@@ -423,7 +426,7 @@ def post(request, id: str):
     )
     if response.status_code != HTTP.OK:
         raise Error(f"remote did not accept push: {response.content}")
-    return components.redirect("/")
+    return components.redirect("/diff")
 
 
 @rt("/receive/{id:str}")

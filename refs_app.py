@@ -170,11 +170,9 @@ def get(request):
         ("Download TGZ file", "/refs/all.tgz"),
     ]
 
-    if (
-        auth.authorized(request, *auth.refs_edit_rules, refs=refs)
-        and "WRITETHATBOOK_UPDATE_SITE" in os.environ
-    ):
-        actions.append(A(Tx("Differences"), href=f"/diff/{constants.REFS}"))
+    if auth.authorized(request, *auth.book_diff_rules):
+        pages.append([f'{Tx("Differences")} {Tx("references")}',
+                      f"/diff/{constants.REFS}"])
 
     title = f"{len(refs.items)}"
     return (

@@ -101,6 +101,10 @@ def get(request):
         )
 
     pages = [("References", "/refs")]
+    if auth.authorized(request, *auth.book_diff_rules):
+        pages.append([f'{Tx("Differences")} {Tx("references")}',
+                      f"/diff/{constants.REFS}"])
+    
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])
         pages.append(["Download dump file", "/dump"])

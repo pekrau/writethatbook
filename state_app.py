@@ -35,11 +35,20 @@ def get(request):
     )
 
 
+@rt(f"/{constants.REFS}")
+def get(request):
+    auth.authorize(request, *auth.book_diff_rules)
+    return get_state(get_refs())
+
+
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Return JSON for the state of the book."
     auth.authorize(request, *auth.book_view_rules, book=book)
+    return get_state(book)
 
+
+def get_state(book):
     result = dict(
         software=constants.SOFTWARE,
         version=constants.__version__,

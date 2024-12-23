@@ -297,6 +297,7 @@ def get(request, ref: Text):
         ),
         Main(
             Table(*rows),
+            Div(NotStr(ref.html), style="margin-top: 1em;"),
             Card(*buttons, cls="grid"),
             cls="container",
         ),

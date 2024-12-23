@@ -10,16 +10,12 @@ install()
 import os
 
 if "WRITETHATBOOK_DIR" not in os.environ:
-    dirpath = "/tmp/writethatbook"
-    if not os.path.exists(dirpath):
-        os.mkdir(dirpath)
-    os.environ["WRITETHATBOOK_DIR"] = dirpath
-    print("WARNING: Env var WRITETHATBOOK_DIR is not defined.")
-    print(f"         Using '{dirpath}' as fallback.")
+    raise ValueError("Required environment variable WRITETHATBOOK_DIR is undefined.")
 
 
 from fasthtml.common import *
 
+import apps
 import auth
 from books import Book, read_books, get_books, get_refs, get_dump_tgz_content
 import components
@@ -28,25 +24,9 @@ from errors import *
 import users
 import utils
 from utils import Tx
-import book_app, edit_app, append_app, move_app, copy_app, delete_app, diff_app, meta_app, refs_app, search_app, state_app, user_app
 
 
-app, rt = components.get_fast_app(
-    routes=[
-        Mount("/book", book_app.app),
-        Mount("/edit", edit_app.app),
-        Mount("/append", append_app.app),
-        Mount("/move", move_app.app),
-        Mount("/copy", copy_app.app),
-        Mount("/delete", delete_app.app),
-        Mount("/refs", refs_app.app),
-        Mount("/meta", meta_app.app),
-        Mount("/state", state_app.app),
-        Mount("/search", search_app.app),
-        Mount("/user", user_app.app),
-        Mount("/diff", diff_app.app),
-    ],
-)
+app, rt = components.get_fast_app(routes=apps.routes)
 
 
 @rt("/")
@@ -72,7 +52,7 @@ def get(request):
     return (
         Title(title),
         components.header(request, title, actions=actions, pages=pages),
-        Main(book_app.get_books_table(request, get_books(request)), cls="container"),
+        Main(apps.book.get_books_table(request, get_books(request)), cls="container"),
         components.footer(request),
     )
 

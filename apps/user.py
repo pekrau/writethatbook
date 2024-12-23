@@ -3,7 +3,6 @@
 from fasthtml.common import *
 
 import auth
-import book_app
 from books import get_books
 import components
 import constants
@@ -162,6 +161,7 @@ def get(request, user: users.User):
         pages.append(["Login", "/user/login"])
         pages.append(["System", "/meta/system"])
 
+    import apps
     return (
         Title(title),
         components.header(request, title, pages=pages),
@@ -189,7 +189,7 @@ def get(request, user: users.User):
                 cls="grid",
             ),
             H3(Tx("Books")),
-            book_app.get_books_table(request, books),
+            apps.book.get_books_table(request, books),
             cls="container",
         ),
         components.footer(request),

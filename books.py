@@ -439,7 +439,7 @@ class Book:
             for item in self.items:
                 status = min(status, item.status)
         else:
-            status = constants.Status.lookup(self.frontmatter.get("status"))
+            status = constants.Status.lookup(self.frontmatter.get("status"), constants.STARTED)
         return status
 
     @status.setter
@@ -1274,7 +1274,7 @@ class Text(Item):
 
     @property
     def status(self):
-        return constants.Status.lookup(self.frontmatter.get("status"))
+        return constants.Status.lookup(self.frontmatter.get("status"), constants.STARTED)
 
     @status.setter
     def status(self, status):

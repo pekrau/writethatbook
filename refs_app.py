@@ -178,7 +178,7 @@ def get(request):
         Title(title),
         components.header(request, title, book=refs, actions=actions, pages=pages),
         Main(
-            components.search_form(f"/search/{constants.REFS}"), *items, cls="container"
+            components.search_form("/refs/search"), *items, cls="container"
         ),
         components.footer(request),
     )
@@ -604,6 +604,42 @@ def post(request, ref: Text):
     auth.authorize(request, *auth.ref_edit_rules, ref=ref)
     ref.delete(force=True)
     return utils.redirect("/refs")
+
+
+@rt("/search")
+def post(request, form: dict):
+    "Actually search the references for a given term."
+    auth.allow_anyone(request)
+
+    refs = get_refs()
+    term = form.get("term")
+    if term:
+        # Ignore case only when term is in all lower-case.
+        ignorecase = term == term.lower()
+        items = [
+            Li(A(i.fulltitle, href=f"/refs/{i.path}"))
+            for i in sorted(
+                refs.search(utils.wildcard_to_regexp(term), ignorecase=ignorecase),
+                key=lambda i: i.ordinal,
+            )
+        ]
+        if items:
+            result = P(Ul(*items))
+        else:
+            result = P(f'{Tx("No result")}.')
+    else:
+        result = P()
+
+    title = f"{Tx('Search in')} {Tx('references')}"
+    return (
+        Title(title),
+        components.header(request, title, book=refs),
+        Main(
+            components.search_form(f"/refs/search", term=term),
+            result,
+            cls="container",
+        ),
+    )
 
 
 @rt("/all.tgz")

@@ -44,9 +44,10 @@ def get(request):
         parts = [
             Img(
                 src="/clipboard.svg",
-                title="Copy refid to clipboard",
+                title=Tx("Reference to clipboard"),
                 style="cursor: pointer;",
                 cls="to_clipboard",
+                data_clipboard_action="copy",
                 data_clipboard_text=f"[@{ref['name']}]",
             ),
             components.blank(0.2),
@@ -176,6 +177,8 @@ def get(request):
     title = f"{len(refs.items)}"
     return (
         Title(title),
+        Script(src="/clipboard.min.js"),
+        Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=refs, actions=actions, pages=pages),
         Main(
             components.search_form("/refs/search"), *items, cls="container"
@@ -200,6 +203,7 @@ def get(request, ref: Text):
                     title=Tx("Reference to clipboard"),
                     style="cursor: pointer;",
                     cls="to_clipboard",
+                    data_clipboard_action="copy",
                     data_clipboard_text=f"[@{ref['name']}]",
                 ),
             ),
@@ -334,7 +338,7 @@ def post(request, ref: Text, form: dict):
     get_ref_from_form(form, ref=ref)
     get_refs(reread=True)
 
-    return utils.redirect(f"/refs/{ref['id']}")
+    return components.redirect(f"/refs/{ref['id']}")
 
 
 @rt("/append/{ref:Ref}")
@@ -380,7 +384,7 @@ def post(request, ref: Text, content: str):
     refs.write()
     refs.read()
 
-    return utils.redirect(f"/refs/{ref['id']}")
+    return components.redirect(f"/refs/{ref['id']}")
 
 
 @rt("/keywords")
@@ -430,6 +434,7 @@ def get(request):
                     title="Copy refid to clipboard",
                     style="cursor: pointer;",
                     cls="to_clipboard",
+                    data_clipboard_action="copy",
                     data_clipboard_text=f"[@{ref['name']}]",
                 ),
                 components.blank(0.2),
@@ -491,8 +496,12 @@ def post(request, data: str):
     "Actually add reference(s) using BibTex data."
     result = []
     for entry in bibtexparser.loads(data).entries:
+        authors = entry.get("author", "")
+        authors = utils.cleanup_latex(authors).replace(" and ", "\n")
+        editors = entry.get("editor", "")
+        editors = utils.cleanup_latex(editors).replace(" and ", "\n")
         form = {
-            "authors": utils.cleanup_latex(entry["author"]).replace(" and ", "\n"),
+            "authors": authors + editors,
             "year": entry["year"],
             "type": entry.get("ENTRYTYPE") or constants.ARTICLE,
         }
@@ -504,11 +513,11 @@ def post(request, data: str):
         # Change month into date; sometimes has day number.
         month = form.pop("month", "")
         parts = month.split("~")
-        if len(parts) == 2:
+        if len(parts) == 2 and parts[1]:
             month = constants.MONTHS[parts[1].strip().lower()]
             day = int("".join([c for c in parts[0] if c in string.digits]))
             form["date"] = f'{entry["year"]}-{month:02d}-{day:02d}'
-        elif len(parts) == 1:
+        elif len(parts) == 1 and parts[0]:
             month = constants.MONTHS[parts[0].strip().lower()]
             form["date"] = f'{entry["year"]}-{month:02d}-00'
         # Change page numbers double dash to single dash.
@@ -566,7 +575,7 @@ def post(request, form: dict):
     ref = get_ref_from_form(form)
     get_refs(reread=True)
 
-    return utils.redirect(f"/refs/{ref['id']}")
+    return components.redirect(f"/refs/{ref['id']}")
 
 
 @rt("/delete/{ref:Ref}")
@@ -603,7 +612,7 @@ def post(request, ref: Text):
     "Actually delete the reference."
     auth.authorize(request, *auth.ref_edit_rules, ref=ref)
     ref.delete(force=True)
-    return utils.redirect("/refs")
+    return components.redirect("/refs")
 
 
 @rt("/search")
@@ -696,7 +705,7 @@ async def post(request, tgzfile: UploadFile):
     books.unpack_tgz_content(get_refs().abspath, content)
     get_refs(reread=True)
 
-    return utils.redirect("/refs")
+    return components.redirect("/refs")
 
 
 def get_ref_fields(ref=None, type=None):

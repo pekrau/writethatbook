@@ -171,7 +171,7 @@ def get(request, book: Book):
     items = items[: constants.MAX_RECENT]
 
     rows = [
-        Tr(Td(A(i.fulltitle, href=f"/book/{id}/{i.path}")), Td(i.modified))
+        Tr(Td(A(i.fulltitle, href=f"/book/{book}/{i.path}")), Td(i.modified))
         for i in items
     ]
 
@@ -258,7 +258,7 @@ def get(request, book: Book):
             if t.status == status:
                 if texts:
                     texts.append(Br())
-                texts.append(A(t.heading, href=f"/book/{id}/{t.path}"))
+                texts.append(A(t.heading, href=f"/book/{book}/{t.path}"))
         rows.append(
             Tr(
                 Td(

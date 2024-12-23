@@ -78,8 +78,12 @@ class IndexedRenderer:
     "Output a link to the index page and item."
 
     def render_indexed(self, element):
+        if element.term == element.canonical:
+            title = utils.Tx("Indexed")
+        else:
+            title = utils.Tx("Indexed") + ": " + element.canonical
         return (
-            f'<a class="secondary" href="/index#{element.canonical}">{element.term}</a>'
+            f'<a class="contrast" title="{title}" href="/index#{element.canonical}">{element.term}</a>'
         )
 
 

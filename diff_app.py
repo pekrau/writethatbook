@@ -245,16 +245,11 @@ def get(request, id: str):
             Table(
                 Thead(
                     Tr(
-                        Th(),
-                        Th(A(rurl, href=rurl), colspan=1, scope="col"),
-                        Th(A(id, href=lurl), colspan=3, scope="col"),
-                    ),
-                    Tr(
                         Th(Tx("Title"), scope="col"),
-                        Th(),
+                        Th(Tx("Remote site"), " ", A(rurl, href=rurl), scope="col"),
+                        Th(Tx("Here"), scope="col"),
                         Th(Tx("Age"), scope="col"),
                         Th(Tx("Size"), scope="col"),
-                        Th(),
                     ),
                 ),
                 Tbody(*rows),
@@ -333,11 +328,11 @@ def item_diff(ritem, riurl, litem, liurl):
     if litem["digest"] == ritem["digest"]:
         return None, 0, 0
     if litem["modified"] < ritem["modified"]:
-        age = "Newer"
+        age = "Older"
         rflag = 0
         lflag = 1
     elif litem["modified"] > ritem["modified"]:
-        age = "Older"
+        age = "Newer"
         rflag = 1
         lflag = 0
     else:
@@ -354,9 +349,9 @@ def item_diff(ritem, riurl, litem, liurl):
         Tr(
             Td(Strong(ritem["title"])),
             Td(A(riurl, href=riurl)),
+            Td(A(liurl, href=liurl)),
             Td(Tx(age)),
             Td(Tx(size)),
-            Td(A(liurl, href=liurl)),
         ),
         rflag,
         lflag,
@@ -408,7 +403,7 @@ def post(request, id: str):
 
     if id == constants.REFS:
         get_refs(reread=True)
-        return components.redirect(f"/{constants.REFS}")
+        return components.redirect("/refs")
     else:
         get_book(id, reread=True)
         return components.redirect(f"/book/{id}")
@@ -438,7 +433,8 @@ def post(request, id: str):
     )
     if response.status_code != HTTP.OK:
         raise Error(f"remote did not accept push: {response.content}")
-    return components.redirect("/diff")
+
+    return components.redirect(f"/diff/{id}")
 
 
 @rt("/receive/{id:str}")

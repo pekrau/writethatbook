@@ -171,8 +171,7 @@ def get(request):
     ]
 
     if auth.authorized(request, *auth.book_diff_rules):
-        pages.append([f'{Tx("Differences")} {Tx("references")}',
-                      f"/diff/{constants.REFS}"])
+        pages.append([Tx("Differences"), f"/diff/{constants.REFS}"])
 
     title = f"{len(refs.items)}"
     return (

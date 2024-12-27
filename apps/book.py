@@ -166,7 +166,7 @@ def get(request, book: Book):
         for author in book.authors:
             segments.append(H5(author))
     else:
-        segments.append(toc(book, book.items, show_arrows=True))
+        segments.append(toc(book, book.items, toplevel=True))
 
     title = Tx("Contents")
     if book.public:
@@ -280,7 +280,7 @@ def get(request, book: Book, path: str):
                 cls="grid",
             )
         )
-        segments.append(toc(book, item.items))
+        segments.append(toc(book, item.items, toplevel=True))
 
     return (
         Title(item.title),
@@ -328,49 +328,46 @@ def post(request, book: Book, path: str, form: dict):
     return components.redirect(f"/edit/{book}/{new.path}")
 
 
-def toc(book, items, show_arrows=False):
+def toc(book, items, toplevel=True):
     "Recursive lists of sections and texts."
     parts = []
     for item in items:
-        if show_arrows:
-            arrows = [
-                components.blank(0),
+        arrows = [
+            components.blank(0),
+            A(
+                NotStr("&ShortUpArrow;"),
+                title=Tx("Backward"),
+                cls="plain",
+                href=f"/move/backward/{book}/{item.path}",
+            ),
+            components.blank(0),
+            A(
+                NotStr("&ShortDownArrow;"),
+                title=Tx("Forward"),
+                cls="plain",
+                href=f"/move/forward/{book}/{item.path}",
+            ),
+        ]
+        if not toplevel and item.parent is not book:
+            arrows.append(components.blank(0))
+            arrows.append(
                 A(
-                    NotStr("&ShortUpArrow;"),
-                    title=Tx("Backward"),
+                    NotStr("&ShortLeftArrow;"),
+                    title=Tx("Out of"),
                     cls="plain",
-                    href=f"/move/backward/{book}/{item.path}",
-                ),
-                components.blank(0),
+                    href=f"/move/outof/{book}/{item.path}",
+                )
+            )
+        if item.prev_section:
+            arrows.append(components.blank(0))
+            arrows.append(
                 A(
-                    NotStr("&ShortDownArrow;"),
-                    title=Tx("Forward"),
+                    NotStr("&ShortRightArrow;"),
+                    title=Tx("Into"),
                     cls="plain",
-                    href=f"/move/forward/{book}/{item.path}",
-                ),
-            ]
-            if item.parent is not book:
-                arrows.append(components.blank(0))
-                arrows.append(
-                    A(
-                        NotStr("&ShortLeftArrow;"),
-                        title=Tx("Out of"),
-                        cls="plain",
-                        href=f"/move/outof/{book}/{item.path}",
-                    )
+                    href=f"/move/into/{book}/{item.path}",
                 )
-            if item.prev_section:
-                arrows.append(components.blank(0))
-                arrows.append(
-                    A(
-                        NotStr("&ShortRightArrow;"),
-                        title=Tx("Into"),
-                        cls="plain",
-                        href=f"/move/into/{book}/{item.path}",
-                    )
-                )
-        else:
-            arrows = []
+            )
         parts.append(
             Li(
                 A(
@@ -382,14 +379,14 @@ def toc(book, items, show_arrows=False):
                 Small(
                     f"{Tx(item.type)}; ",
                     f"{Tx(repr(item.status))}; ",
-                    f'{utils.thousands(item.n_words)} {Tx("words")}; ',
-                    f'{utils.thousands(item.n_characters)} {Tx("characters")}',
+                    f'{components.thousands(item.sum_words)} {Tx("words")}; ',
+                    f'{components.thousands(item.sum_characters)} {Tx("characters")}',
                 ),
                 *arrows,
             )
         )
         if item.is_section:
-            parts.append(toc(book, item.items, show_arrows=show_arrows))
+            parts.append(toc(book, item.items, toplevel=False))
     return Ol(*parts)
 
 
@@ -665,7 +662,7 @@ def get_books_table(request, books):
                 Td(A(book.title, href=f"/book/{book.id}")),
                 Td(Tx(book.type.capitalize())),
                 Td(Tx(book.status)),
-                Td(Tx(utils.thousands(book.sum_characters))),
+                Td(Tx(components.thousands(book.sum_characters))),
                 Td(owner),
                 Td(Tx(book.public and "Yes" or "No")),
                 Td(book.modified),

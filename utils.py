@@ -2,8 +2,6 @@
 
 import csv
 import datetime
-import hashlib
-import json
 import os.path
 import re
 import string
@@ -11,7 +9,6 @@ import time
 import unicodedata
 
 import constants
-import latex_utf8
 
 
 def short_name(name):
@@ -34,20 +31,6 @@ def full_title(reference):
     return title.rstrip(".") + "."
 
 
-def thousands(i):
-    return f"{i:,}".replace(",", ".")
-
-
-def cleanup_latex(value):
-    "Convert LaTeX characters to UTF-8, remove newlines and normalize blanks."
-    return latex_utf8.from_latex_to_utf8(" ".join(value.split()))
-
-
-def cleanup_whitespaces(value):
-    "Replace all whitespaces with blanks."
-    return " ".join([s for s in value.split()])
-
-
 SAFE_CHARACTERS = set(string.ascii_letters + string.digits)
 
 
@@ -65,16 +48,6 @@ VALID_ID_RX = re.compile(r"[a-z][a-z0-9_]*")
 def valid_id(id):
     "Check that the identifier is valid."
     return bool(VALID_ID_RX.match(id))
-
-
-def get_digest(c):
-    "Return the digest instance having processed frontmatter and content."
-    result = hashlib.md5()
-    frontmatter = c.frontmatter.copy()
-    frontmatter.pop("digest", None)  # Necessary!
-    result.update(json.dumps(frontmatter, sort_keys=True).encode("utf-8"))
-    result.update(c.content.encode("utf-8"))
-    return result
 
 
 def timestr(filepath=None, localtime=True, display=True, safe=False):
@@ -97,6 +70,13 @@ def timestr(filepath=None, localtime=True, display=True, safe=False):
     return result
 
 
+def to_localtime(utctime):
+    "Convert a time string in UTC to local time."
+    mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+    lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
+    return lt.strftime(constants.DATETIME_ISO_FORMAT)
+
+
 def wildcard_to_regexp(pattern):
     """Convert a shell-like wildcard pattern into a proper regexp pattern.
     Very basic implementation!
@@ -104,13 +84,6 @@ def wildcard_to_regexp(pattern):
     pattern = pattern.replace("*", ".*")
     pattern = pattern.replace("?", ".?")
     return pattern
-
-
-def tolocaltime(utctime):
-    "Convert a time string in UTC to local time."
-    mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-    lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
-    return lt.strftime(constants.DATETIME_ISO_FORMAT)
 
 
 class Translator:

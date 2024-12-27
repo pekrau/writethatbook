@@ -1,15 +1,14 @@
 "Markdown book texts in files and directories."
 
 import copy
-import datetime
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import re
 import shutil
 import tarfile
-import time
 
 import yaml
 
@@ -20,6 +19,9 @@ import markdown
 import users
 import utils
 from utils import Tx
+
+
+FRONTMATTER = re.compile(r"^---([\n\r].*?[\n\r])---[\n\r](.*)$", re.DOTALL)
 
 
 # Book instances in-memory database. Key: id; value: Book instance.
@@ -33,6 +35,7 @@ def read_books():
     "Read in all books into memory, including '_refs'."
     global _refs
     refspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.REFS
+    # Create the references directory, if it doesn't exist.
     if not refspath.exists():
         refspath.mkdir()
         with open(refspath / "index.md", "w") as outfile:
@@ -99,113 +102,6 @@ def get_refs(reread=False):
     return _refs
 
 
-def get_state(request):
-    "Return JSON for the overall state of this site."
-    books = {}
-    for book in get_books(request) + [get_refs()]:
-        books[book.id] = dict(
-            title=book.title,
-            modified=utils.timestr(
-                filepath=book.absfilepath, localtime=False, display=False
-            ),
-            sum_characters=book.frontmatter["sum_characters"],
-            digest=book.frontmatter["digest"],
-        )
-
-    return dict(
-        software=constants.SOFTWARE,
-        version=constants.__version__,
-        now=utils.timestr(localtime=False, display=False),
-        type="site",
-        books=books,
-    )
-
-
-FRONTMATTER = re.compile(r"^---([\n\r].*?[\n\r])---[\n\r](.*)$", re.DOTALL)
-
-
-def read_markdown(target, filepath):
-    "Read frontmatter and content from the Markdown file to the target."
-    try:
-        with open(filepath) as infile:
-            content = infile.read()
-    except FileNotFoundError:
-        content = ""
-    match = FRONTMATTER.match(content)
-    if match:
-        target.frontmatter = yaml.safe_load(match.group(1))
-        target.content = content[match.start(2) :]
-    else:
-        target.frontmatter = {}
-        target.content = content
-    target.html = markdown.convert_to_html(target.content)
-    target.ast = markdown.convert_to_ast(target.content)
-
-
-def write_markdown(source, filepath):
-    "Write frontmatter and content to the Markdown file from the source."
-    with open(filepath, "w") as outfile:
-        if source.frontmatter:
-            outfile.write("---\n")
-            outfile.write(yaml.dump(source.frontmatter, allow_unicode=True))
-            outfile.write("---\n")
-        if source.content:
-            outfile.write(source.content)
-
-
-def update_markdown(target, content):
-    """If non-None content, then clean it:
-    - Strip each line from the right. (Markdown line breaks not allowed.)
-    - Do not write out multiple consecutive empty lines.
-    Update members of the target, and return with True.
-    Return True if any change, else False.
-    """
-    if content is None:
-        return False
-    lines = []
-    prev_empty = False
-    for line in content.split("\n"):
-        line = line.rstrip()
-        empty = not bool(line)
-        if empty and prev_empty:
-            continue
-        prev_empty = empty
-        lines.append(line)
-    content = "\n".join(lines)
-    changed = content != target.content
-    if changed:
-        target.content = content
-        target.html = markdown.convert_to_html(target.content)
-        target.ast = markdown.convert_to_ast(target.content)
-    return changed
-
-
-def get_copy_abspath(abspath):
-    "Get the abspath for the next valid copy, and the number."
-    if isinstance(abspath, str):
-        abspath = Path(abspath)
-    stem = abspath.stem
-    for number in [None] + list(range(2, constants.MAX_COPY_NUMBER + 1)):
-        if number:
-            newpath = abspath.with_name(f'{stem}_{Tx("copy*")}_{number}')
-        else:
-            newpath = abspath.with_name(f'{stem}_{Tx("copy*")}')
-        newpath = newpath.with_suffix(abspath.suffix)
-        if not newpath.exists():
-            return newpath, number
-    else:
-        raise Error("could not form copy identifier; too many copies")
-
-
-def get_dump_tgz_content():
-    "Get the entire dataset as the content of a TGZ file."
-    buffer = io.BytesIO()
-    with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
-        for path in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
-            tgzfile.add(path, arcname=path.name, recursive=True)
-    return buffer.getvalue()
-
-
 def unpack_tgz_content(dirpath, content, is_refs=False):
     "Put contents of a TGZ file for a book into the given directory."
     try:
@@ -250,7 +146,87 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
         raise Error(f"tar file error: {message}")
 
 
-class Book:
+class Container:
+    "Generic container of frontmatter and Markdown content. To be inherited."
+
+    def read_markdown(self, filepath):
+        "Read frontmatter and content from the Markdown file."
+        try:
+            with open(filepath) as infile:
+                content = infile.read()
+        except FileNotFoundError:
+            content = ""
+        match = FRONTMATTER.match(content)
+        if match:
+            self.frontmatter = yaml.safe_load(match.group(1))
+            self.content = content[match.start(2) :]
+        else:
+            self.frontmatter = {}
+            self.content = content
+        self.html = markdown.convert_to_html(self.content)
+        self.ast = markdown.convert_to_ast(self.content)
+
+    def write_markdown(self, filepath):
+        "Write frontmatter and content to the Markdown file."
+        with open(filepath, "w") as outfile:
+            if self.frontmatter:
+                outfile.write("---\n")
+                outfile.write(yaml.dump(self.frontmatter, allow_unicode=True))
+                outfile.write("---\n")
+            if self.content:
+                outfile.write(self.content)
+
+    def update_markdown(self, content):
+        """Update members, and return with True.
+        Return True if any change, else False.
+        If non-None content, then clean it:
+        - Strip each line from the right. (Markdown line breaks not allowed.)
+        - Do not write out multiple consecutive empty lines.
+        """
+        if content is None:
+            return False
+        lines = []
+        prev_empty = False
+        for line in content.split("\n"):
+            line = line.rstrip()
+            empty = not bool(line)
+            if empty and prev_empty:
+                continue
+            prev_empty = empty
+            lines.append(line)
+        content = "\n".join(lines)
+        changed = content != self.content
+        if changed:
+            self.content = content
+            self.html = markdown.convert_to_html(self.content)
+            self.ast = markdown.convert_to_ast(self.content)
+        return changed
+
+    def get_digest(self):
+        "Return the digest instance having processed frontmatter and content."
+        result = hashlib.md5()
+        frontmatter = self.frontmatter.copy()
+        frontmatter.pop("digest", None)  # Necessary!
+        result.update(json.dumps(frontmatter, sort_keys=True).encode("utf-8"))
+        result.update(self.content.encode("utf-8"))
+        return result
+
+    def get_copy_abspath(self):
+        "Get the abspath for the next valid copy, and the number."
+        stem = self.abspath.stem
+        for number in [None] + list(range(2, constants.MAX_COPY_NUMBER + 1)):
+            if number:
+                newpath = selfabspath.with_name(f'{stem}_{Tx("copy*")}_{number}')
+            else:
+                newpath = selfabspath.with_name(f'{stem}_{Tx("copy*")}')
+            newpath = newpath.with_suffix(selfabspath.suffix)
+            if not newpath.exists():
+                return newpath, number
+        else:
+            raise Error("could not form copy identifier; too many copies")
+
+
+class Book(Container):
     "Root container for Markdown book texts in files and directories."
 
     def __init__(self, abspath):
@@ -275,7 +251,7 @@ class Book:
         All items (sections, texts) recursively from files.
         Set up indexed and references lookups.
         """
-        read_markdown(self, self.absfilepath)
+        self.read_markdown(self.absfilepath)
 
         self.items = []
 
@@ -336,7 +312,7 @@ class Book:
         """Write the 'index.md' file, if changed.
         If 'content' is not None, then update it.
         """
-        changed = update_markdown(self, content)
+        changed = self.update_markdown(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["items"] = self.get_items_order(self)
         self.frontmatter["type"] = self.type
@@ -344,7 +320,7 @@ class Book:
         self.frontmatter["sum_characters"] = self.sum_characters
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            write_markdown(self, self.absfilepath)
+            self.write_markdown(self.absfilepath)
 
     def set_items_order(self, container, items_order):
         "Chnage order of items in container according to given items_order."
@@ -559,7 +535,7 @@ class Book:
         """Return the hex digest of the contents of the book.
         Based on frontmatter (excluding digest!), content, and digests of items.
         """
-        digest = utils.get_digest(self)
+        digest = self.get_digest()
         for item in self.items:
             digest.update(item.digest.encode("utf-8"))
         return digest.hexdigest()
@@ -637,7 +613,7 @@ class Book:
 
     def copy(self, owner=None):
         "Make a copy of the book."
-        abspath, number = get_copy_abspath(self.abspath)
+        abspath, number = self.get_copy_abspath()
         try:
             shutil.copytree(self.abspath, abspath)
         except shutil.Error as error:
@@ -701,7 +677,7 @@ class Book:
             assert isinstance(text, Text), (self, text)
 
 
-class Item:
+class Item(Container):
     "Abstract class for sections and texts."
 
     def __init__(self, book, parent, name):
@@ -810,11 +786,11 @@ class Item:
 
     @property
     def is_text(self):
-        return self.type == "text"
+        return self.type == constants.TEXT
 
     @property
     def is_section(self):
-        return self.type == "section"
+        return self.type == constants.SECTION
 
     @property
     def index(self):
@@ -828,7 +804,7 @@ class Item:
         """Return the hex digest of the contents of the item.
         Based on frontmatter (excluding 'digest!') and content of the item.
         """
-        return utils.get_digest(self).hexdigest()
+        return self.get_digest().hexdigest()
 
     @property
     def ordinal(self):
@@ -1040,7 +1016,7 @@ class Section(Item):
         """Read all items in the subdirectory, and the 'index.md' file, if any.
         This is recursive; all sections and texts below this are also read.
         """
-        read_markdown(self, self.absfilepath)
+        self.read_markdown(self.absfilepath)
         for path in sorted(self.abspath.iterdir()):
 
             # Skip temporary emacs files.
@@ -1066,22 +1042,22 @@ class Section(Item):
 
         # Repair if no 'index.md' in the directory.
         if not self.absfilepath.exists():
-            write_markdown(self, self.absfilepath)
+            self.write_markdown(self.absfilepath)
 
     def write(self, content=None, force=False):
         """Write the 'index.md' file, if changed.
         If 'content' is not None, then update it.
         This is *not* recursive.
         """
-        changed = update_markdown(self, content)
+        changed = self.update_markdown(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            write_markdown(self, self.absfilepath)
+            self.write_markdown(self.absfilepath)
 
     @property
     def type(self):
-        return "section"
+        return constants.SECTION
 
     @property
     def all_items(self):
@@ -1139,7 +1115,7 @@ class Section(Item):
     def state(self):
         "Return a dictionary of the current state of the section."
         return dict(
-            type="section",
+            type=constants.SECTION,
             name=self.name,
             title=self.title,
             modified=utils.timestr(
@@ -1166,7 +1142,7 @@ class Section(Item):
 
     def copy(self):
         "Make a copy of this section and all below it."
-        abspath, number = get_copy_abspath(self.abspath)
+        abspath, number = self.get_copy_abspath()
         try:
             shutil.copytree(self.abspath, abspath)
         except shutil.Error as error:
@@ -1217,21 +1193,21 @@ class Text(Item):
 
     def read(self):
         "Read the frontmatter (if any) and content from the Markdown file."
-        read_markdown(self, self.abspath)
+        self.read_markdown(self.abspath)
 
     def write(self, content=None, force=False):
         """Write the text, if changed.
         If 'content' is not None, then update it.
         """
-        changed = update_markdown(self, content)
+        changed = self.update_markdown(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            write_markdown(self, self.abspath)
+            self.write_markdown(self.abspath)
 
     @property
     def type(self):
-        return "text"
+        return constants.TEXT
 
     @property
     def items(self):
@@ -1290,7 +1266,7 @@ class Text(Item):
     def state(self):
         "Return a dictionary of the current state of the text."
         return dict(
-            type="text",
+            type=constants.TEXT,
             name=self.name,
             title=self.title,
             modified=utils.timestr(
@@ -1316,7 +1292,7 @@ class Text(Item):
 
     def copy(self):
         "Make a copy of this text."
-        abspath, number = get_copy_abspath(self.abspath)
+        abspath, number = self.get_copy_abspath()
         try:
             shutil.copy2(self.abspath, abspath)
         except shutil.Error as error:

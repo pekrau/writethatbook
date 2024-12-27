@@ -7,7 +7,9 @@ from icecream import install
 
 install()
 
+import io
 import os
+import tarfile
 
 if "WRITETHATBOOK_DIR" not in os.environ:
     raise ValueError("Required environment variable WRITETHATBOOK_DIR is undefined.")
@@ -17,7 +19,7 @@ from fasthtml.common import *
 
 import apps
 import auth
-from books import Book, read_books, get_books, get_refs, get_dump_tgz_content
+from books import Book, read_books, get_books, get_refs
 import components
 import constants
 from errors import *
@@ -77,8 +79,13 @@ def get(request):
     auth.allow_admin(request)
 
     filename = f"writethatbook_{utils.timestr(safe=True)}.tgz"
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
+        for path in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
+            tgzfile.add(path, arcname=path.name, recursive=True)
+
     return Response(
-        content=get_dump_tgz_content(),
+        content=buffer.getvalue(),
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

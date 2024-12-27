@@ -159,12 +159,27 @@ def footer(request, item=None):
     if item:
         cells = [
             Div(Tx(item.status), title=Tx("Status")),
-            Div(item.modified, title=Tx("Modified")),
-            Div(
-                f'{utils.thousands(item.n_words)} {Tx("words")}; ',
-                f'{utils.thousands(item.n_characters)} {Tx("characters")}',
-            ),
+            Div(item.modified, title=Tx("Modified"))
         ]
+        if item.type in (constants.BOOK, constants.SECTION):
+            cells.append(
+                Div(
+                    f'{thousands(item.sum_words)} {Tx("words")}; ',
+                    f'{thousands(item.sum_characters)} {Tx("characters")}',
+                    " (",
+                    f'{thousands(item.n_words)} {Tx("words")}; ',
+                    f'{thousands(item.n_characters)} {Tx("characters")}',
+                    ")",
+                )
+            )
+        else:
+            cells.append(
+                Div(
+                    f'{thousands(item.n_words)} {Tx("words")}; ',
+                    f'{thousands(item.n_characters)} {Tx("characters")}',
+                )
+            )
+
     else:
         cells = [Div(), Div(), Div()]
     user = auth.logged_in(request)
@@ -204,3 +219,7 @@ def get_status_field(item):
 
 def required():
     return Span(NotStr("&nbsp;*"), style="color: red")
+
+
+def thousands(i):
+    return f"{i:,}".replace(",", ".")

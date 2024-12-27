@@ -7,6 +7,7 @@ import tarfile
 
 import bibtexparser
 from fasthtml.common import *
+import latex_utf8
 
 import auth
 import books
@@ -498,9 +499,9 @@ def post(request, data: str):
     result = []
     for entry in bibtexparser.loads(data).entries:
         authors = entry.get("author", "")
-        authors = utils.cleanup_latex(authors).replace(" and ", "\n")
+        authors = cleanup_latex(authors).replace(" and ", "\n")
         editors = entry.get("editor", "")
-        editors = utils.cleanup_latex(editors).replace(" and ", "\n")
+        editors = cleanup_latex(editors).replace(" and ", "\n")
         form = {
             "authors": authors + editors,
             "year": entry["year"],
@@ -509,7 +510,7 @@ def post(request, data: str):
         for key, value in entry.items():
             if key in ("author", "ID", "ENTRYTYPE"):
                 continue
-            form[key] = utils.cleanup_latex(value).strip()
+            form[key] = cleanup_latex(value).strip()
         # Do some post-processing.
         # Change month into date; sometimes has day number.
         month = form.pop("month", "")
@@ -866,7 +867,7 @@ def get_ref_from_form(form, ref=None):
     authors = [s.strip() for s in form.get("authors", "").split("\n") if s.strip()]
     if not authors:
         raise Error("no author(s) provided")
-    title = utils.cleanup_whitespaces(form.get("title", ""))
+    title = cleanup_whitespaces(form.get("title", ""))
     if not title:
         raise Error("no title provided")
     year = form.get("year", "").strip()
@@ -894,10 +895,10 @@ def get_ref_from_form(form, ref=None):
     ref.set("authors", authors)
     ref.set("title", title)
     ref.set("year", year)
-    ref.set("subtitle", utils.cleanup_whitespaces(form.get("subtitle", "")))
+    ref.set("subtitle", cleanup_whitespaces(form.get("subtitle", "")))
     ref.set("edition_published", form.get("edition_published", "").strip())
     ref.set("date", form.get("date", "").strip())
-    ref.set("journal", utils.cleanup_whitespaces(form.get("journal", "")))
+    ref.set("journal", cleanup_whitespaces(form.get("journal", "")))
     ref.set("volume", form.get("volume", "").strip())
     ref.set("number", form.get("number", "").strip())
     ref.set("pages", form.get("pages", "").strip())
@@ -914,3 +915,13 @@ def get_ref_from_form(form, ref=None):
     ref.set("url", form.get("url", "").strip())
     ref.write(content=form.get("notes", "").strip())
     return ref
+
+
+def cleanup_latex(value):
+    "Convert LaTeX characters to UTF-8, remove newlines and normalize blanks."
+    return latex_utf8.from_latex_to_utf8(" ".join(value.split()))
+
+
+def cleanup_whitespaces(value):
+    "Replace all whitespaces with blanks."
+    return " ".join([s for s in value.split()])

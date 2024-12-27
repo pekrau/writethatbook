@@ -1,5 +1,6 @@
 "Find and remedy differences in content between local site and remote site."
 
+import datetime
 import os
 from pathlib import Path
 import shutil
@@ -8,7 +9,7 @@ from fasthtml.common import *
 import requests
 
 import auth
-from books import get_state, get_refs, get_book, unpack_tgz_content
+from books import get_refs, get_book, unpack_tgz_content
 import components
 import constants
 from errors import *
@@ -22,6 +23,8 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Compare local site with the remote site. References are excluded."
+    from apps.state import get_books_state
+
     auth.authorize(request, *auth.book_diff_rules)
 
     remote_state = get_remote_state()
@@ -30,7 +33,7 @@ def get(request):
     remote_books = remote_state["books"]
     remote_books.pop(constants.REFS, None)
 
-    local_books = get_state(request)["books"].copy()
+    local_books = get_books_state(request)
     local_books.pop(constants.REFS, None)
 
     rows = []
@@ -49,16 +52,16 @@ def get(request):
                     Td(
                         A(rurl, href=rurl),
                         Br(),
-                        utils.tolocaltime(rbook["modified"]),
+                        utils.to_localtime(rbook["modified"]),
                         Br(),
-                        f'{utils.thousands(rbook["sum_characters"])} {Tx("characters")}',
+                        f'{components.thousands(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(
                         A(id, href=f"/book/{id}"),
                         Br(),
-                        utils.tolocaltime(lbook["modified"]),
+                        utils.to_localtime(lbook["modified"]),
                         Br(),
-                        f'{utils.thousands(lbook["sum_characters"])} {Tx("characters")}',
+                        f'{components.thousands(lbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(action),
                 ),
@@ -70,9 +73,9 @@ def get(request):
                     Td(
                         A(rurl, href=rurl),
                         Br(),
-                        utils.tolocaltime(rbook["modified"]),
+                        utils.to_localtime(rbook["modified"]),
                         Br(),
-                        f'{utils.thousands(rbook["sum_characters"])} {Tx("characters")}',
+                        f'{components.thousands(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td("-"),
                     Td(
@@ -92,9 +95,9 @@ def get(request):
                 Td(
                     A(id, href=f"/book/{id}"),
                     Br(),
-                    utils.tolocaltime(lbook["modified"]),
+                    utils.to_localtime(lbook["modified"]),
                     Br(),
-                    f'{utils.thousands(lbook["sum_characters"])} {Tx("characters")}',
+                    f'{components.thousands(lbook["sum_characters"])} {Tx("characters")}',
                 ),
                 Td(A(Tx("Differences"), href=f"/differences/{id}", role="button")),
             ),

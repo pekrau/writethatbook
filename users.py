@@ -8,6 +8,7 @@ import uuid
 import yaml
 
 import constants
+import utils
 
 
 class User:
@@ -137,6 +138,8 @@ class Database:
         "Create a new user. NOTE: Does not write out the database."
         if userid in self:
             raise KeyError(f"user '{userid}' already registered")
+        if not utils.valid_id(userid):
+            raise ValueError(f"Invalid userid value '{userid}'")
         if role not in constants.ROLES:
             raise ValueError(f"Invalid user role value '{role}'")
         self.users[userid] = user = User(id=userid, role=role)

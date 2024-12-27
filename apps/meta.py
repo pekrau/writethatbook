@@ -103,15 +103,15 @@ def get(request):
             Table(
                 Tr(
                     Td(Tx("RAM usage")),
-                    Td(utils.thousands(psutil.Process().memory_info().rss), " bytes"),
+                    Td(components.thousands(psutil.Process().memory_info().rss), " bytes"),
                 ),
                 Tr(
                     Td(Tx("Data size")),
-                    Td(utils.thousands(dir_size), " bytes"),
+                    Td(components.thousands(dir_size), " bytes"),
                 ),
                 Tr(
                     Td(Tx("Disk free")),
-                    Td(utils.thousands(disk_usage.free), " bytes"),
+                    Td(components.thousands(disk_usage.free), " bytes"),
                 ),
                 Tr(
                     Td(Tx("# users")),
@@ -220,8 +220,8 @@ def get(request, book: Book):
             Tr(Th(Tx("Status")), Td(Tx(book.status))),
             Tr(Th(Tx("Owner")), Td(owner)),
             Tr(Th(Tx("Modified")), Td(Tx(book.modified))),
-            Tr(Th(Tx("Words")), Td(Tx(utils.thousands(book.sum_words)))),
-            Tr(Th(Tx("Characters")), Td(utils.thousands(book.sum_characters))),
+            Tr(Th(Tx("Words")), Td(Tx(components.thousands(book.sum_words)))),
+            Tr(Th(Tx("Characters")), Td(components.thousands(book.sum_characters))),
             Tr(Th(Tx("Language")), Td(Tx(book.frontmatter.get("language") or "-"))),
         )
     )

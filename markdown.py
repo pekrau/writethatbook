@@ -147,7 +147,7 @@ class Fragmenter:
 
     def get_href(self, first, last):
         if self.href:
-            return f' <a href="{self.href}?first={first}&last={last}" role="button" class="edit_paragraph">E</a>\n\n'
+            return f' <a href="{self.href}?first={first}&last={last}"><img src="/edit.svg"></a>\n\n'
         else:  # No change.
             return "\n\n"
 

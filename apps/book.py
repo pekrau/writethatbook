@@ -342,14 +342,14 @@ def toc(book, items, toplevel=True):
             A(
                 NotStr("&ShortUpArrow;"),
                 title=Tx("Backward"),
-                cls="plain",
+                cls="plain-text",
                 href=f"/move/backward/{book}/{item.path}",
             ),
             components.blank(0),
             A(
                 NotStr("&ShortDownArrow;"),
                 title=Tx("Forward"),
-                cls="plain",
+                cls="plain-text",
                 href=f"/move/forward/{book}/{item.path}",
             ),
         ]
@@ -359,7 +359,7 @@ def toc(book, items, toplevel=True):
                 A(
                     NotStr("&ShortLeftArrow;"),
                     title=Tx("Out of"),
-                    cls="plain",
+                    cls="plain-text",
                     href=f"/move/outof/{book}/{item.path}",
                 )
             )
@@ -369,7 +369,7 @@ def toc(book, items, toplevel=True):
                 A(
                     NotStr("&ShortRightArrow;"),
                     title=Tx("Into"),
-                    cls="plain",
+                    cls="plain-text",
                     href=f"/move/into/{book}/{item.path}",
                 )
             )

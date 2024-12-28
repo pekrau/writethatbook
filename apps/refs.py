@@ -181,9 +181,7 @@ def get(request):
         Script(src="/clipboard.min.js"),
         Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=refs, actions=actions, pages=pages),
-        Main(
-            components.search_form("/refs/search"), *items, cls="container"
-        ),
+        Main(components.search_form("/refs/search"), *items, cls="container"),
         components.footer(request),
     )
 
@@ -354,7 +352,7 @@ def get(request, ref: Text):
         components.header(request, title, book=get_refs()),
         Main(
             Form(
-                Textarea(name="content", rows="20", autofocus=True),
+                Textarea(name="content", rows=16, autofocus=True),
                 components.save_button("Append"),
                 action=f"/refs/append/{ref['id']}",
                 method="post",
@@ -480,7 +478,7 @@ def get(request):
             Form(
                 Fieldset(
                     Legend(Tx("BibTex data")),
-                    Textarea(name="data", rows="20", autofocus=True),
+                    Textarea(name="data", rows=16, autofocus=True),
                 ),
                 components.save_button("Add reference(s)"),
                 action="/refs/bibtex",
@@ -852,7 +850,7 @@ def get_ref_fields(ref=None, type=None):
     result.append(
         Fieldset(
             Legend(Tx("Notes")),
-            Textarea(content, name="notes", rows=10, autofocus=autofocus),
+            Textarea(content, name="notes", rows=16, autofocus=autofocus),
         )
     )
     return result

@@ -159,7 +159,7 @@ def footer(request, item=None):
     if item:
         cells = [
             Div(Tx(item.status), title=Tx("Status")),
-            Div(item.modified, title=Tx("Modified"))
+            Div(item.modified, title=Tx("Modified")),
         ]
         if item.type in (constants.BOOK, constants.SECTION):
             cells.append(

@@ -122,6 +122,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
         # When refs: Additional checks for validity.
         if is_refs:
             import apps
+
             rx = re.compile(apps.refs.RefConvertor.regex)
             for name in tf.getnames():
                 if name == "index.md":
@@ -415,7 +416,9 @@ class Book(Container):
             for item in self.items:
                 status = min(status, item.status)
         else:
-            status = constants.Status.lookup(self.frontmatter.get("status"), constants.STARTED)
+            status = constants.Status.lookup(
+                self.frontmatter.get("status"), constants.STARTED
+            )
         return status
 
     @status.setter
@@ -1250,7 +1253,9 @@ class Text(Item):
 
     @property
     def status(self):
-        return constants.Status.lookup(self.frontmatter.get("status"), constants.STARTED)
+        return constants.Status.lookup(
+            self.frontmatter.get("status"), constants.STARTED
+        )
 
     @status.setter
     def status(self, status):

@@ -105,9 +105,10 @@ def get(request):
 
     pages = [("References", "/refs")]
     if auth.authorized(request, *auth.book_diff_rules):
-        pages.append([f'{Tx("Differences")} {Tx("references")}',
-                      f"/diff/{constants.REFS}"])
-    
+        pages.append(
+            [f'{Tx("Differences")} {Tx("references")}', f"/diff/{constants.REFS}"]
+        )
+
     if auth.is_admin(request):
         pages.append(["All users", "/user/list"])
         pages.append(["Download dump file", "/dump"])
@@ -480,15 +481,9 @@ async def post(request, id: str, tgzfile: UploadFile = None):
 def get_remote_state(id=None):
     "Get the remote site state, optionally for the given book id."
     if "WRITETHATBOOK_REMOTE_SITE" not in os.environ:
-        raise Error(
-            "WRITETHATBOOK_REMOTE_SITE undefined",
-            HTTP.INTERNAL_SERVER_ERROR
-        )
+        raise Error("WRITETHATBOOK_REMOTE_SITE undefined", HTTP.INTERNAL_SERVER_ERROR)
     if "WRITETHATBOOK_REMOTE_APIKEY" not in os.environ:
-        raise Error(
-            "WRITETHATBOOK_REMOTE_APIKEY undefined",
-            HTTP.INTERNAL_SERVER_ERROR
-        )
+        raise Error("WRITETHATBOOK_REMOTE_APIKEY undefined", HTTP.INTERNAL_SERVER_ERROR)
 
     url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + "/state"
     if id:
@@ -503,7 +498,7 @@ def get_remote_state(id=None):
     if response.status_code != 200:
         raise Error(
             f"remote {url} response error: {response.status_code}",
-            HTTP.INTERNAL_SERVER_ERROR
+            HTTP.INTERNAL_SERVER_ERROR,
         )
 
     return response.json()

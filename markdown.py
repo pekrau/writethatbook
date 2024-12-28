@@ -82,9 +82,7 @@ class IndexedRenderer:
             title = utils.Tx("Indexed")
         else:
             title = utils.Tx("Indexed") + ": " + element.canonical
-        return (
-            f'<a class="contrast" title="{title}" href="/index#{element.canonical}">{element.term}</a>'
-        )
+        return f'<a class="contrast" title="{title}" href="/index#{element.canonical}">{element.term}</a>'
 
 
 class Reference(marko.inline.InlineElement):
@@ -150,7 +148,7 @@ class Fragmenter:
     def get_href(self, first, last):
         if self.href:
             return f' <a href="{self.href}?first={first}&last={last}" role="button" class="edit_paragraph">E</a>\n\n'
-        else:                   # No change.
+        else:  # No change.
             return "\n\n"
 
 
@@ -159,7 +157,6 @@ def convert_to_html(content, href=None):
         f = Fragmenter(content, href=href)
         content = f.processed
     return html_converter.convert(content)
-
 
 
 ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)

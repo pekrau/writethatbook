@@ -23,36 +23,38 @@ app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}")
-def get(request, book: Book, first: int=None, last: int=None):
+def get(request, book: Book, first: int = None, last: int = None):
     "Edit the book data, possibly one single paragraph of the content."
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
     fields = [Input(type="hidden", name="hash", value=get_hash(book.content))]
-    
-    if first is None:           # Full edit.
-        fields.extend([
-            Fieldset(
-                Legend(Tx("Title")),
-                Input(
-                    name="title",
-                    value=book.title,
-                    required=True,
-                    autofocus=True,
+
+    if first is None:  # Full edit.
+        fields.extend(
+            [
+                Fieldset(
+                    Legend(Tx("Title")),
+                    Input(
+                        name="title",
+                        value=book.title,
+                        required=True,
+                        autofocus=True,
+                    ),
                 ),
-            ),
-            Fieldset(
-                Legend(Tx("Subtitle")),
-                Input(name="subtitle", value=book.subtitle or ""),
-            ),
-            Fieldset(
-                Legend(Tx("Authors")),
-                Textarea(
-                    "\n".join(book.authors or []),
-                    name="authors",
-                    rows="4",
+                Fieldset(
+                    Legend(Tx("Subtitle")),
+                    Input(name="subtitle", value=book.subtitle or ""),
                 ),
-            ),
-        ])
+                Fieldset(
+                    Legend(Tx("Authors")),
+                    Textarea(
+                        "\n".join(book.authors or []),
+                        name="authors",
+                        rows=4,
+                    ),
+                ),
+            ]
+        )
         language_options = []
         for language in constants.LANGUAGE_CODES:
             if book.language == language:
@@ -61,7 +63,9 @@ def get(request, book: Book, first: int=None, last: int=None):
                 language_options.append(Option(language))
         divs = [
             Div(
-                Fieldset(Legend(Tx("Language")), Select(*language_options, name="language"))
+                Fieldset(
+                    Legend(Tx("Language")), Select(*language_options, name="language")
+                )
             )
         ]
         if book.type == constants.ARTICLE:
@@ -73,8 +77,6 @@ def get(request, book: Book, first: int=None, last: int=None):
                     )
                 )
             )
-        else:
-            divs.append(Div())
         divs.append(
             Div(
                 Fieldset(
@@ -98,26 +100,28 @@ def get(request, book: Book, first: int=None, last: int=None):
                 Textarea(
                     NotStr(book.content),
                     name="content",
-                    rows="10",
+                    rows=16,
                 ),
             )
         )
 
-    else:          # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given content fragment (paragraph).
         content = book.content[first:last]
-        fields.extend([
-            Input(type="hidden", name="first", value=str(first)),
-            Input(type="hidden", name="last", value=str(last)),
-            Fieldset(
-                Legend(Tx("Paragraph text")),
-                Textarea(
-                    NotStr(content),
-                    name="content",
-                    rows="10",
-                    autofocus=True,
+        fields.extend(
+            [
+                Input(type="hidden", name="first", value=str(first)),
+                Input(type="hidden", name="last", value=str(last)),
+                Fieldset(
+                    Legend(Tx("Paragraph text")),
+                    Textarea(
+                        NotStr(content),
+                        name="content",
+                        rows=16,
+                        autofocus=True,
+                    ),
                 ),
-            )
-        ])
+            ]
+        )
 
     title = f"{Tx('Edit')} {Tx('book')} '{book.title}'"
     return (
@@ -144,7 +148,7 @@ def post(request, book: Book, form: dict):
         raise Error("text content changed while editing")
 
     first = form.get("first")
-    if first is None:           # Full edit.
+    if first is None:  # Full edit.
         try:
             title = form["title"].strip()
             if not title:
@@ -160,7 +164,7 @@ def post(request, book: Book, form: dict):
         book.language = form.get("language", "")
         content = form["content"]
 
-    else:          # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given content fragment (paragraph).
         try:
             first = int(first)
             last = int(form["last"])
@@ -176,14 +180,14 @@ def post(request, book: Book, form: dict):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str, first: int=None, last: int=None):
+def get(request, book: Book, path: str, first: int = None, last: int = None):
     "Edit the item (section or text), possibly one single paragraph of the content.."
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
     item = book[path]
     fields = [Input(type="hidden", name="hash", value=get_hash(item.content))]
 
-    if first is None:           # Full edit.
+    if first is None:  # Full edit.
         title_field = Fieldset(
             Label(Tx("Title")),
             Input(name="title", value=item.title, required=True, autofocus=True),
@@ -206,25 +210,27 @@ def get(request, book: Book, path: str, first: int=None, last: int=None):
         fields.append(
             Fieldset(
                 Legend(Tx("Text")),
-                Textarea(NotStr(item.content), name="content", rows="20"),
+                Textarea(NotStr(item.content), name="content", rows=16),
             )
         )
 
-    else:          # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given content fragment (paragraph).
         content = item.content[first:last]
-        fields.extend([
-            Input(type="hidden", name="first", value=str(first)),
-            Input(type="hidden", name="last", value=str(last)),
-            Fieldset(
-                Legend(Tx("Paragraph text")),
-                Textarea(
-                    NotStr(content),
-                    name="content",
-                    rows="10",
-                    autofocus=True,
+        fields.extend(
+            [
+                Input(type="hidden", name="first", value=str(first)),
+                Input(type="hidden", name="last", value=str(last)),
+                Fieldset(
+                    Legend(Tx("Paragraph text")),
+                    Textarea(
+                        NotStr(content),
+                        name="content",
+                        rows=16,
+                        autofocus=True,
+                    ),
                 ),
-            )
-        ])
+            ]
+        )
 
     title = f"{Tx('Edit')} {Tx(item.type)} '{item.title}'"
     return (
@@ -255,15 +261,15 @@ def post(request, book: Book, path: str, form: dict):
         raise Error("text content changed while editing")
 
     first = form.get("first")
-    if first is None:             # Full edit.
-        item.name = form["title"] # Changes name of directory/file.
+    if first is None:  # Full edit.
+        item.name = form["title"]  # Changes name of directory/file.
         item.title = form["title"]
         if item.is_text:
             if form.get("status"):
                 item.status = form["status"]
         content = form["content"]
 
-    else:          # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given content fragment (paragraph).
         try:
             first = int(first)
             last = int(form["last"])

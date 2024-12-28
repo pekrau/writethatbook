@@ -162,6 +162,7 @@ def get(request, user: users.User):
         pages.append(["System", "/meta/system"])
 
     import apps
+
     return (
         Title(title),
         components.header(request, title, pages=pages),

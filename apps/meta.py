@@ -103,7 +103,10 @@ def get(request):
             Table(
                 Tr(
                     Td(Tx("RAM usage")),
-                    Td(components.thousands(psutil.Process().memory_info().rss), " bytes"),
+                    Td(
+                        components.thousands(psutil.Process().memory_info().rss),
+                        " bytes",
+                    ),
                 ),
                 Tr(
                     Td(Tx("Data size")),

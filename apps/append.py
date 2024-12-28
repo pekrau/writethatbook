@@ -27,7 +27,7 @@ def get(request, book: Book, path: str):
         components.header(request, title, book=book),
         Main(
             Form(
-                Textarea(name="content", rows="20", autofocus=True),
+                Textarea(name="content", rows=16, autofocus=True),
                 components.save_button("Append"),
                 action=f"/append/{book}/{path}",
                 method="post",

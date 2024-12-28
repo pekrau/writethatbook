@@ -120,7 +120,46 @@ html_converter.use(
     )
 )
 
-convert_to_html = html_converter.convert
+
+class Fragmenter:
+    "Fragment content into paragraphs with separate edit buttons."
+
+    PATTERN = re.compile(r"\n\n")
+
+    def __init__(self, content, href=None):
+        self.href = href
+        self.content = content
+        self.current = 0
+        self.ranges = []
+        self.processed = self.PATTERN.subn(self, content)[0]
+        if self.ranges:
+            self.ranges.append((self.ranges[-1][1] + 1, len(content)))
+            self.processed += self.get_href(self.ranges[-1][0] + 1, self.ranges[-1][1])
+        else:
+            self.ranges.append((0, len(content)))
+            self.processed += self.get_href(self.ranges[-1][0], self.ranges[-1][1])
+        self.fragments = [self.content[s:e] for s, e in self.ranges]
+
+    def __call__(self, match):
+        start = match.start()
+        self.ranges.append((self.current, start))
+        result = self.get_href(self.current, start)
+        self.current = match.end()
+        return result
+
+    def get_href(self, first, last):
+        if self.href:
+            return f' <a href="{self.href}?first={first}&last={last}" role="button" class="edit_paragraph">E</a>\n\n'
+        else:                   # No change.
+            return "\n\n"
+
+
+def convert_to_html(content, href=None):
+    if href:
+        f = Fragmenter(content, href=href)
+        content = f.processed
+    return html_converter.convert(content)
+
 
 
 ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)

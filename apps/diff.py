@@ -52,14 +52,14 @@ def get(request):
                     Td(
                         A(rurl, href=rurl),
                         Br(),
-                        utils.to_localtime(rbook["modified"]),
+                        utils.localtime(rbook["modified"]),
                         Br(),
                         f'{components.thousands(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(
                         A(id, href=f"/book/{id}"),
                         Br(),
-                        utils.to_localtime(lbook["modified"]),
+                        utils.localtime(lbook["modified"]),
                         Br(),
                         f'{components.thousands(lbook["sum_characters"])} {Tx("characters")}',
                     ),
@@ -73,7 +73,7 @@ def get(request):
                     Td(
                         A(rurl, href=rurl),
                         Br(),
-                        utils.to_localtime(rbook["modified"]),
+                        utils.localtime(rbook["modified"]),
                         Br(),
                         f'{components.thousands(rbook["sum_characters"])} {Tx("characters")}',
                     ),
@@ -95,7 +95,7 @@ def get(request):
                 Td(
                     A(id, href=f"/book/{id}"),
                     Br(),
-                    utils.to_localtime(lbook["modified"]),
+                    utils.localtime(lbook["modified"]),
                     Br(),
                     f'{components.thousands(lbook["sum_characters"])} {Tx("characters")}',
                 ),

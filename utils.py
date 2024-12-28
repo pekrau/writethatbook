@@ -70,10 +70,13 @@ def timestr(filepath=None, localtime=True, display=True, safe=False):
     return result
 
 
-def to_localtime(utctime):
-    "Convert a time string in UTC to local time."
-    mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-    lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
+def localtime(utctime=None):
+    "Convert a time string in UTC to local time, or given current local time."
+    if utctime is None:
+        lt = datetime.datetime.now()
+    else:
+        mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+        lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
     return lt.strftime(constants.DATETIME_ISO_FORMAT)
 
 

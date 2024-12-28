@@ -11,6 +11,7 @@ import components
 import constants
 import docx_creator
 from errors import *
+import markdown
 import pdf_creator
 import users
 import utils
@@ -139,9 +140,11 @@ def get(request, book: Book):
                     ),
                 )
             )
+        html = markdown.convert_to_html(book.content, href=f"/edit/{book}")
         button_card = Card(*buttons, cls="grid")
     else:
         actions = []
+        html = book.html
         button_card = ""
     pages = [
         ("References", "/refs"),
@@ -183,7 +186,7 @@ def get(request, book: Book):
         ),
         Main(
             *segments,
-            Div(NotStr(book.html)),
+            Div(NotStr(html)),
             button_card,
             cls="container",
         ),
@@ -259,9 +262,11 @@ def get(request, book: Book, path: str):
 
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
+        html = markdown.convert_to_html(item.content, href=f"/edit/{book}/{path}")
         button_card = Card(*buttons, cls="grid")
     else:
         actions = []
+        html = item.html
         button_card = ""
 
     pages = [
@@ -294,7 +299,7 @@ def get(request, book: Book, path: str):
         ),
         Main(
             *segments,
-            Div(NotStr(item.html), style="margin-top: 1em;"),
+            Div(NotStr(html), style="margin-top: 1em;"),
             button_card,
             cls="container",
         ),

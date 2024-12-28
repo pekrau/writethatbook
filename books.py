@@ -715,7 +715,7 @@ class Item(Container):
         "To be implemented by inheriting classes. Recursive."
         raise NotImplementedError
 
-    def write(self):
+    def write(self, content=None, force=False):
         "To be implemented by inheriting classes. *Not* recursive."
         raise NotImplementedError
 

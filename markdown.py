@@ -162,7 +162,7 @@ class Fragmenter:
 
     def get_href(self, first, last):
         if self.href:
-            return f' <a href="{self.href}?first={first}&last={last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg"></a>\n\n'
+            return f' <a href="{self.href}?first={first}&last={last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>\n\n'
         else:  # No change.
             return "\n\n"
 

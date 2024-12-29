@@ -49,6 +49,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                     Legend(Tx("Authors")),
                     Textarea(
                         "\n".join(book.authors or []),
+                        id="authors",
                         name="authors",
                         rows=4,
                     ),
@@ -99,6 +100,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 Legend(Tx("Text")),
                 Textarea(
                     NotStr(book.content),
+                    id="text",
                     name="content",
                     rows=16,
                 ),
@@ -115,6 +117,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                     Legend(Tx("Paragraph text")),
                     Textarea(
                         NotStr(content),
+                        id="content",
                         name="content",
                         rows=16,
                         autofocus=True,
@@ -163,6 +166,7 @@ def post(request, book: Book, form: dict):
             book.status = form.get("status")
         book.language = form.get("language", "")
         content = form["content"]
+        href = f"/book/{book}"
 
     else:  # Edit only the given content fragment (paragraph).
         try:
@@ -171,12 +175,13 @@ def post(request, book: Book, form: dict):
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
         content = content[:first] + (form.get("content") or "") + content[last:]
+        href = f"/book/{book}?position={first}#position"
 
     # Save book content. Reread the book, ensuring everything is up to date.
     book.write(content=content, force=True)
     book.read()
 
-    return components.redirect(f"/book/{book}")
+    return components.redirect(href)
 
 
 @rt("/{book:Book}/{path:path}")
@@ -210,7 +215,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         fields.append(
             Fieldset(
                 Legend(Tx("Text")),
-                Textarea(NotStr(item.content), name="content", rows=16),
+                Textarea(NotStr(item.content), id="content", name="content", rows=16),
             )
         )
 
@@ -224,6 +229,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                     Legend(Tx("Paragraph text")),
                     Textarea(
                         NotStr(content),
+                        id="content",
                         name="content",
                         rows=16,
                         autofocus=True,
@@ -268,6 +274,8 @@ def post(request, book: Book, path: str, form: dict):
             if form.get("status"):
                 item.status = form["status"]
         content = form["content"]
+        # Compute new path; item name may have changed.
+        href = f"/book/{book}/{item.path}"
 
     else:  # Edit only the given content fragment (paragraph).
         try:
@@ -276,6 +284,7 @@ def post(request, book: Book, path: str, form: dict):
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
         content = content[:first] + (form.get("content") or "") + content[last:]
+        href = f"/book/{book}/{path}?position={first}#position"
 
     # Save item. Reread the book, ensuring everything is up to date.
     item.write(content=content, force=True)
@@ -283,4 +292,4 @@ def post(request, book: Book, path: str, form: dict):
     book.read()
 
     # Must use new path, since name may have been changed.
-    return components.redirect(f"/book/{book}/{item.path}")
+    return components.redirect(href)

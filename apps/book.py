@@ -36,7 +36,7 @@ app, rt = components.get_fast_app()
 
 @rt("/")
 def get(request):
-    "Create and/or upload book using a gzipped tar file."
+    "Create a book or upload it from a gzipped tar file."
     auth.authorize(request, *auth.book_create_rules)
     title = Tx("Create or upload book")
     return (
@@ -65,7 +65,7 @@ def get(request):
 
 @rt("/")
 async def post(request, title: str, tgzfile: UploadFile):
-    "Actually create and/or upload book using a gzipped tar file."
+    "Actually create a book or upload it from a gzipped tar file."
     auth.authorize(request, *auth.book_create_rules)
     if not title:
         raise Error("book title may not be empty")
@@ -96,7 +96,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 
 
 @rt("/{book:Book}")
-def get(request, book: Book):
+def get(request, book: Book, position: int = None):
     "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
@@ -140,12 +140,17 @@ def get(request, book: Book):
                     ),
                 )
             )
-        html = markdown.convert_to_html(book.content, href=f"/edit/{book}")
         button_card = Card(*buttons, cls="grid")
+
+        content = book.content
+        if position is not None:
+            content = content[:position] + '<span id="position"></span>' + content[position:]
+        html = markdown.convert_to_html(content, href=f"/edit/{book}")
     else:
         actions = []
-        html = book.html
         button_card = ""
+        html = book.html
+
     pages = [
         ("References", "/refs"),
         ("Index", f"/meta/index/{book}"),
@@ -195,7 +200,7 @@ def get(request, book: Book):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str):
+def get(request, book: Book, path: str, position: int = None):
     "Display book text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
@@ -262,12 +267,17 @@ def get(request, book: Book, path: str):
 
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
-        html = markdown.convert_to_html(item.content, href=f"/edit/{book}/{path}")
         button_card = Card(*buttons, cls="grid")
+
+        content = item.content
+        ic(position)
+        if position is not None:
+            content = content[:position] + '<span id="position"></span>' + content[position:]
+        html = markdown.convert_to_html(content, href=f"/edit/{book}/{path}")
     else:
         actions = []
-        html = item.html
         button_card = ""
+        html = item.html
 
     pages = [
         ("References", "/refs"),

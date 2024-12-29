@@ -6,7 +6,6 @@ import marko
 import marko.ast_renderer
 import marko.inline
 import marko.helpers
-import marko.ext.gfm
 
 import yaml
 

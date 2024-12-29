@@ -99,7 +99,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Fieldset(
                 Legend(Tx("Text")),
                 Textarea(
-                    NotStr(book.content),
+                    NotStr(book.content.replace("LASTEDIT", "")),
                     id="text",
                     name="content",
                     rows=16,
@@ -108,7 +108,7 @@ def get(request, book: Book, first: int = None, last: int = None):
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = book.content[first:last]
+        content = book.content[first:last].replace("LASTEDIT", "")
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -174,8 +174,8 @@ def post(request, book: Book, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        content = content[:first] + (form.get("content") or "") + content[last:]
-        href = f"/book/{book}?position={first}#position"
+        content = content[:first] + "LASTEDIT" + (form.get("content") or "") + content[last:]
+        href = f"/book/{book}#lastedit"
 
     # Save book content. Reread the book, ensuring everything is up to date.
     book.write(content=content, force=True)
@@ -215,12 +215,12 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         fields.append(
             Fieldset(
                 Legend(Tx("Text")),
-                Textarea(NotStr(item.content), id="content", name="content", rows=16),
+                Textarea(NotStr(item.content.replace("LASTEDIT", "")), id="content", name="content", rows=16),
             )
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = item.content[first:last]
+        content = item.content[first:last].replace("LASTEDIT", "")
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -283,8 +283,8 @@ def post(request, book: Book, path: str, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        content = content[:first] + (form.get("content") or "") + content[last:]
-        href = f"/book/{book}/{path}?position={first}#position"
+        content = content[:first] + "LASTEDIT" + (form.get("content") or "") + content[last:]
+        href = f"/book/{book}/{path}#lastedit"
 
     # Save item. Reread the book, ensuring everything is up to date.
     item.write(content=content, force=True)

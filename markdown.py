@@ -60,6 +60,20 @@ class EmdashRenderer:
         return constants.EM_DASH
 
 
+class Lastedit(marko.inline.InlineElement):
+    "Markdown extension for the position of the last edit in the text."
+
+    pattern = re.compile("(LASTEDIT)")
+    parse_children = False
+
+
+class LasteditRenderer:
+    "Output position of last edit in the text."
+
+    def render_lastedit(self, element):
+        return '<span id="lastedit"></span>'
+
+
 class Indexed(marko.inline.InlineElement):
     "Markdown extension for indexed term."
 
@@ -107,11 +121,12 @@ html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
     marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+        elements=[Subscript, Superscript, Emdash, Lastedit, Indexed, Reference],
         renderer_mixins=[
             SubscriptRenderer,
             SuperscriptRenderer,
             EmdashRenderer,
+            LasteditRenderer,
             IndexedRenderer,
             ReferenceRenderer,
         ],
@@ -162,7 +177,7 @@ ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)
 ast_converter.use("footnote")
 ast_converter.use(
     marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+        elements=[Subscript, Superscript, Emdash, Lastedit, Indexed, Reference],
     )
 )
 

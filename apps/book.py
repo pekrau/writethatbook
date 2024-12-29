@@ -96,7 +96,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 
 
 @rt("/{book:Book}")
-def get(request, book: Book, position: int = None):
+def get(request, book: Book):
     "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
@@ -141,11 +141,7 @@ def get(request, book: Book, position: int = None):
                 )
             )
         button_card = Card(*buttons, cls="grid")
-
-        content = book.content
-        if position is not None:
-            content = content[:position] + '<span id="position"></span>' + content[position:]
-        html = markdown.convert_to_html(content, href=f"/edit/{book}")
+        html = markdown.convert_to_html(book.content, href=f"/edit/{book}")
     else:
         actions = []
         button_card = ""
@@ -200,7 +196,7 @@ def get(request, book: Book, position: int = None):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str, position: int = None):
+def get(request, book: Book, path: str):
     "Display book text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
@@ -268,12 +264,7 @@ def get(request, book: Book, path: str, position: int = None):
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
         button_card = Card(*buttons, cls="grid")
-
-        content = item.content
-        ic(position)
-        if position is not None:
-            content = content[:position] + '<span id="position"></span>' + content[position:]
-        html = markdown.convert_to_html(content, href=f"/edit/{book}/{path}")
+        html = markdown.convert_to_html(item.content, href=f"/edit/{book}/{path}")
     else:
         actions = []
         button_card = ""

@@ -12,6 +12,7 @@ import yaml
 
 import constants
 import utils
+from utils import Tx
 
 
 class Subscript(marko.inline.InlineElement):
@@ -147,15 +148,14 @@ class Fragmenter:
 
     def get_href(self, first, last):
         if self.href:
-            return f' <a href="{self.href}?first={first}&last={last}"><img src="/edit.svg"></a>\n\n'
+            return f' <a href="{self.href}?first={first}&last={last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg"></a>\n\n'
         else:  # No change.
             return "\n\n"
 
 
 def convert_to_html(content, href=None):
     if href:
-        f = Fragmenter(content, href=href)
-        content = f.processed
+        content = Fragmenter(content, href=href).processed
     return html_converter.convert(content)
 
 

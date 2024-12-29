@@ -164,8 +164,14 @@ class Container:
         else:
             self.frontmatter = {}
             self.content = content
-        self.html = markdown.convert_to_html(self.content)
-        self.ast = markdown.convert_to_ast(self.content)
+
+    @property
+    def html(self):
+        return markdown.convert_to_html(self.content)
+
+    @property
+    def ast(self):
+        return markdown.convert_to_ast(self.content)
 
     def write_markdown(self, filepath):
         "Write frontmatter and content to the Markdown file."
@@ -178,8 +184,7 @@ class Container:
                 outfile.write(self.content)
 
     def update_markdown(self, content):
-        """Update members, and return with True.
-        Return True if any change, else False.
+        """Update content. Return True if any change, else False.
         If non-None content, then clean it:
         - Strip each line from the right. (Markdown line breaks not allowed.)
         - Do not write out multiple consecutive empty lines.
@@ -199,8 +204,6 @@ class Container:
         changed = content != self.content
         if changed:
             self.content = content
-            self.html = markdown.convert_to_html(self.content)
-            self.ast = markdown.convert_to_ast(self.content)
         return changed
 
     def get_digest(self):
@@ -290,21 +293,18 @@ class Book(Container):
         for item in self.all_items:
             self.path_lookup[item.path] = item
 
-        # Key: indexed term; value: set of texts.
+        # Index key: indexed term; value: set of texts.
+        # Refs key: reference identifier; value: set of texts.
         self.indexed = {}
-        self.find_indexed(self, self.ast)
-        # for item in self.all_texts:
+        self.refs = {}
+        ast = self.ast          # Compiled when called.
+        self.find_indexed(self, ast)
         for item in self.all_items:
-            self.find_indexed(item, item.ast)
+            ast = item.ast      # Compiled when called.
+            self.find_indexed(item, ast)
             for keyword in item.get("keywords", []):
                 self.indexed.setdefault(keyword, set()).add(item)
-
-        # Key: reference identifier; value: set of texts.
-        self.refs = {}
-        self.find_refs(self, self.ast)
-        # for item in self.all_texts:
-        for item in self.all_items:
-            self.find_refs(item, item.ast)
+            self.find_refs(item, ast)
 
         # Write out "index.md" if order changed.
         self.write()

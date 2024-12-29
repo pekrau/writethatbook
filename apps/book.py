@@ -206,7 +206,7 @@ def get(request, book: Book, path: str):
 
     neighbours = []
     style = "text-align: center;"
-    kwargs = {"role": "button", "cls": "secondary outline"}
+    kwargs = {"role": "button", "cls": "outline thin-button"}
     if item.prev:
         label = NotStr(f"&ShortLeftArrow; {item.prev.title}")
         url = f"/book/{book}/{item.prev.path}"
@@ -275,7 +275,7 @@ def get(request, book: Book, path: str):
         ("Index", f"/meta/index/{book}"),
     ]
 
-    segments = [Card(*neighbours, cls="grid")]
+    segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid")]
     if item.is_text:
         segments.append(H3(item.heading))
     elif item.is_section:

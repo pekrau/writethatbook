@@ -31,7 +31,7 @@ class Creator:
 
     def content(self):
         "Create the PDF document and return it content."
-        if len(self.book.all_items) == 0:
+        if len(list(self.book)) == 0:
             return self.create_attempt(0)
         elif self.contents_pages:
             for contents_pages in range(1, 20):

@@ -423,7 +423,7 @@ def get(request):
     auth.allow_anyone(request)
 
     refs = get_refs()
-    items = sorted(refs.all_items, key=lambda i: i.modified, reverse=True)
+    items = sorted(list(refs), key=lambda i: i.modified, reverse=True)
     items = items[: constants.MAX_RECENT]
 
     rows = [

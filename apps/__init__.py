@@ -4,7 +4,7 @@ from fasthtml.common import Mount
 
 import apps.book
 import apps.edit
-import apps.append
+import apps.mod
 import apps.move
 import apps.copy
 import apps.delete
@@ -19,7 +19,7 @@ import apps.diff
 routes = [
     Mount("/book", apps.book.app),
     Mount("/edit", apps.edit.app),
-    Mount("/append", apps.append.app),
+    Mount("/mod", apps.mod.app),
     Mount("/move", apps.move.app),
     Mount("/copy", apps.copy.app),
     Mount("/delete", apps.delete.app),

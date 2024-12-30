@@ -213,7 +213,12 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         fields.append(
             Fieldset(
                 Legend(Tx("Text")),
-                Textarea(NotStr(item.content.replace("LASTEDIT", "")), id="content", name="content", rows=16),
+                Textarea(
+                    NotStr(item.content.replace("LASTEDIT", "")),
+                    id="content",
+                    name="content",
+                    rows=16,
+                ),
             )
         )
 

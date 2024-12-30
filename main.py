@@ -12,14 +12,16 @@ import os
 import tarfile
 
 if "WRITETHATBOOK_DIR" not in os.environ:
-    raise ValueError("Required environment variable WRITETHATBOOK_DIR is undefined.")
+    raise ValueError(
+        "Environment variable WRITETHATBOOK_DIR is undefined; it is required!"
+    )
 
 
 from fasthtml.common import *
 
 import apps
 import auth
-from books import Book, read_books, get_books, get_refs
+import books
 import components
 import constants
 from errors import *
@@ -54,7 +56,7 @@ def get(request):
     return (
         Title(title),
         components.header(request, title, actions=actions, pages=pages),
-        Main(apps.book.get_books_table(request, get_books(request)), cls="container"),
+        Main(apps.book.get_books_table(request, books.get_books(request)), cls="container"),
         components.footer(request),
     )
 
@@ -69,8 +71,19 @@ def get(request):
 @rt("/reread")
 def get(request):
     auth.allow_admin(request)
-    read_books()
+    books.read_books()
     return components.redirect("/")
+
+
+@rt("/reread/{book:Book}")
+def get(request, book: books.Book, path: str = None):
+    # Do not allow anyone to burden the server with reread.
+    auth.authorize(request, *auth.book_edit_rules, book=book)
+    book = books.get_book(book.id, reread=True)
+    href = f"/book/{book}"
+    if path:
+        href += "/" + path
+    return components.redirect(href)
 
 
 @rt("/dump")
@@ -95,6 +108,6 @@ def get(request):
 users.initialize()
 
 # Read in all books and references into memory.
-read_books()
+books.read_books()
 
 serve()

@@ -172,7 +172,7 @@ def get(request, book: Book):
     "Display the most recently modified items in the book."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
-    items = sorted(book.all_items, key=lambda i: i.modified, reverse=True)
+    items = sorted(list(book), key=lambda i: i.modified, reverse=True)
     items = items[: constants.MAX_RECENT]
 
     rows = [
@@ -263,11 +263,11 @@ def get(request, book: Book):
     rows = [Tr(Th(Tx("Status"), Th(Tx("Texts"))))]
     for status in constants.STATUSES:
         texts = []
-        for t in book.all_texts:
-            if t.status == status:
+        for item in book:
+            if item.is_text and item.status == status:
                 if texts:
                     texts.append(Br())
-                texts.append(A(t.heading, href=f"/book/{book}/{t.path}"))
+                texts.append(A(item.heading, href=f"/book/{book}/{item.path}"))
         rows.append(
             Tr(
                 Td(

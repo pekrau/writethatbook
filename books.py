@@ -207,7 +207,7 @@ class Container:
         return changed
 
     def get_digest_instance(self):
-        "Return the digest instance having processed frontmatter and content."
+        "Return the digest instance having processed item frontmatter and content."
         frontmatter = self.frontmatter.copy()
         frontmatter.pop("digest", None)  # Necessary!
         digest = utils.get_digest_instance(json.dumps(frontmatter, sort_keys=True))
@@ -219,12 +219,12 @@ class Container:
         stem = self.abspath.stem
         for number in [None] + list(range(2, constants.MAX_COPY_NUMBER + 1)):
             if number:
-                newpath = selfabspath.with_name(f'{stem}_{Tx("copy*")}_{number}')
+                newpath = self.abspath.with_name(f'{stem}_{Tx("copy*")}_{number}')
             else:
-                newpath = selfabspath.with_name(f'{stem}_{Tx("copy*")}')
-            newpath = newpath.with_suffix(selfabspath.suffix)
-            if not newpath.exists():
-                return newpath, number
+                newpath = self.abspath.with_name(f'{stem}_{Tx("copy*")}')
+            if not (newpath.with_suffix(constants.MARKDOWN_EXT).exists() or
+                    newpath.with_suffix("").exists()):
+                return newpath.with_suffix(self.abspath.suffix), number
         else:
             raise Error("could not form copy identifier; too many copies")
 
@@ -248,6 +248,12 @@ class Book(Container):
             return self.path_lookup[path]
         except KeyError:
             raise Error(f"no such text '{path}'", HTTP.NOT_FOUND)
+
+    def __iter__(self):
+        for item in self.items:
+            yield item
+            if item.is_section:
+                yield from item
 
     def read(self):
         """ "Read the book from file.
@@ -289,17 +295,17 @@ class Book(Container):
 
         # Key: item path; value: item.
         self.path_lookup = {}
-        for item in self.all_items:
+        for item in self:
             self.path_lookup[item.path] = item
 
         # Index key: indexed term; value: set of texts.
         # Refs key: reference identifier; value: set of texts.
         self.indexed = {}
         self.refs = {}
-        ast = self.ast          # Compiled when called.
+        ast = self.ast  # Compiled when called.
         self.find_indexed(self, ast)
-        for item in self.all_items:
-            ast = item.ast      # Compiled when called.
+        for item in self:
+            ast = item.ast  # Compiled when called.
             self.find_indexed(item, ast)
             for keyword in item.get("keywords", []):
                 self.indexed.setdefault(keyword, set()).add(item)
@@ -469,24 +475,7 @@ class Book(Container):
 
     @property
     def max_level(self):
-        return max([i.level for i in self.all_items])
-
-    @property
-    def all_items(self):
-        "Return list of all sub-items. Self is *not* included."
-        result = []
-        for item in self.items:
-            result.append(item)
-            result.extend(item.all_items)
-        return result
-
-    @property
-    def all_texts(self):
-        "Return list of all sub-items that are texts."
-        result = []
-        for item in self.items:
-            result.extend(item.all_texts)
-        return result
+        return max([i.level for i in self])
 
     @property
     def n_words(self):
@@ -576,7 +565,7 @@ class Book(Container):
         """Create a new empty section inside the book or parent section.
         Raise Error if there is a problem.
         """
-        assert parent is None or isinstance(parent, Section)
+        assert parent is None or isinstance(parent, Section) or isinstance(parent, Book)
         if parent is None:
             parent = self
         name = utils.nameify(title)
@@ -597,7 +586,7 @@ class Book(Container):
         """Create a new empty text inside the book or parent section.
         Raise ValueError if there is a problem.
         """
-        assert parent is None or isinstance(parent, Section)
+        assert parent is None or isinstance(parent, Section) or isinstance(parent, Book)
         if parent is None:
             parent = self
         name = utils.nameify(title)
@@ -612,6 +601,82 @@ class Book(Container):
         text.write()
         self.write()
         return text
+
+    def merge(self, path):
+        "Merge the section with all its subitems into a text. Return the text."
+        section = self[path]
+        if not section.is_section:
+            raise Error(f"Item '{item}' is not a section; cannot merge.")
+        content, footnotes = section.split_footnotes()
+        merged_content = [content]
+        merged_footnotes = [footnotes]
+        for item in section:
+            content, footnotes = item.split_footnotes()
+            merged_content.append(f"\n\n{'#' * item.level} {item.title}\n\n")
+            merged_content.append(content)
+            merged_footnotes.append(footnotes)
+        title = section.title
+        status = section.status
+        parent = section.parent
+        section.delete(force=True)
+        text = self.create_text(title, parent=parent)
+        text.status = status
+        text.write(content="\n\n".join(merged_content + merged_footnotes))
+        return text
+
+    def split(self, path):
+        "Split the text into a section with subtexts. Return the section."
+        text = self[path]
+        if not text.is_text:
+            raise Error(f"Item '{item}' is not a text; cannot split.")
+        # Collect all footnotes to be partitioned among the texts.
+        content, footnotes = text.split_footnotes()
+        footnotes_lookup = {}
+        key = None
+        footnote = []
+        for line in footnotes.split("\n"):
+            if line.startswith("[^"):
+                if key and footnote:
+                    footnotes_lookup[key] = "\n".join(footnote)
+                key = line[:line.index("]:")-1]
+                footnote = []
+            if key:
+                footnote.append(line)
+        if key and footnote:
+            footnotes_lookup[key] = "\n".join(footnote)
+        # Split up content according to headers.
+        parts = []
+        title = None
+        part = []
+        for line in content.split("\n"):
+            if line.startswith("#"):
+                parts.append([title, part]) # First title is None.
+                part = []
+                title = line.strip("#").strip()
+            else:
+                part.append(line)
+        if title and part:
+            parts.append([title, part])
+        title = text.title
+        status = text.status
+        parent = text.parent
+        text.delete(force=True)
+        section = self.create_section(title, parent=parent)
+        for title, content in parts:
+            content = "\n".join(content)
+            footnotes = []
+            for key, footnote in footnotes_lookup.items():
+                if key in content:
+                    footnotes.append(footnote)
+            if footnotes:
+                content += "\n\n" + "\n\n".join(footnotes)
+            if title is None:
+                section.write(content=content)
+            else:
+                text = self.create_text(title, parent=section)
+                text.status = status
+                text.write(content=content)
+        return section
 
     def copy(self, owner=None):
         "Make a copy of the book."
@@ -670,13 +735,11 @@ class Book(Container):
         assert self.absfilepath.is_file()
         assert self.abspath.exists()
         assert self.abspath.is_dir()
-        assert len(self.path_lookup) == len(self.all_items)
-        for item in self.all_items:
+        assert len(self.path_lookup) == len(list(self))
+        for item in self:
             assert item.book is self, (self, item)
             assert isinstance(item, Text) or isinstance(item, Section), (self, item)
             item.check_integrity()
-        for text in self.all_texts:
-            assert isinstance(text, Text), (self, text)
 
 
 class Item(Container):
@@ -699,6 +762,11 @@ class Item(Container):
 
     def __setitem__(self, key, value):
         self.frontmatter[key] = value
+
+    def __iter__(self):
+        for item in self.items:
+            yield item
+            yield from item
 
     def get(self, key, default=None):
         try:
@@ -739,7 +807,9 @@ class Item(Container):
         newabspath = self.parent.abspath / self.filename(new=name)
         if name in self.parent.items or newabspath.exists():
             raise ValueError("The name is already in use.")
-        items = [self] + self.all_items
+        items = [self]
+        if self.is_section:
+            items.extend(list(self))
         for item in items:
             self.book.path_lookup.pop(item.path)
         oldabspath = self.abspath
@@ -775,12 +845,7 @@ class Item(Container):
 
     @property
     def level(self):
-        result = 0
-        parent = self.parent
-        while parent is not None:
-            result += 1
-            parent = parent.parent
-        return result
+        return self.parent.level + 1
 
     @property
     def type(self):
@@ -805,6 +870,7 @@ class Item(Container):
     def digest(self):
         """Return the hex digest of the contents of the item.
         Based on frontmatter (excluding 'digest!') and content of the item.
+        Does not include any data from the subitems.
         """
         return self.get_digest_instance().hexdigest()
 
@@ -879,6 +945,15 @@ class Item(Container):
     def language(self):
         return self.book.language
 
+    def split_footnotes(self):
+        "Return content split up as a tuple (text, footnotes)."
+        lines = self.content.split("\n")
+        for pos, line in enumerate(lines):
+            if line.startswith("[^"):
+                return ("\n".join(lines[:pos]), "\n".join(lines[pos:]))
+        else:
+            return (self.content, "")
+
     def filename(self, newname=None):
         """Return the filename of this item.
         Note: this is not the path, just the base name of the file or directory.
@@ -927,7 +1002,7 @@ class Item(Container):
                 )
         # Remove item and all its subitems from the path lookup of the book.
         self.book.path_lookup.pop(self.path)
-        for item in self.all_items:
+        for item in self:
             self.book.path_lookup.pop(item.path)
         # Remove item from its parent's list of items.
         self.parent.items.remove(self)
@@ -940,7 +1015,7 @@ class Item(Container):
         self.parent = self.parent.parent
         # Add back this item and its subitems to the path lookup of the book.
         self.book.path_lookup[self.path] = self
-        for item in self.all_items:
+        for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
         # Write out book and reread everything.
@@ -968,7 +1043,7 @@ class Item(Container):
                 )
         # Remove item and all its subitems from the path lookup of the book.
         self.book.path_lookup.pop(self.path)
-        for item in self.all_items:
+        for item in self:
             self.book.path_lookup.pop(item.path)
         # Remove item from its parent's list of items.
         self.parent.items.remove(self)
@@ -980,7 +1055,7 @@ class Item(Container):
         self.parent = section
         # Add back this item and its subitems to the path lookup of the book.
         self.book.path_lookup[self.path] = self
-        for item in self.all_items:
+        for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
         # Write out book and reread everything.
@@ -1060,23 +1135,6 @@ class Section(Item):
     @property
     def type(self):
         return constants.SECTION
-
-    @property
-    def all_items(self):
-        "Return list of all sub-items. Self is not included."
-        result = []
-        for item in self.items:
-            result.append(item)
-            result.extend(item.all_items)
-        return result
-
-    @property
-    def all_texts(self):
-        "Return list of all sub-items that are texts."
-        result = []
-        for item in self.items:
-            result.extend(item.all_texts)
-        return result
 
     @property
     def n_words(self):
@@ -1213,18 +1271,8 @@ class Text(Item):
 
     @property
     def items(self):
-        "Return list of sub-items. Self is *not* included."
+        "All immediate subitems (none). Instead of an empty list attribute."
         return []
-
-    @property
-    def all_items(self):
-        "Return list of all sub-items. Self is *not* included."
-        return []
-
-    @property
-    def all_texts(self):
-        "Return list of all sub-items that are texts. Self *is* included."
-        return [self]
 
     @property
     def n_words(self):
@@ -1336,3 +1384,13 @@ class Text(Item):
     def check_integrity(self):
         super().check_integrity()
         assert self.abspath.is_file()
+
+if __name__ == "__main__":
+    book = Book(Path(os.environ["WRITETHATBOOK_DIR"]) / "test")
+    for item in book:
+        print(item)
+    print(list(book))
+    newpath = Path(os.environ["WRITETHATBOOK_DIR"]) / "test2"
+    os.mkdir(newpath)
+    book = Book(newpath)
+    print(list(book), bool(book))

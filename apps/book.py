@@ -103,8 +103,9 @@ def get(request, book: Book):
     if auth.authorized(request, *auth.book_edit_rules, book=book):
         actions = [
             ("Edit", f"/edit/{book}"),
-            ("Append", f"/append/{book}/"),
+            ("Append", f"/mod/append/{book}/"),
             ("Copy", f"/copy/{book}"),
+            ("Reread book", f"/reread/{book}"),
             ("Delete", f"/delete/{book}"),
         ]
         buttons = [
@@ -119,7 +120,7 @@ def get(request, book: Book):
             Div(
                 A(
                     Tx("Append"),
-                    href=f"/append/{book}",
+                    href=f"/mod/append/{book}",
                     role="button",
                     style="width: 10em;",
                 ),
@@ -197,7 +198,7 @@ def get(request, book: Book):
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
-    "Display book text or section contents."
+    "Display text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
@@ -230,17 +231,19 @@ def get(request, book: Book, path: str):
         kwargs = {"role": "button", "style": "width: 10em;"}
         actions = [
             ("Edit", f"/edit/{book}/{path}"),
-            ("Append", f"/append/{book}/{path}"),
+            ("Append", f"/mod/append/{book}/{path}"),
         ]
         buttons = [
             Div(A(Tx("Edit"), href=f"/edit/{book}/{path}", **kwargs)),
-            Div(A(Tx("Append"), href=f"/append/{book}/{path}", **kwargs)),
+            Div(A(Tx("Append"), href=f"/mod/append/{book}/{path}", **kwargs)),
         ]
 
         if item.is_text:
+            actions.append(["Split", f"/mod/split/{book}/{path}"])
             buttons.append(Div())
             buttons.append(Div())
         elif item.is_section:
+            actions.append(["Merge", f"/mod/merge/{book}/{path}"])
             for type in [constants.SECTION, constants.TEXT]:
                 buttons.append(
                     Div(
@@ -261,6 +264,7 @@ def get(request, book: Book, path: str):
                     )
                 )
 
+        actions.append(["Reread book", f"/reread/{book}?path={path}"])
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
         button_card = Card(*buttons, cls="grid")

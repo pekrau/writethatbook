@@ -29,6 +29,7 @@ books,böcker
 # books,antal böcker
 # users,antal användare
 no books,inga böcker
+reread book,läs in boken igen
 reread books,läs in böcker igen
 journal,tidskrift
 volume,volym
@@ -96,6 +97,10 @@ source,källa
 book title,boktitel
 delete,radera
 confirm,bekräfta
+merge,slå samman
+all subitems will be merged into one text!,alla delar kommer att slås samman till en text!
+split,dela upp
+the text will be converted into a section with subtexts!,texten kommer att göras om till en sektion med undertexter!
 create or upload book,skapa eller ladda upp bok
 create text in,skapa text i
 create section in,skapa sektion i

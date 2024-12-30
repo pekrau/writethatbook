@@ -1,7 +1,5 @@
 "Book, section and text edit pages."
 
-import hashlib
-
 from fasthtml.common import *
 
 import auth
@@ -11,12 +9,8 @@ import components
 import constants
 from errors import *
 import users
+import utils
 from utils import Tx
-
-
-def get_hash(content):
-    "Content hash; does not have to be secure."
-    return hashlib.sha1(content.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 app, rt = components.get_fast_app()
@@ -27,7 +21,8 @@ def get(request, book: Book, first: int = None, last: int = None):
     "Edit the book data, possibly one single paragraph of the content."
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
-    fields = [Input(type="hidden", name="hash", value=get_hash(book.content))]
+    # Digest of content only, not frontmatter!
+    fields = [Input(type="hidden", name="digest", value=utils.get_digest(book.content))]
 
     if first is None:  # Full edit.
         fields.extend(
@@ -146,8 +141,7 @@ def post(request, book: Book, form: dict):
     "Actually edit the book data."
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
-    content = book.content
-    if form.get("hash") != get_hash(content):
+    if form.get("digest") != utils.get_digest(book.content):
         raise Error("text content changed while editing")
 
     first = form.get("first")
@@ -174,7 +168,11 @@ def post(request, book: Book, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        content = content[:first] + "LASTEDIT" + (form.get("content") or "") + content[last:]
+        # Remove any old LASTEDIT markers.
+        content = book.content
+        before = content[:first].replace("LASTEDIT", "")
+        after = content[last:].replace("LASTEDIT", "")
+        content = before + "LASTEDIT" + (form.get("content") or "") + after
         href = f"/book/{book}#lastedit"
 
     # Save book content. Reread the book, ensuring everything is up to date.
@@ -190,7 +188,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
     item = book[path]
-    fields = [Input(type="hidden", name="hash", value=get_hash(item.content))]
+    fields = [Input(type="hidden", name="digest", value=utils.get_digest(item.content))]
 
     if first is None:  # Full edit.
         title_field = Fieldset(
@@ -262,8 +260,7 @@ def post(request, book: Book, path: str, form: dict):
     auth.authorize(request, *auth.book_edit_rules, book=book)
 
     item = book[path]
-    content = item.content
-    if form.get("hash") != get_hash(content):
+    if form.get("digest") != utils.get_digest(item.content):
         raise Error("text content changed while editing")
 
     first = form.get("first")
@@ -283,7 +280,11 @@ def post(request, book: Book, path: str, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        content = content[:first] + "LASTEDIT" + (form.get("content") or "") + content[last:]
+        # Remove any old LASTEDIT markers.
+        content = item.content
+        before = content[:first].replace("LASTEDIT", "")
+        after = content[last:].replace("LASTEDIT", "")
+        content = before + "LASTEDIT" + (form.get("content") or "") + after
         href = f"/book/{book}/{path}#lastedit"
 
     # Save item. Reread the book, ensuring everything is up to date.

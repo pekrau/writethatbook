@@ -206,14 +206,13 @@ class Container:
             self.content = content
         return changed
 
-    def get_digest(self):
+    def get_digest_instance(self):
         "Return the digest instance having processed frontmatter and content."
-        result = hashlib.md5()
         frontmatter = self.frontmatter.copy()
         frontmatter.pop("digest", None)  # Necessary!
-        result.update(json.dumps(frontmatter, sort_keys=True).encode("utf-8"))
-        result.update(self.content.encode("utf-8"))
-        return result
+        digest = utils.get_digest_instance(json.dumps(frontmatter, sort_keys=True))
+        digest = utils.get_digest_instance(self.content, digest)
+        return digest
 
     def get_copy_abspath(self):
         "Get the abspath for the next valid copy, and the number."
@@ -538,9 +537,9 @@ class Book(Container):
         """Return the hex digest of the contents of the book.
         Based on frontmatter (excluding digest!), content, and digests of items.
         """
-        digest = self.get_digest()
+        digest = self.get_digest_instance()
         for item in self.items:
-            digest.update(item.digest.encode("utf-8"))
+            digest = utils.get_digest_instance(item.digest)
         return digest.hexdigest()
 
     @property
@@ -807,7 +806,7 @@ class Item(Container):
         """Return the hex digest of the contents of the item.
         Based on frontmatter (excluding 'digest!') and content of the item.
         """
-        return self.get_digest().hexdigest()
+        return self.get_digest_instance().hexdigest()
 
     @property
     def ordinal(self):

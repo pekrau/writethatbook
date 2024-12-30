@@ -2,6 +2,7 @@
 
 import csv
 import datetime
+import hashlib
 import os.path
 import re
 import string
@@ -9,6 +10,22 @@ import time
 import unicodedata
 
 import constants
+
+
+def get_digest_instance(content, digest=None):
+    "Return a new digest instance, or update it, with the given string content."
+    assert isinstance(content, str)
+    if digest is None:
+        digest = hashlib.md5()
+    digest.update(content.encode("utf-8"))
+    return digest
+
+
+def get_digest(content, digest=None):
+    """Return the hex digest code for the content.
+    The given digest instance, if any, is updated by the content.
+    """
+    return get_digest_instance(content, digest=digest).hexdigest()
 
 
 def short_name(name):

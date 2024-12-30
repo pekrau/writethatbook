@@ -155,6 +155,8 @@ def get(request, book: Book):
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
     ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
 
     title = Tx("Index")
     return (
@@ -187,6 +189,8 @@ def get(request, book: Book):
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
     ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
 
     title = Tx("Recently modified")
     return (
@@ -239,6 +243,8 @@ def get(request, book: Book):
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
     ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
 
     title = Tx("Information")
     return (
@@ -284,6 +290,8 @@ def get(request, book: Book):
         ("Download PDF file", f"/book/{book}.pdf"),
         ("Download TGZ file", f"/book/{book}.tgz"),
     ]
+    if auth.authorized(request, *auth.book_diff_rules, book=book):
+        pages.append(("Differences", f"/diff/{book}"))
 
     title = Tx("Status list")
     return (

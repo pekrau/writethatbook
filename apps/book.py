@@ -171,7 +171,8 @@ def get(request, book: Book):
         for author in book.authors:
             segments.append(H5(author))
     else:
-        segments.append(toc(book, book.items, toplevel=True))
+        segments.append(toc(book, book.items,
+                            edit=auth.authorized(request, *auth.book_edit_rules, book=book)))
 
     title = Tx("Contents")
     if book.public:
@@ -282,6 +283,8 @@ def get(request, book: Book, path: str):
     segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid")]
     if item.is_text:
         segments.append(H3(item.heading))
+        if item.subtitle:
+            segments.append(H5(item.subtitle))
     elif item.is_section:
         segments.append(
             Div(
@@ -290,7 +293,10 @@ def get(request, book: Book, path: str):
                 cls="grid",
             )
         )
-        segments.append(toc(book, item.items, toplevel=True))
+        if item.subtitle:
+            segments.append(H5(item.subtitle))
+        segments.append(toc(book, item.items,
+                            edit=auth.authorized(request, *auth.book_edit_rules, book=book)))
 
     return (
         Title(item.title),
@@ -338,62 +344,70 @@ def post(request, book: Book, path: str, form: dict):
     return components.redirect(f"/edit/{book}/{new.path}")
 
 
-def toc(book, items, toplevel=True):
+def toc(book, items, toplevel=True, edit=False):
     "Recursive lists of sections and texts."
     parts = []
     for item in items:
-        arrows = [
-            components.blank(0),
-            A(
-                NotStr("&ShortUpArrow;"),
-                title=Tx("Backward"),
-                cls="plain-text",
-                href=f"/move/backward/{book}/{item.path}",
-            ),
-            components.blank(0),
-            A(
-                NotStr("&ShortDownArrow;"),
-                title=Tx("Forward"),
-                cls="plain-text",
-                href=f"/move/forward/{book}/{item.path}",
-            ),
-        ]
-        if not toplevel and item.parent is not book:
-            arrows.append(components.blank(0))
-            arrows.append(
+        if edit:
+            arrows = [
+                components.blank(0),
                 A(
-                    NotStr("&ShortLeftArrow;"),
-                    title=Tx("Out of"),
+                    NotStr("&ShortUpArrow;"),
+                    title=Tx("Backward"),
                     cls="plain-text",
-                    href=f"/move/outof/{book}/{item.path}",
-                )
-            )
-        if item.prev_section:
-            arrows.append(components.blank(0))
-            arrows.append(
+                    href=f"/move/backward/{book}/{item.path}",
+                ),
+                components.blank(0),
                 A(
-                    NotStr("&ShortRightArrow;"),
-                    title=Tx("Into"),
+                    NotStr("&ShortDownArrow;"),
+                    title=Tx("Forward"),
                     cls="plain-text",
-                    href=f"/move/into/{book}/{item.path}",
+                    href=f"/move/forward/{book}/{item.path}",
+                ),
+            ]
+            if not toplevel and item.parent is not book:
+                arrows.append(components.blank(0))
+                arrows.append(
+                    A(
+                        NotStr("&ShortLeftArrow;"),
+                        title=Tx("Out of"),
+                        cls="plain-text",
+                        href=f"/move/outof/{book}/{item.path}",
+                    )
                 )
-            )
+            if item.prev_section:
+                arrows.append(components.blank(0))
+                arrows.append(
+                    A(
+                        NotStr("&ShortRightArrow;"),
+                        title=Tx("Into"),
+                        cls="plain-text",
+                        href=f"/move/into/{book}/{item.path}",
+                    )
+                )
+        else:
+            arrows = []
+        if arrows:
+            arrows.append(components.blank(0))
         parts.append(
             Li(
+                *arrows,
                 A(
                     item.title,
                     style=f"color: {item.status.color};",
                     href=f"/book/{item.book}/{item.path}",
+                    title=f"{Tx(item.status)} {Tx(item.type)}",
                 ),
-                components.blank(0.5),
+                components.blank(0.2),
+                item.subtitle or "",
+                components.blank(0.2),
                 Small(
                     f'{components.thousands(item.sum_characters)} {Tx("characters")}',
                 ),
-                *arrows,
             )
         )
         if item.is_section:
-            parts.append(toc(book, item.items, toplevel=False))
+            parts.append(toc(book, item.items, toplevel=False, edit=edit))
     return Ol(*parts)
 
 

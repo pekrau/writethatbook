@@ -148,7 +148,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
 
 
 class Container:
-    "Generic container of frontmatter and Markdown content. To be inherited."
+    "General container of frontmatter and Markdown content. To be inherited."
 
     def read_markdown(self, filepath):
         "Read frontmatter and content from the Markdown file."
@@ -164,6 +164,14 @@ class Container:
         else:
             self.frontmatter = {}
             self.content = content
+ 
+    @property
+    def subtitle(self):
+        return self.frontmatter.get("subtitle")
+
+    @subtitle.setter
+    def subtitle(self, subtitle):
+        self.frontmatter["subtitle"] = subtitle or None
 
     @property
     def html(self):
@@ -440,14 +448,6 @@ class Book(Container):
         self.frontmatter["status"] = repr(status)
 
     @property
-    def subtitle(self):
-        return self.frontmatter.get("subtitle")
-
-    @subtitle.setter
-    def subtitle(self, subtitle):
-        self.frontmatter["subtitle"] = subtitle or None
-
-    @property
     def authors(self):
         return self.frontmatter.get("authors") or []
 
@@ -536,6 +536,7 @@ class Book(Container):
         return (0,)
 
     def find_indexed(self, item, ast):
+        "Return the indexed terms in the AST of the content."
         try:
             for child in ast["children"]:
                 if isinstance(child, str):
@@ -547,6 +548,7 @@ class Book(Container):
             pass
 
     def find_refs(self, item, ast):
+        "Return the references in the AST of the content."
         try:
             for child in ast["children"]:
                 if isinstance(child, str):

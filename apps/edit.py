@@ -25,31 +25,27 @@ def get(request, book: Book, first: int = None, last: int = None):
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(book.content))]
 
     if first is None:  # Full edit.
-        fields.extend(
-            [
-                Fieldset(
-                    Legend(Tx("Title")),
-                    Input(
-                        name="title",
-                        value=book.title,
-                        required=True,
-                        autofocus=True,
+        fields.append(
+            Div(
+                Div(
+                    Fieldset(
+                        Legend(Tx("Title")),
+                        Input(
+                            name="title",
+                            value=book.title,
+                            required=True,
+                            autofocus=True,
+                        ),
                     ),
                 ),
-                Fieldset(
-                    Legend(Tx("Subtitle")),
-                    Input(name="subtitle", value=book.subtitle or ""),
-                ),
-                Fieldset(
-                    Legend(Tx("Authors")),
-                    Textarea(
-                        "\n".join(book.authors or []),
-                        id="authors",
-                        name="authors",
-                        rows=4,
+                Div(
+                    Fieldset(
+                        Legend(Tx("Subtitle")),
+                        Input(name="subtitle", value=book.subtitle or ""),
                     ),
                 ),
-            ]
+                cls="grid",
+            )
         )
         language_options = []
         for language in constants.LANGUAGE_CODES:
@@ -57,39 +53,47 @@ def get(request, book: Book, first: int = None, last: int = None):
                 language_options.append(Option(language, selected=True))
             else:
                 language_options.append(Option(language))
-        divs = [
-            Div(
-                Fieldset(
-                    Legend(Tx("Language")), Select(*language_options, name="language")
-                )
-            )
+        right = [
+            Fieldset(
+                Legend(Tx("Language")), Select(*language_options, name="language")
+            ),
+            Fieldset(
+                Legend(Tx("Public")),
+                Label(
+                    Input(
+                        type="checkbox",
+                        role="switch",
+                        name="public",
+                        checked=book.public,
+                    ),
+                    Tx("Readable by anyone."),
+                ),
+            ),
         ]
         if book.type == constants.ARTICLE:
-            divs.append(
+            right.append(
+                Fieldset(
+                    Legend(Tx("Status")),
+                    components.get_status_field(book),
+                )
+            )
+        fields.append(
+            Div(
                 Div(
                     Fieldset(
-                        Legend(Tx("Status")),
-                        components.get_status_field(book),
-                    )
-                )
-            )
-        divs.append(
-            Div(
-                Fieldset(
-                    Legend(Tx("Public")),
-                    Label(
-                        Input(
-                            type="checkbox",
-                            role="switch",
-                            name="public",
-                            checked=book.public,
+                        Legend(Tx("Authors")),
+                        Textarea(
+                            "\n".join(book.authors or []),
+                            id="authors",
+                            name="authors",
+                            rows=4,
                         ),
-                        Tx("Readable by anyone."),
                     ),
-                )
-            )
+                ),
+                Div(*right),
+                cls="grid",
+            ),
         )
-        fields.append(Div(*divs, cls="grid"))
         fields.append(
             Fieldset(
                 Legend(Tx("Text")),
@@ -153,8 +157,8 @@ def post(request, book: Book, form: dict):
             book.title = title
         except KeyError:
             raise Error("no title given for book")
-        book.authors = [a.strip() for a in (form.get("authors") or "").split("\n")]
         book.subtitle = form.get("subtitle") or ""
+        book.authors = [a.strip() for a in (form.get("authors") or "").split("\n")]
         book.public = bool(form.get("public", ""))
         if book.type == constants.ARTICLE:
             book.status = form.get("status")
@@ -193,13 +197,16 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
     if first is None:  # Full edit.
         title_field = Fieldset(
             Label(Tx("Title")),
-            Input(name="title", value=item.title, required=True, autofocus=True),
-        )
+            Input(name="title", value=item.title, required=True))
+        subtitle_field = Fieldset(
+            Label(Tx("Subtitle")),
+            Input(name="subtitle", value=item.subtitle or ""))
         if item.is_text:
             item.read()
             fields.append(
                 Div(
                     title_field,
+                    subtitle_field,
                     Fieldset(
                         Legend(Tx("Status")),
                         components.get_status_field(item),
@@ -208,7 +215,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 )
             )
         elif item.is_section:
-            fields.append(title_field)
+            fields.append(Div(title_field, subtitle_field, cls="grid"))
 
         fields.append(
             Fieldset(
@@ -218,6 +225,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                     id="content",
                     name="content",
                     rows=16,
+                    autofocus=True,
                 ),
             )
         )
@@ -272,6 +280,7 @@ def post(request, book: Book, path: str, form: dict):
     if first is None:  # Full edit.
         item.name = form["title"]  # Changes name of directory/file.
         item.title = form["title"]
+        item.subtitle = form.get("subtitle") or ""
         if item.is_text:
             if form.get("status"):
                 item.status = form["status"]

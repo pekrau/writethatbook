@@ -93,7 +93,12 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
-    pages = [("References", "/refs"), ("All users", "/user/list")]
+    pages = [
+        ("References", "/refs"),
+        ("All users", "/user/list"),
+        ("State (JSON)", "/state"),
+        ("Software", "/meta/software"),
+    ]
 
     if os.environ.get("WRITETHATBOOK_REMOTE_SITE"):
         remote = A(

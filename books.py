@@ -618,10 +618,14 @@ class Book(Container):
         title = section.title
         status = section.status
         parent = section.parent
+        position = section.index
         section.delete(force=True)
         text = self.create_text(title, parent=parent)
         text.status = status
         text.write(content="\n\n".join(merged_content + merged_footnotes))
+        while text.index != position:
+            text.backward()
+        self.write()
         return text
 
     def split(self, path):
@@ -660,6 +664,7 @@ class Book(Container):
         title = text.title
         status = text.status
         parent = text.parent
+        position = text.index
         text.delete(force=True)
         section = self.create_section(title, parent=parent)
         for title, content in parts:
@@ -676,6 +681,9 @@ class Book(Container):
                 text = self.create_text(title, parent=section)
                 text.status = status
                 text.write(content=content)
+        while section.index != position:
+            section.backward()
+        self.write()
         return section
 
     def copy(self, owner=None):
@@ -861,7 +869,7 @@ class Item(Container):
 
     @property
     def index(self):
-        "The zero-based index of this item among its siblings."
+        "The zero-based position of this item among its siblings."
         for count, item in enumerate(self.parent.items):
             if item is self:
                 return count
@@ -964,24 +972,24 @@ class Item(Container):
     def forward(self):
         "Move this item forward in its list of siblings. Loop around at end."
         index = self.index
-        if index == len(self.parent.items) - 1:
-            self.parent.items.insert(0, self.parent.items.pop(index))
+        item = self.parent.items.pop(index)
+        if index == len(self.parent.items):
+            self.parent.items.insert(0, item)
         else:
-            self.parent.items.insert(index + 1, self.parent.items.pop(index))
-        # Write out book and reread (references need not be reread).
+            self.parent.items.insert(index + 1, item)
+        # Write out book 'index.md' containing new order.
         self.book.write()
-        self.book.read()
 
     def backward(self):
         "Move this item backward in its list of siblings. Loop around at beginning."
         index = self.index
+        item = self.parent.items.pop(index)
         if index == 0:
-            self.parent.items.append(self.parent.items.pop(0))
+            self.parent.items.append(item)
         else:
-            self.parent.items.insert(index - 1, self.parent.items.pop(index))
-        # Write out book and reread (references need not be reread).
+            self.parent.items.insert(index - 1, item)
+        # Write out book 'index.md' containing new order.
         self.book.write()
-        self.book.read()
 
     def outof(self):
         "Move this item out of its section into the section or book above."
@@ -1018,7 +1026,7 @@ class Item(Container):
         for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and reread everything.
+        # Write out book and reread everything; refs and indexes must be updated.
         self.book.write()
         self.book.read()
         get_refs(reread=True)
@@ -1058,7 +1066,7 @@ class Item(Container):
         for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and reread everything.
+        # Write out book and reread everything; refs and indexes must be updated.
         self.book.write()
         self.book.read()
         get_refs(reread=True)

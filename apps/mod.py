@@ -90,13 +90,7 @@ def get(request, book: Book, path: str):
 def post(request, book: Book, path: str):
     "Actually join all items from this and below into a single text."
     auth.authorize(request, *auth.book_edit_rules, book=book)
-
     book.merge(path)
-
-    # Write out and reread the book, ensuring everything is up to date.
-    book.write()
-    book.read()
-
     return components.redirect(f"/book/{book}/{path}")
 
 
@@ -131,11 +125,5 @@ def get(request, book: Book, path: str):
 def post(request, book: Book, path: str):
     "Actually split this text into section with texts below."
     auth.authorize(request, *auth.book_edit_rules, book=book)
-
     book.split(path)
-
-    # Write out and reread the book, ensuring everything is up to date.
-    book.write()
-    book.read()
-
     return components.redirect(f"/book/{book}/{path}")

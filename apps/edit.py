@@ -196,11 +196,11 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
 
     if first is None:  # Full edit.
         title_field = Fieldset(
-            Label(Tx("Title")),
-            Input(name="title", value=item.title, required=True))
+            Label(Tx("Title")), Input(name="title", value=item.title, required=True)
+        )
         subtitle_field = Fieldset(
-            Label(Tx("Subtitle")),
-            Input(name="subtitle", value=item.subtitle or ""))
+            Label(Tx("Subtitle")), Input(name="subtitle", value=item.subtitle or "")
+        )
         if item.is_text:
             item.read()
             fields.append(

@@ -164,7 +164,7 @@ class Container:
         else:
             self.frontmatter = {}
             self.content = content
- 
+
     @property
     def subtitle(self):
         return self.frontmatter.get("subtitle")
@@ -230,8 +230,10 @@ class Container:
                 newpath = self.abspath.with_name(f'{stem}_{Tx("copy*")}_{number}')
             else:
                 newpath = self.abspath.with_name(f'{stem}_{Tx("copy*")}')
-            if not (newpath.with_suffix(constants.MARKDOWN_EXT).exists() or
-                    newpath.with_suffix("").exists()):
+            if not (
+                newpath.with_suffix(constants.MARKDOWN_EXT).exists()
+                or newpath.with_suffix("").exists()
+            ):
                 return newpath.with_suffix(self.abspath.suffix), number
         else:
             raise Error("could not form copy identifier; too many copies")
@@ -644,7 +646,7 @@ class Book(Container):
             if line.startswith("[^"):
                 if key and footnote:
                     footnotes_lookup[key] = "\n".join(footnote)
-                key = line[:line.index("]:")-1]
+                key = line[: line.index("]:") - 1]
                 footnote = []
             if key:
                 footnote.append(line)
@@ -656,7 +658,7 @@ class Book(Container):
         part = []
         for line in content.split("\n"):
             if line.startswith("#"):
-                parts.append([title, part]) # First title is None.
+                parts.append([title, part])  # First title is None.
                 part = []
                 title = line.strip("#").strip()
             else:
@@ -1394,6 +1396,7 @@ class Text(Item):
     def check_integrity(self):
         super().check_integrity()
         assert self.abspath.is_file()
+
 
 if __name__ == "__main__":
     book = Book(Path(os.environ["WRITETHATBOOK_DIR"]) / "test")

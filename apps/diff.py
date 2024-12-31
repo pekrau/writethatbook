@@ -32,6 +32,7 @@ def get(request):
     remote_books.pop(constants.REFS, None)
 
     from apps.state import get_books_state
+
     local_books = get_books_state(request)
     local_books.pop(constants.REFS, None)
 

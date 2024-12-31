@@ -56,7 +56,10 @@ def get(request):
     return (
         Title(title),
         components.header(request, title, actions=actions, pages=pages),
-        Main(apps.book.get_books_table(request, books.get_books(request)), cls="container"),
+        Main(
+            apps.book.get_books_table(request, books.get_books(request)),
+            cls="container",
+        ),
         components.footer(request),
     )
 

@@ -171,8 +171,13 @@ def get(request, book: Book):
         for author in book.authors:
             segments.append(H5(author))
     else:
-        segments.append(toc(book, book.items,
-                            edit=auth.authorized(request, *auth.book_edit_rules, book=book)))
+        segments.append(
+            toc(
+                book,
+                book.items,
+                edit=auth.authorized(request, *auth.book_edit_rules, book=book),
+            )
+        )
 
     title = Tx("Contents")
     if book.public:
@@ -295,8 +300,13 @@ def get(request, book: Book, path: str):
         )
         if item.subtitle:
             segments.append(H5(item.subtitle))
-        segments.append(toc(book, item.items,
-                            edit=auth.authorized(request, *auth.book_edit_rules, book=book)))
+        segments.append(
+            toc(
+                book,
+                item.items,
+                edit=auth.authorized(request, *auth.book_edit_rules, book=book),
+            )
+        )
 
     return (
         Title(item.title),
@@ -400,10 +410,6 @@ def toc(book, items, toplevel=True, edit=False):
                 ),
                 components.blank(0.2),
                 item.subtitle or "",
-                components.blank(0.2),
-                Small(
-                    f'{components.thousands(item.sum_characters)} {Tx("characters")}',
-                ),
             )
         )
         if item.is_section:

@@ -96,8 +96,10 @@ def get(request):
     pages = [("References", "/refs"), ("All users", "/user/list")]
 
     if os.environ.get("WRITETHATBOOK_REMOTE_SITE"):
-        remote = A(os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
-                   href=os.environ.get("WRITETHATBOOK_REMOTE_SITE"))
+        remote = A(
+            os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
+            href=os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
+        )
     else:
         remote = "-"
     title = Tx("System")

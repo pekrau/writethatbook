@@ -387,9 +387,6 @@ def toc(book, items, toplevel=True):
                 ),
                 components.blank(0.5),
                 Small(
-                    f"{Tx(item.type)}; ",
-                    f"{Tx(repr(item.status))}; ",
-                    f'{components.thousands(item.sum_words)} {Tx("words")}; ',
                     f'{components.thousands(item.sum_characters)} {Tx("characters")}',
                 ),
                 *arrows,

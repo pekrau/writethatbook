@@ -47,7 +47,9 @@ def get(request):
 @rt(f"/{constants.REFS}")
 def get(request):
     auth.authorize(request, *auth.book_view_rules)
-    return get_state(get_refs())
+    result = get_general_state()
+    result.update(get_refs().state)
+    return result
 
 
 @rt("/{book:Book}")

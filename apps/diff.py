@@ -23,8 +23,6 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Compare local site with the remote site. References are excluded."
-    from apps.state import get_books_state
-
     auth.authorize(request, *auth.book_diff_rules)
 
     remote_state = get_remote_state()
@@ -33,6 +31,7 @@ def get(request):
     remote_books = remote_state["books"]
     remote_books.pop(constants.REFS, None)
 
+    from apps.state import get_books_state
     local_books = get_books_state(request)
     local_books.pop(constants.REFS, None)
 

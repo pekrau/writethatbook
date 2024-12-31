@@ -95,12 +95,21 @@ def get(request):
 
     pages = [("References", "/refs"), ("All users", "/user/list")]
 
+    if os.environ.get("WRITETHATBOOK_REMOTE_SITE"):
+        remote = A(os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
+                   href=os.environ.get("WRITETHATBOOK_REMOTE_SITE"))
+    else:
+        remote = "-"
     title = Tx("System")
     return (
         Title(title),
         components.header(request, title, pages=pages),
         Main(
             Table(
+                Tr(
+                    Td(Tx("Remote site")),
+                    Td(remote),
+                ),
                 Tr(
                     Td(Tx("RAM usage")),
                     Td(

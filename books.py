@@ -211,7 +211,7 @@ class Container:
         frontmatter = self.frontmatter.copy()
         frontmatter.pop("digest", None)  # Necessary!
         digest = utils.get_digest_instance(json.dumps(frontmatter, sort_keys=True))
-        digest = utils.get_digest_instance(self.content, digest)
+        digest = utils.get_digest_instance(self.content, digest=digest)
         return digest
 
     def get_copy_abspath(self):
@@ -528,7 +528,7 @@ class Book(Container):
         """
         digest = self.get_digest_instance()
         for item in self.items:
-            digest = utils.get_digest_instance(item.digest)
+            utils.get_digest_instance(item.digest, digest=digest)
         return digest.hexdigest()
 
     @property

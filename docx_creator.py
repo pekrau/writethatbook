@@ -158,6 +158,8 @@ class Creator:
         if level <= self.page_break_level:
             self.document.add_page_break()
         self.write_heading(section.heading, level)
+        if section.subtitle:
+            self.write_heading(section.subtitle, level + 1)
         for item in section.items:
             if item.is_section:
                 self.write_section(item, level=level + 1)
@@ -169,6 +171,8 @@ class Creator:
             self.document.add_page_break()
         if not text.frontmatter.get("suppress_title"):
             self.write_heading(text.heading, level)
+            if text.subtitle:
+                self.write_heading(text.subtitle, level + 1)
         self.current_text = text
         self.render(text.ast, initialize=True)
         self.write_footnotes_text(text)

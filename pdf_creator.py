@@ -209,6 +209,8 @@ class Creator:
         if level <= self.contents_level:
             self.pdf.start_section(section.heading, level=level - 1)
         self.write_heading(section.heading, level)
+        if section.subtitle:
+            self.write_heading(section.subtitle, level + 1)
         for item in section.items:
             if item.is_section:
                 self.write_section(item, level=level + 1)
@@ -225,6 +227,8 @@ class Creator:
             self.pdf.start_section(text.heading, level=level - 1)
         if not text.frontmatter.get("suppress_title"):
             self.write_heading(text.heading, level)
+            if text.subtitle:
+                self.write_heading(text.subtitle, level + 1)
         self.current_text = text
         self.render(text.ast)
         self.write_footnotes_text(text)

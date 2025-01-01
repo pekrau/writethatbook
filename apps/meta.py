@@ -159,7 +159,7 @@ def get(request, book: Book):
             refs.append(
                 Li(A(text.fulltitle, cls="secondary", href=f"/book/{book}/{text.path}"))
             )
-        items.append(Li(key, Small(Ul(*refs))))
+        items.append(Li(key, Small(Ul(*refs)), id=key))
 
     pages = [
         ("References", "/refs"),

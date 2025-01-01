@@ -14,6 +14,16 @@ import utils
 from utils import Tx
 
 
+# Terrible kludge: creating URL for indexed word requires knowing
+# the book, so this global variable keeps track of it.
+
+_current_book = None
+
+def get_index_href(canonical):
+    global _current_book
+    return f"/meta/index/{_current_book}#{canonical}"
+
+
 class Subscript(marko.inline.InlineElement):
     "Markdown extension for subscript."
 
@@ -96,7 +106,7 @@ class IndexedRenderer:
             title = utils.Tx("Indexed")
         else:
             title = utils.Tx("Indexed") + ": " + element.canonical
-        return f'<a class="contrast" title="{title}" href="/index#{element.canonical}">{element.term}</a>'
+        return f'<a class="contrast" title="{title}" href="{get_index_href(element.canonical)}">{element.term}</a>'
 
 
 class Reference(marko.inline.InlineElement):
@@ -167,9 +177,11 @@ class Fragmenter:
             return "\n\n"
 
 
-def convert_to_html(content, href=None):
+def convert_to_html(book, content, href=None):
+    global _current_book
     if href:
         content = Fragmenter(content, href=href).processed
+    _current_book = book
     return html_converter.convert(content)
 
 

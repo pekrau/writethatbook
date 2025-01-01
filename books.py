@@ -174,10 +174,6 @@ class Container:
         self.frontmatter["subtitle"] = subtitle or None
 
     @property
-    def html(self):
-        return markdown.convert_to_html(self.content)
-
-    @property
     def ast(self):
         return markdown.convert_to_ast(self.content)
 
@@ -536,6 +532,10 @@ class Book(Container):
     @property
     def ordinal(self):
         return (0,)
+
+    @property
+    def html(self):
+        return markdown.convert_to_html(self, self.content)
 
     def find_indexed(self, item, ast):
         "Return the indexed terms in the AST of the content."
@@ -956,6 +956,10 @@ class Item(Container):
     @property
     def language(self):
         return self.book.language
+
+    @property
+    def html(self):
+        return markdown.convert_to_html(self.book, self.content)
 
     def split_footnotes(self):
         "Return content split up as a tuple (text, footnotes)."

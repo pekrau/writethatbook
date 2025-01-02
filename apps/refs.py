@@ -281,6 +281,18 @@ def get(request, ref: Text):
                     href=f"/book/{book.id}/{text.path}",
                 )
             )
+    contains = []
+    refvalue = f"[@{ref['name']}]"
+    for r in get_refs():
+        if r.get("journal") == refvalue:
+            if contains:
+                contains.append(Br())
+            contains.append(A(r["name"], href=f"/refs/{r}"))
+            contains.append(" ")
+            contains.append(r.title)
+    if contains:
+        rows.append(Tr(Td(Tx("Contains")), Td(*contains)))
+
     rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(*xrefs)))
 
     if auth.authorized(request, *auth.ref_edit_rules, ref=ref):

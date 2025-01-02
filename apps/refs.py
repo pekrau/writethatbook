@@ -290,7 +290,6 @@ def get(request, ref: Text):
             ("Delete", f"/refs/delete/{ref['id']}"),
         ]
 
-        title = f"{ref['name']} ({Tx(ref['type'])})"
         kwargs = {"role": "button", "style": "width: 10em;"}
         buttons = [
             Div(A(Tx("Edit"), href=f"/refs/edit/{ref['id']}", **kwargs)),
@@ -307,6 +306,7 @@ def get(request, ref: Text):
         ("Recently modified", "/refs/recent"),
     ]
 
+    title = f"{ref['name']} ({Tx(ref['type'])})"
     return (
         Title(title),
         Script(src="/clipboard.min.js"),

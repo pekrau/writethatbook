@@ -74,7 +74,15 @@ def get(request):
         links = []
         if ref["type"] == constants.ARTICLE:
             if ref.get("journal"):
-                parts.append(I(ref["journal"]))
+                value = ref["journal"]
+                if value.startswith("[@"):
+                    value = value[2:-1]
+                    parts.append(" ")
+                    parts.append(Tx("Part of"))
+                    parts.append(" ")
+                    parts.append(A(value, href=f"/refs/{utils.nameify(value)}"))
+                else:
+                    parts.append(I(ref["journal"]))
             if ref.get("volume"):
                 parts.append(f' {ref["volume"]}')
             if ref.get("number"):
@@ -215,7 +223,23 @@ def get(request, ref: Text):
         "year",
         "edition_published",
         "date",
-        "journal",
+    ]:
+        value = ref.get(key)
+        if value:
+            rows.append(
+                Tr(Td((Tx(key.replace("_", " ")).title()), valign="top"), Td(value))
+            )
+
+    if ref.get("journal"):
+        value = ref["journal"]
+        if value.startswith("[@"):
+            value = value[2:-1]
+            rows.append(Tr(Td(Tx("Part of"), valign="top"),
+                           Td(Strong(A(value, href=f"/refs/{utils.nameify(value)}")))))
+        else:
+            rows.append(Tr(Td(Tx("Journal"), valign="top"), Td(value)))
+
+    for key in [
         "volume",
         "number",
         "pages",
@@ -227,6 +251,7 @@ def get(request, ref: Text):
             rows.append(
                 Tr(Td((Tx(key.replace("_", " ")).title()), valign="top"), Td(value))
             )
+
     if ref.get("keywords"):
         rows.append(
             Tr(Td(Tx("Keywords"), valign="top"), Td("; ".join(ref["keywords"])))
@@ -779,7 +804,7 @@ def get_ref_fields(ref=None, type=None):
     if type == constants.ARTICLE:
         result.append(
             Fieldset(
-                Legend(Tx("Journal")),
+                Legend(Tx("Journal") + " / " + Tx("Part of") + " " + Tx("reference")),
                 Input(name="journal", value=ref.get("journal") or ""),
             )
         )

@@ -234,8 +234,12 @@ def get(request, ref: Text):
         value = ref["journal"]
         if value.startswith("[@"):
             value = value[2:-1]
-            rows.append(Tr(Td(Tx("Part of"), valign="top"),
-                           Td(Strong(A(value, href=f"/refs/{utils.nameify(value)}")))))
+            rows.append(
+                Tr(
+                    Td(Tx("Part of"), valign="top"),
+                    Td(Strong(A(value, href=f"/refs/{utils.nameify(value)}"))),
+                )
+            )
         else:
             rows.append(Tr(Td(Tx("Journal"), valign="top"), Td(value)))
 

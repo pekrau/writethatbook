@@ -274,7 +274,9 @@ def get(request, book: Book, path: str):
         actions.append(["Copy", f"/copy/{book}/{path}"])
         actions.append(["Delete", f"/delete/{book}/{path}"])
         button_card = Card(*buttons, cls="grid")
-        html = markdown.convert_to_html(item.book, item.content, href=f"/edit/{book}/{path}")
+        html = markdown.convert_to_html(
+            item.book, item.content, href=f"/edit/{book}/{path}"
+        )
     else:
         actions = []
         button_card = ""

@@ -19,6 +19,7 @@ from utils import Tx
 
 _current_book = None
 
+
 def get_index_href(canonical):
     global _current_book
     return f"/meta/index/{_current_book}#{canonical}"
@@ -127,6 +128,13 @@ class ReferenceRenderer:
         return f'<strong><a href="/refs/{element.id}">{element.name}</a></strong>'
 
 
+class ThematicBreakRenderer:
+    "Thematic break before a paragraph."
+
+    def render_thematic_break(self, element):
+        return '<hr class="break" />\n'
+
+
 html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
@@ -139,6 +147,7 @@ html_converter.use(
             LasteditRenderer,
             IndexedRenderer,
             ReferenceRenderer,
+            ThematicBreakRenderer,
         ],
     )
 )

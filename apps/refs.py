@@ -174,21 +174,15 @@ def get(request):
                 (Tx("Upload TGZ file"), "/refs/upload"),
             ]
         )
-    pages = [
-        ("Keywords", "/refs/keywords"),
-        ("Recently modified", "/refs/recent"),
-        ("Download TGZ file", "/refs/all.tgz"),
-    ]
-
-    if auth.authorized(request, *auth.book_diff_rules):
-        pages.append([Tx("Differences"), f"/diff/{constants.REFS}"])
+    if auth.authorized(request, *auth.book_diff_rules, book=refs):
+        actions.append(["Differences", f"/diff/{constants.REFS}"])
 
     title = f"{len(refs.items)}"
     return (
         Title(title),
         Script(src="/clipboard.min.js"),
         Script("new ClipboardJS('.to_clipboard');"),
-        components.header(request, title, book=refs, actions=actions, pages=pages),
+        components.header(request, title, book=refs, actions=actions),
         Main(components.search_form("/refs/search"), *items, cls="container"),
         components.footer(request),
     )

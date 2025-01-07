@@ -36,12 +36,10 @@ def post(request, book: Book, form: dict):
     else:
         result = P()
 
-    pages = [("References", "/refs")]
-
     title = f"{Tx('Search in')} '{book.title}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, pages=pages),
+        components.header(request, title, book=book, status=book.status),
         Main(
             components.search_form(f"/search/{book}", term=term),
             result,
@@ -74,12 +72,10 @@ def post(request, book: Book, path: str, form: dict):
     else:
         result = P()
 
-    pages = [("References", "/refs")]
-
     title = f"{Tx('Search in')} '{book.title}'; '{item.fulltitle}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status, pages=pages),
+        components.header(request, title, book=book, status=item.status),
         Main(
             components.search_form(f"/search/{book}/{path}", term=term),
             result,

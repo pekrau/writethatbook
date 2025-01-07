@@ -154,7 +154,6 @@ refs_edit_rules = [
 
 ref_edit_rules = [
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be more restrictive?!
     Allow({"var": "current_user.is_admin"}),
 ]
 

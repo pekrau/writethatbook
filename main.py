@@ -42,20 +42,13 @@ def get(request):
     if auth.authorized(request, *auth.book_create_rules):
         actions.append(["Create or upload book", "/book"])
         actions.append(["Reread books", "/reread"])
-    pages = [("References", "/refs")]
-    if auth.is_admin(request):
-        pages.append(["All users", "/user/list"])
-        pages.append(["Download dump file", "/dump"])
-        pages.append(["State (JSON)", "/state"])
-        if auth.authorized(request, *auth.book_diff_rules):
-            pages.append(["Differences", "/diff"])
-        pages.append(["System", "/meta/system"])
-    pages.append(["Software", "/meta/software"])
+    if auth.authorized(request, *auth.book_diff_rules):
+        actions.append(["Differences", f"/diff"])
 
     title = Tx("Books")
     return (
         Title(title),
-        components.header(request, title, actions=actions, pages=pages),
+        components.header(request, title, actions=actions),
         Main(
             apps.book.get_books_table(request, books.get_books(request)),
             cls="container",

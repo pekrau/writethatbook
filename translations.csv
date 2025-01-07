@@ -34,10 +34,9 @@ reread books,läs in böcker igen
 journal,tidskrift
 volume,volym
 number,nummer
-pages,sidor
 date,datum
 update,uppdatera
-remote site,fjärrserver
+remote site,fjärrsajt
 here,här
 update here,uppdatera här
 edition published,utgåva publicerad
@@ -47,7 +46,6 @@ words,ord
 characters,tecken
 edit,redigera
 edit paragraph,redigera stycke
-actions,åtgärder
 settings,inställningar
 create,skapa
 create section,skapa sektion
@@ -132,7 +130,8 @@ modified,modifierad
 differences,skillnader
 differences in,skillnader i
 identical,identiska
-State (JSON),Tillstånd (JSON)
+Book state (JSON),Boktillstånd (JSON)
+Site state (JSON),Sajttillstånd (JSON)
 age,ålder
 newer,nyare
 older,äldre

@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 9, 5)
+VERSION = (1, 10, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 

@@ -32,16 +32,10 @@ def get(request):
     "Form page for creating a new user account."
     auth.allow_admin(request)
 
-    pages = [
-        ("All users", "/user/list"),
-        ("Login", "/user/login"),
-        ("System", "/meta/system"),
-    ]
-
     title = Tx("Create user")
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Form(
                 Fieldset(
@@ -111,17 +105,10 @@ def get(request):
             )
         )
 
-    actions = [("Create user", "/user/")]
-    pages = [
-        ("All users", "/user/list"),
-        ("Login", "/user/login"),
-        ("System", "/meta/system"),
-    ]
-
     title = Tx("All users")
     return (
         Title(title),
-        components.header(request, title, actions=actions, pages=pages),
+        components.header(request, title, actions=[("Create user", "/user/")]),
         Main(
             Table(
                 Thead(
@@ -155,17 +142,11 @@ def get(request, user: users.User):
     else:
         logout = ""
 
-    pages = [("References", "/refs")]
-    if auth.is_admin(request):
-        pages.append(["All users", "/user/list"])
-        pages.append(["Login", "/user/login"])
-        pages.append(["System", "/meta/system"])
-
     import apps
 
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Table(
                 Tr(Td(Tx("Identifier")), Td(user.id)),
@@ -314,15 +295,10 @@ def get(request, path: str = None):
     else:
         hidden = []
 
-    pages = [("References", "/refs")]
-    if auth.is_admin(request):
-        pages.append(["All users", "/user/list"])
-        pages.append(["System", "/meta/system"])
-
     title = "Login"
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Article(
                 Form(

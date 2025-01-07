@@ -78,73 +78,92 @@ def search_form(action, term=None):
     )
 
 
-def header(request, title, book=None, status=None, actions=None, pages=None, menu=None):
+def header(request, title, book=None, status=None, actions=None):
     "The standard page header with navigation bar."
 
-    # The first cell: icon link to home page, and title of book, if any.
-    home = A(
-        Img(src="/writethatbook.png", cls="white"),
-        href="/",
-        role="button",
-        title=f"{constants.SOFTWARE} {constants.__version__}",
-        cls="outline contrast",
-    )
+    # General menu items.
+    menu = [
+        A(Tx("Books"), href="/"),
+        A(Tx("References"), href="/refs"),
+    ]
+
+    # Links to pages for book.
     if book:
         if book is books.get_refs():
-            cells = [
-                Ul(
-                    Li(home),
-                    Li(A(Strong(Tx("References")), href="/refs")),
-                )
-            ]
+            menu.extend([
+                A(Tx("Keywords"), href="/refs/keywords"),
+                A(Tx("Recently modified"), href="/refs/recent"),
+                A(Tx("Download TGZ file"), href="/refs/all.tgz"),
+            ])
         else:
-            cells = [
-                Ul(
-                    Li(home),
-                    Li(A(Strong(book.title), href=f"/book/{book.id}")),
-                )
-            ]
+            menu.extend([
+                A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"),
+                A(Tx("Index"), href=f"/meta/index/{book}"),
+                A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
+                A(Tx("Status list"), href=f"/meta/status/{book}"),
+                A(Tx("Information"), href=f"/meta/info/{book}"),
+                A(Tx("Book state (JSON)"), href=f"/state/{book}"),
+                A(Tx("Download DOCX file"), href=f"/book/{book}.docx"),
+                A(Tx("Download PDF file"), href=f"/book/{book}.pdf"),
+                A(Tx("Download TGZ file"),href= f"/book/{book}.tgz")
+            ])
+
+    # Links to pages for admin.
+    if auth.is_admin(request):
+        menu.extend([
+            A(Tx("All users"), href="/user/list"),
+            A(Tx("Download dump file"), href="/dump"),
+            A(Tx("Site state (JSON)"), href="/state"),
+            A(Tx("System"), href="/meta/system"),
+        ])
+
+    # Links to general pages.
+    menu.append(A(Tx("Software"), href="/meta/software"))
+
+    if actions:
+        actions = [A(NotStr(Tx(text)), href=href) for text, href in actions]
     else:
-        cells = [Ul(Li(home))]
+        actions = []
+    if auth.is_admin(request):
+        actions.append(A(Tx("Login"), href="/user/login"))
 
-    # The second cell: title.
-    cells.append(Ul(Li(Strong(title))))
-
-    # The third cell: login button and menus.
-    items = []
-    if auth.logged_in(request) is None:
-        items.append(Li(A(Button("Login"), href="/user/login")))
+    # The first navbar item:
+    # - Pulldown for links to pages.
+    # - Pulldown for actions, if any.
+    # - Link to book, if any.
+    # - Title of page.
+    items = [
+        Li(
+            Details(
+                Summary(Img(src="/writethatbook.png"), role="button", cls="outline"),
+                Ul(*[Li(a) for a in menu]),
+                cls="dropdown",
+            ),
+        )
+          ]
     if actions:
         items.append(
             Li(
                 Details(
-                    Summary(Tx("Actions"), style="width: 7em;"),
-                    Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in actions]),
+                    Summary(Img(src="/actions.svg")),
+                    Ul(*[Li(a) for a in actions]),
                     cls="dropdown",
                 ),
             )
         )
-    if pages:
-        items.append(
-            Li(
-                Details(
-                    Summary(Tx("Pages"), style="width: 7em;"),
-                    Ul(*[Li(A(NotStr(Tx(t)), href=h)) for t, h in pages]),
-                    cls="dropdown",
-                ),
-            )
-        )
-    if menu:
-        items.append(
-            Li(
-                Details(
-                    Summary(Tx("Menu"), style="width: 7em;"),
-                    Ul(*[Li(i) for i in menu]),
-                    cls="dropdown",
-                ),
-            )
-        )
-    cells.append(Ul(*items))
+    if book:
+        if book is books.get_refs():
+            items.append(Li(A(Tx("References"), href="/refs")))
+        else:
+            items.append(Li(A(book.title, href=f"/book/{book}")))
+    # The title of the page.
+    items.append(Li(Strong(title)))
+
+    navs = [Ul(*items)]
+
+    # The second navbar item: login button, if not logged in.
+    if auth.logged_in(request) is None:
+        navs.append(Ul(Li(A(Tx("Login"), href="/user/login", role="button"))))
 
     # Set the color of the nav frame.
     nav_style = "outline-color: {color}; outline-width:8px; outline-style:solid; padding:0px 10px; border-radius:5px;"
@@ -152,7 +171,7 @@ def header(request, title, book=None, status=None, actions=None, pages=None, men
         nav_style = nav_style.format(color=status.color)
     else:
         nav_style = nav_style.format(color="black")
-    return Header(Nav(*cells, style=nav_style), cls="container")
+    return Header(Nav(*navs, style=nav_style), cls="container")
 
 
 def footer(request, item=None):

@@ -108,6 +108,7 @@ def get(request, book: Book):
             ("Reread book", f"/reread/{book}"),
             ("Delete", f"/delete/{book}"),
         ]
+
         buttons = [
             Div(
                 A(
@@ -143,24 +144,14 @@ def get(request, book: Book):
             )
         button_card = Card(*buttons, cls="grid")
         html = markdown.convert_to_html(book, book.content, href=f"/edit/{book}")
+
     else:
         actions = []
         button_card = ""
         html = book.html
 
-    pages = [
-        ("References", "/refs"),
-        ("Index", f"/meta/index/{book}"),
-        ("Recently modified", f"/meta/recent/{book}"),
-        ("Status list", f"/meta/status/{book}"),
-        ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/state/{book}"),
-        ("Download DOCX file", f"/book/{book}.docx"),
-        ("Download PDF file", f"/book/{book}.pdf"),
-        ("Download TGZ file", f"/book/{book}.tgz"),
-    ]
     if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
+        actions.append(["Differences", f"/diff/{book}"])
 
     segments = [components.search_form(f"/search/{book}")]
 
@@ -190,7 +181,6 @@ def get(request, book: Book):
             book=book,
             status=book.status,
             actions=actions,
-            pages=pages,
         ),
         Main(
             *segments,
@@ -234,11 +224,11 @@ def get(request, book: Book, path: str):
         neighbours.append(Div())
 
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        kwargs = {"role": "button", "style": "width: 10em;"}
         actions = [
             ("Edit", f"/edit/{book}/{path}"),
             ("Append", f"/mod/append/{book}/{path}"),
         ]
+        kwargs = {"role": "button", "style": "width: 10em;"}
         buttons = [
             Div(A(Tx("Edit"), href=f"/edit/{book}/{path}", **kwargs)),
             Div(A(Tx("Append"), href=f"/mod/append/{book}/{path}", **kwargs)),
@@ -270,9 +260,11 @@ def get(request, book: Book, path: str):
                     )
                 )
 
-        actions.append(["Reread book", f"/reread/{book}?path={path}"])
-        actions.append(["Copy", f"/copy/{book}/{path}"])
-        actions.append(["Delete", f"/delete/{book}/{path}"])
+        actions.extend([
+            ("Reread book", f"/reread/{book}?path={path}"),
+            ("Copy", f"/copy/{book}/{path}"),
+            ("Delete", f"/delete/{book}/{path}"),
+        ])
         button_card = Card(*buttons, cls="grid")
         html = markdown.convert_to_html(
             item.book, item.content, href=f"/edit/{book}/{path}"
@@ -281,11 +273,6 @@ def get(request, book: Book, path: str):
         actions = []
         button_card = ""
         html = item.html
-
-    pages = [
-        ("References", "/refs"),
-        ("Index", f"/meta/index/{book}"),
-    ]
 
     segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid")]
     if item.is_text:
@@ -318,7 +305,6 @@ def get(request, book: Book, path: str):
             book=book,
             status=item.status,
             actions=actions,
-            pages=pages,
         ),
         Main(
             *segments,

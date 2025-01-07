@@ -32,10 +32,6 @@ def get(request):
     auth.allow_anyone(request)
 
     title = Tx("Software")
-    pages = [("References", "/refs")]
-    if auth.is_admin(request):
-        pages.append(["State (JSON)", "/state"])
-        pages.append(["System", "/meta/system"])
     rows = []
     for name, href, version in [
         (constants.SOFTWARE, "https://github.com/pekrau/mdbook", constants.__version__),
@@ -68,7 +64,7 @@ def get(request):
 
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Table(
                 Thead(Tr(Th(Tx("Software")), Th(Tx("Version")))),
@@ -93,13 +89,6 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
-    pages = [
-        ("References", "/refs"),
-        ("All users", "/user/list"),
-        ("State (JSON)", "/state"),
-        ("Software", "/meta/software"),
-    ]
-
     if os.environ.get("WRITETHATBOOK_REMOTE_SITE"):
         remote = A(
             os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
@@ -110,7 +99,7 @@ def get(request):
     title = Tx("System")
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Table(
                 Tr(
@@ -161,23 +150,10 @@ def get(request, book: Book):
             )
         items.append(Li(key, Small(Ul(*refs)), id=key))
 
-    pages = [
-        ("References", "/refs"),
-        ("Recently modified", f"/meta/recent/{book}"),
-        ("Status list", f"/meta/status/{book}"),
-        ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/state/{book}"),
-        ("Download DOCX file", f"/book/{book}.docx"),
-        ("Download PDF file", f"/book/{book}.pdf"),
-        ("Download TGZ file", f"/book/{book}.tgz"),
-    ]
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
-
     title = Tx("Index")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, pages=pages),
+        components.header(request, title, book=book, status=book.status),
         Main(Ul(*items), cls="container"),
         components.footer(request),
     )
@@ -196,22 +172,10 @@ def get(request, book: Book):
         for i in items
     ]
 
-    pages = [
-        ("References", "/refs"),
-        ("Index", f"/meta/index/{book}"),
-        ("Status list", f"/meta/status/{book}"),
-        ("State (JSON)", f"/state/{book}"),
-        ("Download DOCX file", f"/book/{book}.docx"),
-        ("Download PDF file", f"/book/{book}.pdf"),
-        ("Download TGZ file", f"/book/{book}.tgz"),
-    ]
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
-
     title = Tx("Recently modified")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, pages=pages),
+        components.header(request, title, book=book, status=book.status),
         Main(
             P(Table(Tbody(*rows))),
             cls="container",
@@ -249,23 +213,10 @@ def get(request, book: Book):
         )
     )
 
-    pages = [
-        ("References", "/refs"),
-        ("Index", f"/meta/index/{book}"),
-        ("Recently modified", f"/meta/recent/{book}"),
-        ("Status list", f"/meta/status/{book}"),
-        ("State (JSON)", f"/state/{book}"),
-        ("Download DOCX file", f"/book/{book}.docx"),
-        ("Download PDF file", f"/book/{book}.pdf"),
-        ("Download TGZ file", f"/book/{book}.tgz"),
-    ]
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
-
     title = Tx("Information")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, pages=pages),
+        components.header(request, title, book=book, status=book.status),
         Main(*segments, cls="container"),
         components.footer(request),
     )
@@ -296,23 +247,10 @@ def get(request, book: Book):
             )
         )
 
-    pages = [
-        ("References", "/refs"),
-        ("Index", f"/meta/index/{book}"),
-        ("Recently modified", f"/meta/recent/{book}"),
-        ("Information", f"/meta/info/{book}"),
-        ("State (JSON)", f"/state/{book}"),
-        ("Download DOCX file", f"/book/{book}.docx"),
-        ("Download PDF file", f"/book/{book}.pdf"),
-        ("Download TGZ file", f"/book/{book}.tgz"),
-    ]
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
-        pages.append(("Differences", f"/diff/{book}"))
-
     title = Tx("Status list")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, pages=pages),
+        components.header(request, title, book=book, status=book.status),
         Main(Table(*rows), cls="container"),
         components.footer(request),
     )

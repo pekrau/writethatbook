@@ -29,18 +29,23 @@ def get(request):
     if not remote_state:
         raise Error("No response from remote site.", HTTP.INTERNAL_SERVER_ERROR)
     remote_books = remote_state["books"]
-    remote_books.pop(constants.REFS, None)
 
-    from apps.state import get_books_state
-
-    local_books = get_books_state(request)
-    local_books.pop(constants.REFS, None)
+    import apps.state
+    local_books = apps.state.get_books_state(request)
 
     rows = []
     for id, rbook in remote_books.items():
-        rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
+        if id == constants.REFS:
+            lurl = "/refs"
+            rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/refs"
+        else:
+            lurl = f"/book/{id}"
+            rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
         lbook = local_books.pop(id, {})
-        title = lbook.get("title") or rbook.get("title")
+        if id == constants.REFS:
+            title = Tx("References")
+        else:
+            title = lbook.get("title") or rbook.get("title")
         if lbook:
             if lbook["digest"] == rbook["digest"]:
                 action = Tx("Identical")
@@ -57,7 +62,7 @@ def get(request):
                         f'{components.thousands(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(
-                        A(id, href=f"/book/{id}"),
+                        A(lurl, href=lurl),
                         Br(),
                         utils.localtime(lbook["modified"]),
                         Br(),
@@ -103,23 +108,10 @@ def get(request):
             ),
         )
 
-    pages = [("References", "/refs")]
-    if auth.authorized(request, *auth.book_diff_rules):
-        pages.append(
-            [f'{Tx("Differences")} {Tx("references")}', f"/diff/{constants.REFS}"]
-        )
-
-    if auth.is_admin(request):
-        pages.append(["All users", "/user/list"])
-        pages.append(["Download dump file", "/dump"])
-        pages.append(["State (JSON)", "/state"])
-        pages.append(["System", "/meta/system"])
-    pages.append(["Software", "/meta/software"])
-
     title = Tx("Differences")
     return (
         Title(title),
-        components.header(request, title, pages=pages),
+        components.header(request, title),
         Main(
             Table(
                 Thead(
@@ -154,15 +146,18 @@ def get(request, id: str):
     if id == constants.REFS:
         book = get_refs()
         local_state = book.state
+        title = f"{Tx('Differences in')} '{Tx('References')}'"
+        rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/refs"
+        lurl = f"/refs"
     else:
         try:
             book = get_book(id)
             local_state = book.state
         except Error:
             local_state = {}
-
-    rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
-    lurl = f"/book/{id}"
+        title = f"{Tx('Differences in')} {Tx('book')} '{book.title}'"
+        rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
+        lurl = f"/book/{id}"
 
     rows, rflag, lflag = items_diffs(
         remote_state.get("items", []), rurl, local_state.get("items", []), lurl
@@ -172,16 +167,15 @@ def get(request, id: str):
     if remote_state and local_state:
         row, rf, lf = item_diff(
             remote_state,
-            os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}",
+            rurl,
             local_state,
-            f"/book/{id}",
+            lurl,
         )
         if row:
             rows.insert(0, row)
             rflag += rf
             lflag += lf
 
-    title = f"{Tx('Differences in')} {Tx('book')} '{book.title}'"
     if not rows:
         if not remote_state:
             segments = (
@@ -206,7 +200,7 @@ def get(request, id: str):
                 H4(Tx("Identical")),
                 Div(
                     Div(Strong(A(rurl, href=rurl))),
-                    Div(Strong(A(id, href=lurl))),
+                    Div(Strong(A(lurl, href=lurl))),
                     cls="grid",
                 ),
             )
@@ -241,7 +235,6 @@ def get(request, id: str):
         )
     )
 
-    title = f"{Tx('Differences in')} {Tx('book')} '{book.title}'"
     return (
         Title(title),
         components.header(request, title, book=book),

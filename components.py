@@ -132,10 +132,11 @@ def header(request, title, book=None, status=None, actions=None):
     # - Pulldown for actions, if any.
     # - Link to book, if any.
     # - Title of page.
+    style = "background: white; padding: 4px;"
     items = [
         Li(
             Details(
-                Summary(Img(src="/writethatbook.png"), role="button", cls="outline"),
+                Summary(Img(src="/writethatbook.png", style=style), role="button", cls="outline"),
                 Ul(*[Li(a) for a in menu]),
                 cls="dropdown",
             ),
@@ -145,7 +146,7 @@ def header(request, title, book=None, status=None, actions=None):
         items.append(
             Li(
                 Details(
-                    Summary(Img(src="/actions.svg")),
+                    Summary(Img(src="/actions.svg", style=style)),
                     Ul(*[Li(a) for a in actions]),
                     cls="dropdown",
                 ),

@@ -310,12 +310,6 @@ def get(request, ref: Text):
     else:
         actions = []
 
-    pages = [
-        ("References", "/refs/"),
-        ("Keywords", "/refs/keywords"),
-        ("Recently modified", "/refs/recent"),
-    ]
-
     title = f"{ref['name']} ({Tx(ref['type'])})"
     return (
         Title(title),
@@ -327,7 +321,6 @@ def get(request, ref: Text):
             book=get_refs(),
             status=ref.status,
             actions=actions,
-            pages=pages,
         ),
         Main(
             Table(*rows),
@@ -485,15 +478,10 @@ def get(request):
         for ref in items
     ]
 
-    pages = [
-        ("References", "/refs/"),
-        ("Keywords", "/refs/keywords"),
-    ]
-
     title = Tx("Recently modified")
     return (
         Title(title),
-        components.header(request, title, book=refs, pages=pages),
+        components.header(request, title, book=refs),
         Main(
             P(Table(Tbody(*rows))),
             cls="container",

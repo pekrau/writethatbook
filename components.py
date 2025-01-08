@@ -90,32 +90,38 @@ def header(request, title, book=None, status=None, actions=None):
     # Links to pages for book.
     if book:
         if book is books.get_refs():
-            menu.extend([
-                A(Tx("Keywords"), href="/refs/keywords"),
-                A(Tx("Recently modified"), href="/refs/recent"),
-                A(Tx("Download TGZ file"), href="/refs/all.tgz"),
-            ])
+            menu.extend(
+                [
+                    A(Tx("Keywords"), href="/refs/keywords"),
+                    A(Tx("Recently modified"), href="/refs/recent"),
+                    A(Tx("Download TGZ file"), href="/refs/all.tgz"),
+                ]
+            )
         else:
-            menu.extend([
-                A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"),
-                A(Tx("Index"), href=f"/meta/index/{book}"),
-                A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
-                A(Tx("Status list"), href=f"/meta/status/{book}"),
-                A(Tx("Information"), href=f"/meta/info/{book}"),
-                A(Tx("Book state (JSON)"), href=f"/state/{book}"),
-                A(Tx("Download DOCX file"), href=f"/book/{book}.docx"),
-                A(Tx("Download PDF file"), href=f"/book/{book}.pdf"),
-                A(Tx("Download TGZ file"),href= f"/book/{book}.tgz")
-            ])
+            menu.extend(
+                [
+                    A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"),
+                    A(Tx("Index"), href=f"/meta/index/{book}"),
+                    A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
+                    A(Tx("Status list"), href=f"/meta/status/{book}"),
+                    A(Tx("Information"), href=f"/meta/info/{book}"),
+                    A(Tx("Book state (JSON)"), href=f"/state/{book}"),
+                    A(Tx("Download DOCX file"), href=f"/book/{book}.docx"),
+                    A(Tx("Download PDF file"), href=f"/book/{book}.pdf"),
+                    A(Tx("Download TGZ file"), href=f"/book/{book}.tgz"),
+                ]
+            )
 
     # Links to pages for admin.
     if auth.is_admin(request):
-        menu.extend([
-            A(Tx("All users"), href="/user/list"),
-            A(Tx("Download dump file"), href="/dump"),
-            A(Tx("Site state (JSON)"), href="/state"),
-            A(Tx("System"), href="/meta/system"),
-        ])
+        menu.extend(
+            [
+                A(Tx("All users"), href="/user/list"),
+                A(Tx("Download dump file"), href="/dump"),
+                A(Tx("Site state (JSON)"), href="/state"),
+                A(Tx("System"), href="/meta/system"),
+            ]
+        )
 
     # Links to general pages.
     menu.append(A(Tx("Software"), href="/meta/software"))
@@ -136,12 +142,16 @@ def header(request, title, book=None, status=None, actions=None):
     items = [
         Li(
             Details(
-                Summary(Img(src="/writethatbook.png", style=style), role="button", cls="outline"),
+                Summary(
+                    Img(src="/writethatbook.png", style=style),
+                    role="button",
+                    cls="outline",
+                ),
                 Ul(*[Li(a) for a in menu]),
                 cls="dropdown",
             ),
         )
-          ]
+    ]
     if actions:
         items.append(
             Li(

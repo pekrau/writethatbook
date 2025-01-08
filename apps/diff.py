@@ -31,6 +31,7 @@ def get(request):
     remote_books = remote_state["books"]
 
     import apps.state
+
     local_books = apps.state.get_books_state(request)
 
     rows = []

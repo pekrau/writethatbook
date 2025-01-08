@@ -260,11 +260,13 @@ def get(request, book: Book, path: str):
                     )
                 )
 
-        actions.extend([
-            ("Reread book", f"/reread/{book}?path={path}"),
-            ("Copy", f"/copy/{book}/{path}"),
-            ("Delete", f"/delete/{book}/{path}"),
-        ])
+        actions.extend(
+            [
+                ("Reread book", f"/reread/{book}?path={path}"),
+                ("Copy", f"/copy/{book}/{path}"),
+                ("Delete", f"/delete/{book}/{path}"),
+            ]
+        )
         button_card = Card(*buttons, cls="grid")
         html = markdown.convert_to_html(
             item.book, item.content, href=f"/edit/{book}/{path}"

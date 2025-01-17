@@ -131,7 +131,7 @@ def header(request, title, book=None, status=None, actions=None):
     else:
         actions = []
     if auth.is_admin(request):
-        actions.append(A(Tx("Login"), href="/user/login"))
+        actions.append(A(Tx("Login"), href=f"/user/login?path={request.url.path}"))
 
     # The first navbar item:
     # - Pulldown for links to pages.
@@ -174,7 +174,17 @@ def header(request, title, book=None, status=None, actions=None):
 
     # The second navbar item: login button, if not logged in.
     if auth.logged_in(request) is None:
-        navs.append(Ul(Li(A(Tx("Login"), href="/user/login", role="button"))))
+        navs.append(
+            Ul(
+                Li(
+                    A(
+                        Tx("Login"),
+                        href=f"/user/login?path={request.url.path}",
+                        role="button",
+                    )
+                )
+            )
+        )
 
     # Set the color of the nav frame.
     nav_style = "outline-color: {color}; outline-width:8px; outline-style:solid; padding:0px 10px; border-radius:5px;"

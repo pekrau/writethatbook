@@ -389,14 +389,19 @@ def toc(book, items, toplevel=True, edit=False):
             arrows = []
         if arrows:
             arrows.append(components.blank(0))
+        if item.is_section:
+            icon = "/folder.svg"
+        else:
+            icon = "/file-text.svg"
         parts.append(
             Li(
                 *arrows,
                 A(
+                    Img(src=icon, style="padding-right: 4px;"),
                     item.title,
                     style=f"color: {item.status.color};",
                     href=f"/book/{item.book}/{item.path}",
-                    title=f"{Tx(item.status)} {Tx(item.type)}",
+                    title=f'{Tx("Status")}: {Tx(item.status)}',
                 ),
                 components.blank(0.2),
                 item.subtitle or "",

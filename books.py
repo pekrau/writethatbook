@@ -654,7 +654,7 @@ class Book(Container):
             footnotes_lookup[key] = "\n".join(footnote)
         # Split up content according to headers.
         parts = []
-        title = None
+        title = text.title
         part = []
         for line in content.split("\n"):
             if line.startswith("#"):
@@ -663,7 +663,7 @@ class Book(Container):
                 title = line.strip("#").strip()
             else:
                 part.append(line)
-        if title and part:
+        if part:
             parts.append([title, part])
         title = text.title
         status = text.status

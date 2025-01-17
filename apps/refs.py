@@ -47,16 +47,16 @@ def get(request):
                 src="/clipboard.svg",
                 title=Tx("Reference to clipboard"),
                 style="cursor: pointer;",
-                cls="to_clipboard",
+                cls="white to_clipboard",
                 data_clipboard_action="copy",
                 data_clipboard_text=f"[@{ref['name']}]",
             ),
-            components.blank(0.2),
+            components.blank(0.1),
             A(
                 Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
                 href=f"/refs/{ref}",
             ),
-            components.blank(0.4),
+            components.blank(0.2),
         ]
         parts.append(utils.full_title(ref))
         parts.append(Br())
@@ -198,12 +198,12 @@ def get(request, ref: Text):
             Td(Tx("Reference")),
             Td(
                 f"{ref['name']}",
-                components.blank(0.2),
+                components.blank(0.1),
                 Img(
                     src="/clipboard.svg",
                     title=Tx("Reference to clipboard"),
                     style="cursor: pointer;",
-                    cls="to_clipboard",
+                    cls="white to_clipboard",
                     data_clipboard_action="copy",
                     data_clipboard_text=f"[@{ref['name']}]",
                 ),
@@ -461,11 +461,11 @@ def get(request):
                     src="/clipboard.svg",
                     title="Copy refid to clipboard",
                     style="cursor: pointer;",
-                    cls="to_clipboard",
+                    cls="white to_clipboard",
                     data_clipboard_action="copy",
                     data_clipboard_text=f"[@{ref['name']}]",
                 ),
-                components.blank(0.2),
+                components.blank(0.1),
                 A(
                     Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
                     href=f"/refs/{ref}",

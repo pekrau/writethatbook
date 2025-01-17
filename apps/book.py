@@ -397,7 +397,7 @@ def toc(book, items, toplevel=True, edit=False):
             Li(
                 *arrows,
                 A(
-                    Img(src=icon, style="padding-right: 4px;"),
+                    Img(src=icon, cls="white"),
                     item.title,
                     style=f"color: {item.status.color};",
                     href=f"/book/{item.book}/{item.path}",

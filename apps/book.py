@@ -96,7 +96,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 
 
 @rt("/{book:Book}")
-def get(request, book: Book):
+def get(request, book: Book, position: int = None):
     "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
@@ -146,7 +146,7 @@ def get(request, book: Book):
         html = markdown.to_html(
             book,
             book.content,
-            prev_edit=request.session.pop("prev-edit", None),
+            position=position,
             edit_href=f"/edit/{book}"
         )
 
@@ -198,7 +198,7 @@ def get(request, book: Book):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str):
+def get(request, book: Book, path: str, position: int = None):
     "Display text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
@@ -276,7 +276,7 @@ def get(request, book: Book, path: str):
         html = markdown.to_html(
             item.book,
             item.content,
-            prev_edit=request.session.pop("prev-edit", None),
+            position=position,
             edit_href=f"/edit/{book}/{path}"
         )
     else:

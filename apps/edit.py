@@ -174,7 +174,7 @@ def post(request, book: Book, form: dict):
             raise Error("bad first or last value")
         content = book.content
         content = content[:first] + (form.get("content") or "") + content[last:]
-        href = f"/book/{book}#prev-edit"
+        href = f"/book/{book}?position={first}#position"
 
     # Save book content. Reread the book, ensuring everything is up to date.
     book.write(content=content, force=True)
@@ -293,8 +293,7 @@ def post(request, book: Book, path: str, form: dict):
             raise Error("bad first or last value")
         content = item.content
         content = content[:first] + (form.get("content") or "") + content[last:]
-        request.session["prev-edit"] = first
-        href = f"/book/{book}/{path}#prev-edit"
+        href = f"/book/{book}/{path}?position={first}#position"
 
     # Save item. Reread the book, ensuring everything is up to date.
     item.write(content=content, force=True)

@@ -175,13 +175,18 @@ class AddEditButtons:
 EDITBUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
 
 
-def convert_to_html(book, content, edit_href=None):
+def to_html(book, content, prev_edit=None, edit_href=None):
     global _current_book        # Required for index links.
+    # Insert the prev-edit marker before converting to HTML, to get the position right.
+    marker = "!!prev-edit!!"
+    if prev_edit is not None:
+        content = content[:prev_edit] + marker + content[prev_edit:]
     if edit_href:
         content = AddEditButtons(content, href=edit_href).processed
     _current_book = book        # Required for index links.
     html = html_converter.convert(content)
-    html = html.replace(constants.PREV_EDIT, '<span id="prev-edit"></span>')
+    # Replace the prev-edit marker with a proper invisible HTML construct.
+    html = html.replace(marker, '<span id="prev-edit"></span>')
     if edit_href:
         html = EDITBUTTON_RX.sub(edit_button, html)
     return html
@@ -198,4 +203,4 @@ ast_converter.use(
     )
 )
 
-convert_to_ast = ast_converter.convert
+to_ast = ast_converter.convert

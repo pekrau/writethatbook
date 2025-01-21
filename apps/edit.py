@@ -98,7 +98,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Fieldset(
                 Legend(Tx("Text")),
                 Textarea(
-                    NotStr(book.content.replace(constants.PREV_EDIT, "")),
+                    NotStr(book.content),
                     id="text",
                     name="content",
                     rows=16,
@@ -107,7 +107,7 @@ def get(request, book: Book, first: int = None, last: int = None):
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = book.content[first:last].replace(constants.PREV_EDIT, "")
+        content = book.content[first:last]
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -172,11 +172,8 @@ def post(request, book: Book, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        # Remove any old PREV_EDIT markers.
         content = book.content
-        before = content[:first].replace(constants.PREV_EDIT, "")
-        after = content[last:].replace(constants.PREV_EDIT, "")
-        content = before + constants.PREV_EDIT + (form.get("content") or "") + after
+        content = content[:first] + (form.get("content") or "") + content[last:]
         href = f"/book/{book}#prev-edit"
 
     # Save book content. Reread the book, ensuring everything is up to date.
@@ -194,7 +191,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
     item = book[path]
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(item.content))]
 
-    if first is None:  # Full edit.
+    if first is None:    # Edit the full content.
         title_field = Fieldset(
             Label(Tx("Title")), Input(name="title", value=item.title, required=True)
         )
@@ -221,7 +218,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
             Fieldset(
                 Legend(Tx("Text")),
                 Textarea(
-                    NotStr(item.content.replace(constants.PREV_EDIT, "")),
+                    NotStr(item.content),
                     id="content",
                     name="content",
                     rows=16,
@@ -231,7 +228,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = item.content[first:last].replace(constants.PREV_EDIT, "")
+        content = item.content[first:last]
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -277,7 +274,7 @@ def post(request, book: Book, path: str, form: dict):
         raise Error("text content changed while editing")
 
     first = form.get("first")
-    if first is None:  # Full edit.
+    if first is None:  # Edit the full content.
         item.name = form["title"]  # Changes name of directory/file.
         item.title = form["title"]
         item.subtitle = form.get("subtitle") or ""
@@ -294,11 +291,9 @@ def post(request, book: Book, path: str, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        # Remove any old PREV_EDIT markers.
         content = item.content
-        before = content[:first].replace(constants.PREV_EDIT, "")
-        after = content[last:].replace(constants.PREV_EDIT, "")
-        content = before + constants.PREV_EDIT + (form.get("content") or "") + after
+        content = content[:first] + (form.get("content") or "") + content[last:]
+        request.session["prev-edit"] = first
         href = f"/book/{book}/{path}#prev-edit"
 
     # Save item. Reread the book, ensuring everything is up to date.

@@ -175,7 +175,7 @@ class Container:
 
     @property
     def ast(self):
-        return markdown.convert_to_ast(self.content)
+        return markdown.to_ast(self.content)
 
     def write_markdown(self, filepath):
         "Write frontmatter and content to the Markdown file."
@@ -535,7 +535,7 @@ class Book(Container):
 
     @property
     def html(self):
-        return markdown.convert_to_html(self, self.content)
+        return markdown.to_html(self, self.content)
 
     def find_indexed(self, item, ast):
         "Return the indexed terms in the AST of the content."
@@ -959,7 +959,7 @@ class Item(Container):
 
     @property
     def html(self):
-        return markdown.convert_to_html(self.book, self.content)
+        return markdown.to_html(self.book, self.content)
 
     def split_footnotes(self):
         "Return content split up as a tuple (text, footnotes)."

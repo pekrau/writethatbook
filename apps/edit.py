@@ -98,7 +98,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Fieldset(
                 Legend(Tx("Text")),
                 Textarea(
-                    NotStr(book.content.replace("LASTEDIT", "")),
+                    NotStr(book.content.replace(constants.PREV_EDIT, "")),
                     id="text",
                     name="content",
                     rows=16,
@@ -107,7 +107,7 @@ def get(request, book: Book, first: int = None, last: int = None):
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = book.content[first:last].replace("LASTEDIT", "")
+        content = book.content[first:last].replace(constants.PREV_EDIT, "")
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -172,12 +172,12 @@ def post(request, book: Book, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        # Remove any old LASTEDIT markers.
+        # Remove any old PREV_EDIT markers.
         content = book.content
-        before = content[:first].replace("LASTEDIT", "")
-        after = content[last:].replace("LASTEDIT", "")
-        content = before + "LASTEDIT" + (form.get("content") or "") + after
-        href = f"/book/{book}#lastedit"
+        before = content[:first].replace(constants.PREV_EDIT, "")
+        after = content[last:].replace(constants.PREV_EDIT, "")
+        content = before + constants.PREV_EDIT + (form.get("content") or "") + after
+        href = f"/book/{book}#prev-edit"
 
     # Save book content. Reread the book, ensuring everything is up to date.
     book.write(content=content, force=True)
@@ -221,7 +221,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
             Fieldset(
                 Legend(Tx("Text")),
                 Textarea(
-                    NotStr(item.content.replace("LASTEDIT", "")),
+                    NotStr(item.content.replace(constants.PREV_EDIT, "")),
                     id="content",
                     name="content",
                     rows=16,
@@ -231,7 +231,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         )
 
     else:  # Edit only the given content fragment (paragraph).
-        content = item.content[first:last].replace("LASTEDIT", "")
+        content = item.content[first:last].replace(constants.PREV_EDIT, "")
         fields.extend(
             [
                 Input(type="hidden", name="first", value=str(first)),
@@ -294,12 +294,12 @@ def post(request, book: Book, path: str, form: dict):
             last = int(form["last"])
         except (KeyError, ValueError, TypeError):
             raise Error("bad first or last value")
-        # Remove any old LASTEDIT markers.
+        # Remove any old PREV_EDIT markers.
         content = item.content
-        before = content[:first].replace("LASTEDIT", "")
-        after = content[last:].replace("LASTEDIT", "")
-        content = before + "LASTEDIT" + (form.get("content") or "") + after
-        href = f"/book/{book}/{path}#lastedit"
+        before = content[:first].replace(constants.PREV_EDIT, "")
+        after = content[last:].replace(constants.PREV_EDIT, "")
+        content = before + constants.PREV_EDIT + (form.get("content") or "") + after
+        href = f"/book/{book}/{path}#prev-edit"
 
     # Save item. Reread the book, ensuring everything is up to date.
     item.write(content=content, force=True)

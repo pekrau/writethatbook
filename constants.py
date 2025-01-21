@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 10, 5)
+VERSION = (1, 10, 6)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -57,6 +57,7 @@ MONTHS = {
     "december": 12,
 }
 EM_DASH = "\u2014"
+PREV_EDIT = "!!prev edit!!"
 
 
 @functools.total_ordering

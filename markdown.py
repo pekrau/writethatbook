@@ -17,7 +17,7 @@ from utils import Tx
 # Terrible kludge: creating URL for indexed word requires knowing
 # the book, so this global variable keeps track of it.
 
-_current_book = None
+_current_book = None        # Required for index links.
 
 
 def get_index_href(canonical):
@@ -71,20 +71,6 @@ class EmdashRenderer:
         return constants.EM_DASH
 
 
-class Lastedit(marko.inline.InlineElement):
-    "Markdown extension for the position of the last edit in the text."
-
-    pattern = re.compile("(LASTEDIT)")
-    parse_children = False
-
-
-class LasteditRenderer:
-    "Output position of last edit in the text."
-
-    def render_lastedit(self, element):
-        return '<span id="lastedit"></span>'
-
-
 class Indexed(marko.inline.InlineElement):
     "Markdown extension for indexed term."
 
@@ -135,16 +121,16 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
+
 html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
     marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Lastedit, Indexed, Reference],
+        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
         renderer_mixins=[
             SubscriptRenderer,
             SuperscriptRenderer,
             EmdashRenderer,
-            LasteditRenderer,
             IndexedRenderer,
             ReferenceRenderer,
             ThematicBreakRenderer,
@@ -153,8 +139,8 @@ html_converter.use(
 )
 
 
-class Fragmenter:
-    "Fragment content into paragraphs with separate edit buttons."
+class AddEditButtons:
+    "Add edit button to each paragraph."
 
     PATTERN = re.compile(r"\n\n")
 
@@ -181,24 +167,34 @@ class Fragmenter:
 
     def get_href(self, first, last):
         if self.href:
-            return f' <a href="{self.href}?first={first}&last={last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>\n\n'
+            return f'!!{self.href} {first} {last}!!\n\n'
         else:  # No change.
             return "\n\n"
 
 
-def convert_to_html(book, content, href=None):
-    global _current_book
-    if href:
-        content = Fragmenter(content, href=href).processed
-    _current_book = book
-    return html_converter.convert(content)
+EDITBUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
+
+
+def convert_to_html(book, content, edit_href=None):
+    global _current_book        # Required for index links.
+    if edit_href:
+        content = AddEditButtons(content, href=edit_href).processed
+    _current_book = book        # Required for index links.
+    html = html_converter.convert(content)
+    html = html.replace(constants.PREV_EDIT, '<span id="prev-edit"></span>')
+    if edit_href:
+        html = EDITBUTTON_RX.sub(edit_button, html)
+    return html
+
+def edit_button(match):
+    return f'<a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
 
 
 ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)
 ast_converter.use("footnote")
 ast_converter.use(
     marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Lastedit, Indexed, Reference],
+        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
     )
 )
 

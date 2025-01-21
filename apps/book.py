@@ -143,7 +143,7 @@ def get(request, book: Book):
                 )
             )
         button_card = Card(*buttons, cls="grid")
-        html = markdown.convert_to_html(book, book.content, href=f"/edit/{book}")
+        html = markdown.convert_to_html(book, book.content, edit_href=f"/edit/{book}")
 
     else:
         actions = []
@@ -269,7 +269,7 @@ def get(request, book: Book, path: str):
         )
         button_card = Card(*buttons, cls="grid")
         html = markdown.convert_to_html(
-            item.book, item.content, href=f"/edit/{book}/{path}"
+            item.book, item.content, edit_href=f"/edit/{book}/{path}"
         )
     else:
         actions = []

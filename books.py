@@ -308,10 +308,10 @@ class Book(Container):
         # Refs key: reference identifier; value: set of texts.
         self.indexed = {}
         self.refs = {}
-        ast = self.ast  # Compiled when called.
+        ast = markdown.to_ast(self.content)
         self.find_indexed(self, ast)
         for item in self:
-            ast = item.ast  # Compiled when called.
+            ast = markdown.to_ast(item.content)
             self.find_indexed(item, ast)
             for keyword in item.get("keywords", []):
                 self.indexed.setdefault(keyword, set()).add(item)

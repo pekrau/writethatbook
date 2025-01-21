@@ -24,7 +24,7 @@ def get(request, book: Book, first: int = None, last: int = None):
     # Digest of content only, not frontmatter!
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(book.content))]
 
-    if first is None:  # Full edit.
+    if first is None:  # Edit the full content.
         fields.append(
             Div(
                 Div(
@@ -149,7 +149,7 @@ def post(request, book: Book, form: dict):
         raise Error("text content changed while editing")
 
     first = form.get("first")
-    if first is None:  # Full edit.
+    if first is None:  # Edit the full content.
         try:
             title = form["title"].strip()
             if not title:

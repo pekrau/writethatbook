@@ -14,6 +14,7 @@ import books
 from books import Text, get_refs
 import components
 import constants
+import markdown
 import utils
 from utils import Tx
 
@@ -189,7 +190,7 @@ def get(request):
 
 
 @rt("/{ref:Ref}")
-def get(request, ref: Text):
+def get(request, ref: Text, position: int = None):
     "Display the reference."
     auth.allow_anyone(request)
 
@@ -311,6 +312,8 @@ def get(request, ref: Text):
         actions = []
 
     title = f"{ref['name']} ({Tx(ref['type'])})"
+    html = markdown.to_html(get_refs(), ref.content)
+
     return (
         Title(title),
         Script(src="/clipboard.min.js"),
@@ -324,7 +327,7 @@ def get(request, ref: Text):
         ),
         Main(
             Table(*rows),
-            Div(NotStr(ref.html), style="margin-top: 1em;"),
+            Div(NotStr(html), style="margin-top: 1em;"),
             Card(*buttons, cls="grid"),
             cls="container",
         ),

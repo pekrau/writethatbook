@@ -17,7 +17,7 @@ from utils import Tx
 # Terrible kludge: creating URL for indexed word requires knowing
 # the book, so this global variable keeps track of it.
 
-_current_book = None        # Required for index links.
+_current_book = None  # Required for index links.
 
 
 def get_index_href(canonical):
@@ -121,7 +121,6 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
-
 html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
@@ -167,7 +166,7 @@ class AddEditButtons:
 
     def get_href(self, first, last):
         if self.href:
-            return f'!!{self.href} {first} {last}!!\n\n'
+            return f"!!{self.href} {first} {last}!!\n\n"
         else:  # No change.
             return "\n\n"
 
@@ -176,19 +175,20 @@ EDITBUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
 
 
 def to_html(book, content, position=None, edit_href=None):
-    global _current_book        # Required for index links.
+    global _current_book  # Required for index links.
     # Insert the position marker before converting to HTML, to get the position right.
     if position is not None:
         content = content[:position] + "!!position!!" + content[position:]
     if edit_href:
         content = AddEditButtons(content, href=edit_href).processed
-    _current_book = book        # Required for index links.
+    _current_book = book  # Required for index links.
     html = html_converter.convert(content)
     # Replace the position marker with a proper invisible HTML construct.
     html = html.replace("!!position!!", '<span id="position"></span>')
     if edit_href:
         html = EDITBUTTON_RX.sub(edit_button, html)
     return html
+
 
 def edit_button(match):
     return f'<a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'

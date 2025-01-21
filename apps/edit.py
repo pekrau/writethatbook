@@ -191,7 +191,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
     item = book[path]
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(item.content))]
 
-    if first is None:    # Edit the full content.
+    if first is None:  # Edit the full content.
         title_field = Fieldset(
             Label(Tx("Title")), Input(name="title", value=item.title, required=True)
         )

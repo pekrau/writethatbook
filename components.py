@@ -172,10 +172,12 @@ def header(request, title, book=None, status=None, actions=None, search=True):
     items.append(Li(Strong(title)))
 
     navs = [Ul(*items)]
+
+    # Search field, if book is defined.
     if search and book:
         navs.append(Ul(Li(search_form(f"/search/{book}"))))
 
-    # The second navbar item: login button, if not logged in.
+    # Login button, if not logged in.
     if auth.logged_in(request) is None:
         navs.append(
             Ul(

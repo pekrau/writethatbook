@@ -158,7 +158,7 @@ def get(request, book: Book, position: int = None):
     if auth.authorized(request, *auth.book_diff_rules, book=book):
         actions.append(["Differences", f"/diff/{book}"])
 
-    segments = [components.search_form(f"/search/{book}")]
+    segments = []
 
     if len(book.items) == 0:
         segments.append(H3(book.title))
@@ -293,7 +293,6 @@ def get(request, book: Book, path: str, position: int = None):
         segments.append(
             Div(
                 Div(H3(item.heading)),
-                Div(components.search_form(f"/search/{book}/{path}")),
                 cls="grid",
             )
         )

@@ -62,23 +62,24 @@ def cancel_button(href):
     )
 
 
-def search_form(action, term=None):
+def search_form(action, term=None, autofocus=False):
     return Form(
         Input(
             name="term",
             type="search",
-            placeholder=Tx("Search"),
+            placeholder=f'{Tx("Search in")} {Tx("book")}',
             value=term,
-            autofocus=True,
+            autofocus=autofocus,
         ),
         Input(type="submit", value=Tx("Search")),
+        style="margin-bottom: 0;",
         role="search",
         action=action,
         method="post",
     )
 
 
-def header(request, title, book=None, status=None, actions=None):
+def header(request, title, book=None, status=None, actions=None, search=True):
     "The standard page header with navigation bar."
 
     # General menu items.
@@ -166,11 +167,13 @@ def header(request, title, book=None, status=None, actions=None):
         if book is books.get_refs():
             items.append(Li(A(Tx("References"), href="/refs")))
         else:
-            items.append(Li(A(book.title, href=f"/book/{book}")))
+            items.append(Li(A(book.title, title=Tx("Book"), href=f"/book/{book}")))
     # The title of the page.
     items.append(Li(Strong(title)))
 
     navs = [Ul(*items)]
+    if search and book:
+        navs.append(Ul(Li(search_form(f"/search/{book}"))))
 
     # The second navbar item: login button, if not logged in.
     if auth.logged_in(request) is None:

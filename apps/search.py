@@ -39,9 +39,9 @@ def post(request, book: Book, form: dict):
     title = f"{Tx('Search in')} '{book.title}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book, status=book.status, search=False),
         Main(
-            components.search_form(f"/search/{book}", term=term),
+            components.search_form(f"/search/{book}", term=term, autofocus=True),
             result,
             cls="container",
         ),
@@ -75,9 +75,9 @@ def post(request, book: Book, path: str, form: dict):
     title = f"{Tx('Search in')} '{book.title}'; '{item.fulltitle}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, status=item.status, search=False),
         Main(
-            components.search_form(f"/search/{book}/{path}", term=term),
+            components.search_form(f"/search/{book}/{path}", term=term, autofocus=True),
             result,
             cls="container",
         ),

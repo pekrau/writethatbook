@@ -105,6 +105,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 ),
             )
         )
+        cancel_url = f"/book/{book}"
 
     else:  # Edit only the given content fragment (paragraph).
         content = book.content[first:last]
@@ -124,6 +125,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 ),
             ]
         )
+        cancel_url = f"/book/{book}?position={first}#position"
 
     title = f"{Tx('Edit')} {Tx('book')} '{book.title}'"
     return (
@@ -133,7 +135,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Form(
                 *fields, components.save_button(), action=f"/edit/{book}", method="post"
             ),
-            components.cancel_button(f"/book/{book}"),
+            components.cancel_button(cancel_url),
             cls="container",
         ),
         components.footer(request),
@@ -226,6 +228,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 ),
             )
         )
+        cancel_url = f"/book/{book}/{path}"
 
     else:  # Edit only the given content fragment (paragraph).
         content = item.content[first:last]
@@ -245,6 +248,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 ),
             ]
         )
+        cancel_url = f"/book/{book}/{path}?position={first}#position"
 
     title = f"{Tx('Edit')} {Tx(item.type)} '{item.title}'"
     return (
@@ -257,7 +261,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 action=f"/edit/{book}/{path}",
                 method="post",
             ),
-            components.cancel_button(f"/book/{book}/{path}"),
+            components.cancel_button(cancel_url),
             cls="container",
         ),
         components.footer(request),

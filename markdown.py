@@ -138,62 +138,6 @@ html_converter.use(
 )
 
 
-class AddEditButtons:
-    "Add edit button to each paragraph."
-
-    PATTERN = re.compile(r"\n\n")
-
-    def __init__(self, content, href=None):
-        self.href = href
-        self.content = content
-        self.current = 0
-        self.ranges = []
-        self.processed = self.PATTERN.subn(self, content)[0]
-        if self.ranges:
-            self.ranges.append((self.ranges[-1][1] + 1, len(content)))
-            self.processed += self.get_href(self.ranges[-1][0] + 1, self.ranges[-1][1])
-        else:
-            self.ranges.append((0, len(content)))
-            self.processed += self.get_href(self.ranges[-1][0], self.ranges[-1][1])
-        self.fragments = [self.content[s:e] for s, e in self.ranges]
-
-    def __call__(self, match):
-        start = match.start()
-        self.ranges.append((self.current, start))
-        result = self.get_href(self.current, start)
-        self.current = match.end()
-        return result
-
-    def get_href(self, first, last):
-        if self.href:
-            return f"!!{self.href} {first} {last}!!\n\n"
-        else:  # No change.
-            return "\n\n"
-
-
-EDITBUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
-
-
-def to_html(book, content, position=None, edit_href=None):
-    global _current_book  # Required for index links.
-    # Insert the position marker before converting to HTML, to get the position right.
-    if position is not None:
-        content = content[:position] + "!!position!!" + content[position:]
-    if edit_href:
-        content = AddEditButtons(content, href=edit_href).processed
-    _current_book = book  # Required for index links.
-    html = html_converter.convert(content)
-    # Replace the position marker with a proper invisible HTML construct.
-    html = html.replace("!!position!!", '<span id="position"></span>')
-    if edit_href:
-        html = EDITBUTTON_RX.sub(edit_button, html)
-    return html
-
-
-def edit_button(match):
-    return f'<a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
-
-
 ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)
 ast_converter.use("footnote")
 ast_converter.use(
@@ -203,3 +147,60 @@ ast_converter.use(
 )
 
 to_ast = ast_converter.convert
+
+
+POSITION = "!!position!!"
+NEW_PARAGRAPH_RX = re.compile(r"\n\n")
+EDIT_BUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
+
+
+def to_html(book, content, position=None, edit_href=None):
+    global _current_book  # Required for index links.
+    # Insert the position marker before converting to HTML, to get the position right.
+    if position is not None:
+        content = content[:position] + POSITION + content[position:]
+    if edit_href:
+        content = AddEditButtons(content, edit_href).processed
+    _current_book = book  # Required for index links generated in the next call.
+    html = html_converter.convert(content)
+    # Replace the position marker with a proper invisible HTML construct.
+    html = html.replace(POSITION, '<span id="position"></span>')
+    # Replace the edit button markers with proper HTML links.
+    if edit_href:
+        html = EDIT_BUTTON_RX.sub(get_edit_button, html)
+    return html
+
+
+def get_edit_button(match):
+    return f'<a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
+
+
+class AddEditButtons:
+    "Add edit button marker to each paragraph."
+
+    def __init__(self, content, edit_href):
+        self.edit_href = edit_href
+        self.content = content
+        self.offset = 0
+        # Handle the offset produced by the POSITION marker.
+        try:
+            self.position = content.index(POSITION)
+        except ValueError:
+            self.position = None
+        self.first = 0
+        self.processed = NEW_PARAGRAPH_RX.sub(self, content)
+        # Add edit button marker to the last paragraph.
+        self.processed += self.get_marker(self.first, len(self.content))
+
+    def __call__(self, match):
+        self.last = match.start()
+        result = self.get_marker(self.first, self.last)
+        self.first = match.end()
+        return result
+
+    def get_marker(self, first, last):
+        # Handle the offset produced by the POSITION marker.
+        if self.position is not None and first > self.position:
+            first -= len(POSITION)
+            last -= len(POSITION)
+        return f"!!{self.edit_href} {first} {last}!!\n\n"

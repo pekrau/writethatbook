@@ -660,6 +660,24 @@ def post(request, ref: Text):
 
 
 @rt("/search")
+def get(request):
+    "Form for searching the references for a given term."
+    auth.allow_anyone(request)
+
+    refs = get_refs()
+
+    title = f"{Tx('Search in')} {Tx('references')}"
+    return (
+        Title(title),
+        components.header(request, title, book=refs, search=False),
+        Main(
+            components.search_form(f"/refs/search", term=term),
+            cls="container",
+        ),
+    )
+
+
+@rt("/search")
 def post(request, form: dict):
     "Actually search the references for a given term."
     auth.allow_anyone(request)
@@ -686,7 +704,7 @@ def post(request, form: dict):
     title = f"{Tx('Search in')} {Tx('references')}"
     return (
         Title(title),
-        components.header(request, title, book=refs),
+        components.header(request, title, book=refs, search=False),
         Main(
             components.search_form(f"/refs/search", term=term),
             result,

@@ -735,11 +735,12 @@ class Book(Container):
             flags = re.IGNORECASE
         else:
             flags = 0
+        rx = re.compile(term, flags)
         result = set()
-        if re.search(term, self.content, flags):
+        if rx.search(self.content):
             result.add(self)
         for item in self.items:
-            result.update(item.search(term, ignorecase=ignorecase))
+            result.update(item.search(rx))
         return result
 
     def check_integrity(self):
@@ -1087,8 +1088,8 @@ class Item(Container):
         "Delete this item from the book."
         raise NotImplementedError
 
-    def search(self, term, ignorecase=True):
-        "Find the set of items that contain the term in the content."
+    def search(self, rx):
+        "Find the set of items that match the compiled regexp."
         raise NotImplementedError
 
     def check_integrity(self):
@@ -1246,17 +1247,15 @@ class Section(Item):
         self.book.write()
         get_refs(reread=True)
 
-    def search(self, term, ignorecase=True):
-        "Find the set of items that contain the term in the content."
-        if ignorecase:
-            flags = re.IGNORECASE
-        else:
-            flags = 0
+    def search(self, term):
+        """Find the set of items that match the compiled regexp.
+        If this is a reference, then also search a set of frontmatter entries.
+        """
         result = set()
-        if re.search(term, self.content, flags):
+        if rx.search(self.content):
             result.add(self)
         for item in self.items:
-            result.update(item.search(term, ignorecase=ignorecase))
+            result.update(item.search(rx))
         return result
 
     def check_integrity(self):
@@ -1386,16 +1385,20 @@ class Text(Item):
         self.abspath.unlink()
         self.book.write()
 
-    def search(self, term, ignorecase=True):
-        "Find the set of items that contain the term in the content."
-        if ignorecase:
-            flags = re.IGNORECASE
-        else:
-            flags = 0
-        if re.search(term, self.content, flags):
+    def search(self, rx):
+        """Find the set of items that contain the term in the content."
+        Also search a set of frontmatter entries appropriate for a reference.
+        """
+        if rx.search(self.content):
             return set([self])
-        else:
-            return set()
+        for key in ["name", "title", "subtitle", "publisher", "issn", "isbn",
+                    "pmc", "pmid"]:
+            if rx.search(self.get(key, "")):
+                return set([self])
+        for author in self.get("authors", []):
+            if rx.search(author):
+                return set([self])
+        return set()
 
     def check_integrity(self):
         super().check_integrity()

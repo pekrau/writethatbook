@@ -91,6 +91,8 @@ def header(request, title, book=None, status=None, tools=None, search=True):
     # Links to pages for book.
     if book:
         if book is books.get_refs():
+            if search:
+                menu.append(A(f'{Tx("Search in")} {Tx("references")}', href="/refs/search"))
             menu.extend(
                 [
                     A(Tx("Keywords"), href="/refs/keywords"),
@@ -99,9 +101,10 @@ def header(request, title, book=None, status=None, tools=None, search=True):
                 ]
             )
         else:
+            if search:
+                menu.append(A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"))
             menu.extend(
                 [
-                    A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"),
                     A(Tx("Index"), href=f"/meta/index/{book}"),
                     A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
                     A(Tx("Status list"), href=f"/meta/status/{book}"),
@@ -175,7 +178,10 @@ def header(request, title, book=None, status=None, tools=None, search=True):
 
     # Search field, if book is defined.
     if search and book:
-        navs.append(Ul(Li(search_form(f"/search/{book}"))))
+        if book is books.get_refs():
+            navs.append(Ul(Li(search_form("/refs/search"))))
+        else:
+            navs.append(Ul(Li(search_form(f"/search/{book}"))))
 
     # Login button, if not logged in.
     if auth.logged_in(request) is None:

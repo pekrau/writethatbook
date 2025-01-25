@@ -108,7 +108,7 @@ def get(request):
     title = Tx("All users")
     return (
         Title(title),
-        components.header(request, title, actions=[("Create user", "/user/")]),
+        components.header(request, title, tools=[("Create user", "/user/")]),
         Main(
             Table(
                 Thead(

@@ -38,17 +38,17 @@ def get(request):
     "Home page; list of books."
     auth.allow_anyone(request)
 
-    actions = []
+    tools = []
     if auth.authorized(request, *auth.book_create_rules):
-        actions.append(["Create or upload book", "/book"])
-        actions.append(["Reread books", "/reread"])
+        tools.append(["Create or upload book", "/book"])
+        tools.append(["Reread books", "/reread"])
     if auth.authorized(request, *auth.book_diff_rules):
-        actions.append(["Differences", f"/diff"])
+        tools.append(["Differences", f"/diff"])
 
     title = Tx("Books")
     return (
         Title(title),
-        components.header(request, title, actions=actions),
+        components.header(request, title, tools=tools),
         Main(
             apps.book.get_books_table(request, books.get_books(request)),
             cls="container",

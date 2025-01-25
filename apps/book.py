@@ -101,7 +101,7 @@ def get(request, book: Book, position: int = None):
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        actions = [
+        tools = [
             ("Edit", f"/edit/{book}"),
             ("Append", f"/mod/append/{book}/"),
             ("Copy", f"/copy/{book}"),
@@ -148,12 +148,12 @@ def get(request, book: Book, position: int = None):
         )
 
     else:
-        actions = []
+        tools = []
         button_card = ""
         html = markdown.to_html(book, book.content)
 
     if auth.authorized(request, *auth.book_diff_rules, book=book):
-        actions.append(["Differences", f"/diff/{book}"])
+        tools.append(["Differences", f"/diff/{book}"])
 
     segments = []
 
@@ -182,7 +182,7 @@ def get(request, book: Book, position: int = None):
             title,
             book=book,
             status=book.status,
-            actions=actions,
+            tools=tools,
         ),
         Main(
             *segments,
@@ -226,7 +226,7 @@ def get(request, book: Book, path: str, position: int = None):
         neighbours.append(Div())
 
     if auth.authorized(request, *auth.book_edit_rules, book=book):
-        actions = [
+        tools = [
             ("Edit", f"/edit/{book}/{path}"),
             ("Append", f"/mod/append/{book}/{path}"),
         ]
@@ -237,11 +237,11 @@ def get(request, book: Book, path: str, position: int = None):
         ]
 
         if item.is_text:
-            actions.append(["Split", f"/mod/split/{book}/{path}"])
+            tools.append(["Split", f"/mod/split/{book}/{path}"])
             buttons.append(Div())
             buttons.append(Div())
         elif item.is_section:
-            actions.append(["Merge", f"/mod/merge/{book}/{path}"])
+            tools.append(["Merge", f"/mod/merge/{book}/{path}"])
             for type in [constants.SECTION, constants.TEXT]:
                 buttons.append(
                     Div(
@@ -262,7 +262,7 @@ def get(request, book: Book, path: str, position: int = None):
                     )
                 )
 
-        actions.extend(
+        tools.extend(
             [
                 ("Reread book", f"/reread/{book}?path={path}"),
                 ("Copy", f"/copy/{book}/{path}"),
@@ -274,7 +274,7 @@ def get(request, book: Book, path: str, position: int = None):
             item.book, item.content, position=position, edit_href=f"/edit/{book}/{path}"
         )
     else:
-        actions = []
+        tools = []
         button_card = ""
         html = markdown.to_html(item.book, item.content)
 
@@ -307,7 +307,7 @@ def get(request, book: Book, path: str, position: int = None):
             item.title,
             book=book,
             status=item.status,
-            actions=actions,
+            tools=tools,
         ),
         Main(
             *segments,

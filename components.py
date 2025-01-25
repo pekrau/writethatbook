@@ -79,7 +79,7 @@ def search_form(action, term=None, autofocus=False):
     )
 
 
-def header(request, title, book=None, status=None, actions=None, search=True):
+def header(request, title, book=None, status=None, tools=None, search=True):
     "The standard page header with navigation bar."
 
     # General menu items.
@@ -127,16 +127,16 @@ def header(request, title, book=None, status=None, actions=None, search=True):
     # Links to general pages.
     menu.append(A(Tx("Software"), href="/meta/software"))
 
-    if actions:
-        actions = [A(NotStr(Tx(text)), href=href) for text, href in actions]
+    if tools:
+        tools = [A(NotStr(Tx(text)), href=href) for text, href in tools]
+        if auth.is_admin(request):
+            tools.append(A(Tx("Login"), href=f"/user/login?path={request.url.path}"))
     else:
-        actions = []
-    if auth.is_admin(request):
-        actions.append(A(Tx("Login"), href=f"/user/login?path={request.url.path}"))
+        tools = []
 
     # The first navbar item:
     # - Pulldown for links to pages.
-    # - Pulldown for actions, if any.
+    # - Pulldown for tools, if any.
     # - Link to book, if any.
     # - Title of page.
     style = "background: white; padding: 4px;"
@@ -153,12 +153,12 @@ def header(request, title, book=None, status=None, actions=None, search=True):
             ),
         )
     ]
-    if actions:
+    if tools:
         items.append(
             Li(
                 Details(
-                    Summary(Img(src="/actions.svg", style=style)),
-                    Ul(*[Li(a) for a in actions]),
+                    Summary(Img(src="/tools.svg", title=Tx("Tools"), style=style)),
+                    Ul(*[Li(a) for a in tools]),
                     cls="dropdown",
                 ),
             )

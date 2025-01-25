@@ -31,6 +31,7 @@ books,böcker
 no books,inga böcker
 reread book,läs in boken igen
 reread books,läs in böcker igen
+items,poster
 journal,tidskrift
 volume,volym
 number,nummer
@@ -43,6 +44,7 @@ edition published,utgåva publicerad
 publisher,förlag
 type,typ
 words,ord
+tools,verktyg
 characters,tecken
 edit,redigera
 edit paragraph,redigera stycke

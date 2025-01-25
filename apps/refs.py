@@ -161,30 +161,30 @@ def get(request):
 
         items.append(P(*parts, id=ref["name"]))
 
-    actions = []
+    tools = []
     if auth.authorized(request, *auth.refs_add_rules, refs=refs):
-        actions.extend(
+        tools.extend(
             [
                 (f'{Tx("Add reference")}: {Tx(type)}', f"/refs/add/{type}")
                 for type in constants.REFS_TYPES
             ]
         )
-        actions.extend(
+        tools.extend(
             [
                 (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
                 (Tx("Upload TGZ file"), "/refs/upload"),
             ]
         )
     if auth.authorized(request, *auth.book_diff_rules, book=refs):
-        actions.append(["Differences", f"/diff/{constants.REFS}"])
+        tools.append(["Differences", f"/diff/{constants.REFS}"])
 
-    title = f"{len(refs.items)}"
+    title = f"{len(refs.items)} {Tx('items')}"
     return (
         Title(title),
         Script(src="/clipboard.min.js"),
         Script("new ClipboardJS('.to_clipboard');"),
-        components.header(request, title, book=refs, actions=actions),
-        Main(components.search_form("/refs/search"), *items, cls="container"),
+        components.header(request, title, book=refs, tools=tools),
+        Main(*items, cls="container"),
         components.footer(request),
     )
 
@@ -294,22 +294,40 @@ def get(request, ref: Text, position: int = None):
 
     rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(*xrefs)))
 
+    tools = []
     if auth.authorized(request, *auth.ref_edit_rules, ref=ref):
-        actions = [
-            ("Edit", f"/refs/edit/{ref['id']}"),
-            ("Append", f"/refs/append/{ref['id']}"),
-            ("Delete", f"/refs/delete/{ref['id']}"),
-        ]
+        tools.extend(
+            [
+                ("Edit", f"/refs/edit/{ref['id']}"),
+                ("Append", f"/refs/append/{ref['id']}"),
+                ("Delete", f"/refs/delete/{ref['id']}"),
+            ]
+        )
+        tools.extend(
+            [
+                (f'{Tx("Add reference")}: {Tx(type)}', f"/refs/add/{type}")
+                for type in constants.REFS_TYPES
+            ]
+        )
+        tools.extend(
+            [
+                (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
+                (Tx("Upload TGZ file"), "/refs/upload"),
+            ]
+        )
 
         kwargs = {"role": "button", "style": "width: 10em;"}
-        buttons = [
-            Div(A(Tx("Edit"), href=f"/refs/edit/{ref['id']}", **kwargs)),
-            Div(A(Tx("Append"), href=f"/refs/append/{ref['id']}", **kwargs)),
-            Div(),
-            Div(),
+        buttons_card = [
+            Card(
+                Div(A(Tx("Edit"), href=f"/refs/edit/{ref['id']}", **kwargs)),
+                Div(A(Tx("Append"), href=f"/refs/append/{ref['id']}", **kwargs)),
+                Div(),
+                Div(),
+                cls="grid"
+            )
         ]
     else:
-        actions = []
+        buttons_card = []
 
     title = f"{ref['name']} ({Tx(ref['type'])})"
     html = markdown.to_html(get_refs(), ref.content)
@@ -323,12 +341,12 @@ def get(request, ref: Text, position: int = None):
             title,
             book=get_refs(),
             status=ref.status,
-            actions=actions,
+            tools=tools,
         ),
         Main(
             Table(*rows),
             Div(NotStr(html), style="margin-top: 1em;"),
-            Card(*buttons, cls="grid"),
+            *buttons_card,
             cls="container",
         ),
         components.footer(request, ref),

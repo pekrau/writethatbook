@@ -148,6 +148,7 @@ def header(request, title, book=None, status=None, tools=None, search=True):
             Details(
                 Summary(
                     Img(src="/writethatbook.png", style=style),
+                    title=Tx("Pages"),
                     role="button",
                     cls="outline",
                 ),

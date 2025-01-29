@@ -1391,8 +1391,16 @@ class Text(Item):
         """
         if rx.search(self.content):
             return set([self])
-        for key in ["name", "title", "subtitle", "publisher", "issn", "isbn",
-                    "pmc", "pmid"]:
+        for key in [
+            "name",
+            "title",
+            "subtitle",
+            "publisher",
+            "issn",
+            "isbn",
+            "pmc",
+            "pmid",
+        ]:
             if rx.search(self.get(key, "")):
                 return set([self])
         for author in self.get("authors", []):

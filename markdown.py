@@ -1,5 +1,7 @@
 "Markdown parser."
 
+import base64
+import json
 import re
 
 import marko
@@ -7,6 +9,7 @@ import marko.ast_renderer
 import marko.inline
 import marko.helpers
 
+import vl_convert as vlc
 import yaml
 
 import constants
@@ -121,6 +124,59 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
+class FencedCodeRenderer:
+    "Handle fenced code for SVG code and Vega-Lite specification."
+
+    def render_fenced_code(self, element):
+        content = element.children[0].children
+
+        # SVG content must contain the root 'svg' element with xmlns.
+        if element.lang == "svg":
+            return f"<article>\n{content}\n</article>\n"
+
+        # Output Vega-Lite code as SVG.
+        elif element.lang == "vega-lite":
+            try:
+                spec = parse_json_yaml(content)
+            except ValueError as error:
+                return f"<article>Error parsing JSON/YAML: {error}</article>"
+            try:
+                svg = vlc.vegalite_to_svg(vl_spec=spec)
+            except ValueError as error:
+                return f"<article>Error converting to SVG: {error}</article>"
+            return f"<article>\n{svg}\n</article>\n"
+
+        # Output Vega-Lite code as PNG.
+        elif element.lang == "vega-lite-png":
+            try:
+                spec = parse_json_yaml(content)
+            except ValueError as error:
+                return f"<article>Error parsing JSON/YAML: {error}</article>"
+            try:
+                pngdata = vlc.vegalite_to_png(vl_spec=spec)
+            except ValueError as error:
+                return f"<article>Error converting to PNG: {error}</article>"
+            pngdata = base64.b64encode(pngdata).decode("utf-8")
+            src = "data:image/png;charset=utf-8;base64," + pngdata
+            return f'<article><img src="{src}"></article>\n'
+
+        # All other fenced code.
+        else:
+            return super().render_fenced_code(element)
+
+
+def parse_json_yaml(content):
+    "Parse as JSON or YAML. Raise ValueError if any problem."
+    try:
+        spec = json.loads(content)
+    except json.JSONDecodeError:
+        try:
+            spec = yaml.safe_load(content)
+        except yaml.YAMLError as error:
+            raise ValueError(str(error))
+    return spec
+
+
 html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
@@ -133,6 +189,7 @@ html_converter.use(
             IndexedRenderer,
             ReferenceRenderer,
             ThematicBreakRenderer,
+            FencedCodeRenderer,
         ],
     )
 )
@@ -157,8 +214,8 @@ EDIT_BUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
 def to_html(book, content, position=None, edit_href=None):
     global _current_book  # Required for index links.
     # Insert the position marker before converting to HTML, to get the position right.
-    if position is not None:
-        content = content[:position] + POSITION + content[position:]
+    if position is not None:  # Note: extra newline needed for fenced block!
+        content = content[:position] + POSITION + "\n" + content[position:]
     if edit_href:
         content = AddEditButtons(content, edit_href).processed
     _current_book = book  # Required for index links generated in the next call.
@@ -172,7 +229,7 @@ def to_html(book, content, position=None, edit_href=None):
 
 
 def get_edit_button(match):
-    return f'<a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
+    return f' <a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
 
 
 class AddEditButtons:
@@ -180,27 +237,29 @@ class AddEditButtons:
 
     def __init__(self, content, edit_href):
         self.edit_href = edit_href
-        self.content = content
+        self.content = content + "\n\n"  # Handle last paragraph.
         self.offset = 0
         # Handle the offset produced by the POSITION marker.
         try:
-            self.position = content.index(POSITION)
+            self.position = self.content.index(POSITION)
         except ValueError:
             self.position = None
         self.first = 0
-        self.processed = NEW_PARAGRAPH_RX.sub(self, content)
-        # Add edit button marker to the last paragraph.
-        self.processed += self.get_marker(self.first, len(self.content))
+        self.processed = NEW_PARAGRAPH_RX.sub(self, self.content)
 
     def __call__(self, match):
         self.last = match.start()
         result = self.get_marker(self.first, self.last)
         self.first = match.end()
-        return result
+        if self.first > 4 and self.content[self.first - 5 : self.first] == "```\n\n":
+            return "\n" + result
+        else:
+            return result
 
     def get_marker(self, first, last):
         # Handle the offset produced by the POSITION marker.
         if self.position is not None and first > self.position:
-            first -= len(POSITION)
-            last -= len(POSITION)
-        return f"!!{self.edit_href} {first} {last}!!\n\n"
+            offset = len(POSITION) + 1  # Deal with that extra newline.
+            first -= offset
+            last -= offset
+        return f"\n!!{self.edit_href} {first} {last}!!\n\n"

@@ -323,7 +323,7 @@ def get(request, ref: Text, position: int = None):
                 Div(A(Tx("Append"), href=f"/refs/append/{ref['id']}", **kwargs)),
                 Div(),
                 Div(),
-                cls="grid"
+                cls="grid",
             )
         ]
     else:

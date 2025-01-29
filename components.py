@@ -92,7 +92,9 @@ def header(request, title, book=None, status=None, tools=None, search=True):
     if book:
         if book is books.get_refs():
             if search:
-                menu.append(A(f'{Tx("Search in")} {Tx("references")}', href="/refs/search"))
+                menu.append(
+                    A(f'{Tx("Search in")} {Tx("references")}', href="/refs/search")
+                )
             menu.extend(
                 [
                     A(Tx("Keywords"), href="/refs/keywords"),
@@ -102,7 +104,9 @@ def header(request, title, book=None, status=None, tools=None, search=True):
             )
         else:
             if search:
-                menu.append(A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}"))
+                menu.append(
+                    A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}")
+                )
             menu.extend(
                 [
                     A(Tx("Index"), href=f"/meta/index/{book}"),

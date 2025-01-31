@@ -547,7 +547,7 @@ class Creator:
         self.state.reset()
 
     def render_emdash(self, ast):
-        self.state.write(constants.EM_DASH)
+        self.state.write(" " + constants.EM_DASH + " ")
 
     def render_line_break(self, ast):
         if ast.get("soft"):

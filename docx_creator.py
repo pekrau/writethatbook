@@ -476,7 +476,7 @@ class Creator:
         self.superscript = False
 
     def render_emdash(self, ast):
-        self.paragraph.add_run(constants.EM_DASH)
+        self.paragraph.add_run(" " + constants.EM_DASH + " ")
 
     def render_line_break(self, ast):
         if ast.get("soft"):

@@ -1,6 +1,5 @@
 "Markdown parser."
 
-import base64
 import json
 import re
 
@@ -130,51 +129,31 @@ class FencedCodeRenderer:
     def render_fenced_code(self, element):
         content = element.children[0].children
 
-        # SVG content must contain the root 'svg' element with xmlns.
+        # SVG content must contain the root 'svg' element with 'xmlns'.
         if element.lang == "svg":
             return f"<article>\n{content}\n</article>\n"
 
-        # Output Vega-Lite code as SVG.
+        # Output Vega-Lite specification as SVG.
         elif element.lang == "vega-lite":
             try:
-                spec = parse_json_yaml(content)
-            except ValueError as error:
-                return f"<article>Error parsing JSON/YAML: {error}</article>"
+                spec = json.loads(content)
+            except json.JSONDecodeError as error:
+                return f"<article>Error parsing JSON: {error}</article>"
             try:
-                svg = vlc.vegalite_to_svg(vl_spec=spec)
+                svg = vlc.vegalite_to_svg(spec)
             except ValueError as error:
                 return f"<article>Error converting to SVG: {error}</article>"
-            return f"<article>\n{svg}\n</article>\n"
-
-        # Output Vega-Lite code as PNG.
-        elif element.lang == "vega-lite-png":
             try:
-                spec = parse_json_yaml(content)
-            except ValueError as error:
-                return f"<article>Error parsing JSON/YAML: {error}</article>"
-            try:
-                pngdata = vlc.vegalite_to_png(vl_spec=spec)
-            except ValueError as error:
-                return f"<article>Error converting to PNG: {error}</article>"
-            pngdata = base64.b64encode(pngdata).decode("utf-8")
-            src = "data:image/png;charset=utf-8;base64," + pngdata
-            return f'<article><img src="{src}"></article>\n'
+                description = spec["description"]
+            except KeyError:
+                return f"<article>\n{svg}\n</article>\n"
+            else:
+                description = html_converter.convert(description)
+                return f"<article>\n{svg}\n<footer>{description}</footer></article>\n"
 
         # All other fenced code.
         else:
             return super().render_fenced_code(element)
-
-
-def parse_json_yaml(content):
-    "Parse as JSON or YAML. Raise ValueError if any problem."
-    try:
-        spec = json.loads(content)
-    except json.JSONDecodeError:
-        try:
-            spec = yaml.safe_load(content)
-        except yaml.YAMLError as error:
-            raise ValueError(str(error))
-    return spec
 
 
 html_converter = marko.Markdown()

@@ -903,6 +903,11 @@ class Item(Container):
         return f'{".".join([str(i) for i in self.ordinal])}. {self.title}'
 
     @property
+    def fullheading(self):
+        "Full title preceded by ordinal."
+        return f'{".".join([str(i) for i in self.ordinal])}. {self.fulltitle}'
+
+    @property
     def prev(self):
         "Previous sibling or None."
         index = self.index

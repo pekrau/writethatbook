@@ -143,23 +143,26 @@ def get(request):
             parts.append(" ")
             parts.extend(links)
 
+        items.append(P(*parts, id=ref["name"]))
+
         xrefs = []
         for book in books.get_books(request):
             texts = book.refs.get(ref["id"], [])
+            if len(texts) == 0:
+                continue
+            entries = []
             for text in sorted(texts, key=lambda t: t.ordinal):
-                if xrefs:
-                    xrefs.append(Br())
-                xrefs.append(
+                entries.append(
                     A(
-                        f"{book.title}: {text.fulltitle}",
+                        text.fullheading,
                         cls="secondary",
                         href=f"/book/{book}/{text.path}",
                     )
                 )
+            xrefs.append(Li(A(book.title, href=f"/book/{book}"),
+                            Small(Ul(*[Li(e) for e in entries]))))
         if xrefs:
-            parts.append(Small(Br(), *xrefs))
-
-        items.append(P(*parts, id=ref["name"]))
+            items.append(Ul(*xrefs))
 
     tools = []
     if auth.authorized(request, *auth.refs_add_rules, refs=refs):
@@ -268,18 +271,7 @@ def get(request, ref: Text, position: int = None):
         rows.append(Tr(Td("DOI"), Td(A(ref["doi"], href=url))))
     if ref.get("url"):
         rows.append(Tr(Td("Url"), Td(A(ref["url"], href=ref["url"]))))
-    xrefs = []
-    for book in books.get_books(request):
-        texts = book.refs.get(ref["id"], [])
-        for text in sorted(texts, key=lambda t: t.ordinal):
-            if xrefs:
-                xrefs.append(Br())
-            xrefs.append(
-                A(
-                    f"{book.title}: {text.fulltitle}",
-                    href=f"/book/{book.id}/{text.path}",
-                )
-            )
+
     contains = []
     refvalue = f"[@{ref['name']}]"
     for r in get_refs():
@@ -292,7 +284,23 @@ def get(request, ref: Text, position: int = None):
     if contains:
         rows.append(Tr(Td(Tx("Contains")), Td(*contains)))
 
-    rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(*xrefs)))
+    xrefs = []
+    for book in books.get_books(request):
+        texts = book.refs.get(ref["id"], [])
+        if len(texts) == 0:
+            continue
+        entries = []
+        for text in sorted(texts, key=lambda t: t.ordinal):
+            entries.append(
+                A(
+                    text.fullheading,
+                    cls="secondary",
+                    href=f"/book/{book.id}/{text.path}",
+                )
+            )
+        xrefs.append(Li(A(book.title, href=f"/book/{book}"),
+                        Ul(*[Li(e) for e in entries])))
+    rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(Ul(*xrefs))))
 
     tools = []
     if auth.authorized(request, *auth.ref_edit_rules, ref=ref):

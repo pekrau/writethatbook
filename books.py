@@ -730,7 +730,7 @@ class Book(Container):
         return buffer.getvalue()
 
     def search(self, term, ignorecase=True):
-        "Find the set of items that contain the term in the content."
+        "Find the set of items in the book that contain the term in the content."
         if ignorecase:
             flags = re.IGNORECASE
         else:
@@ -1252,7 +1252,7 @@ class Section(Item):
         self.book.write()
         get_refs(reread=True)
 
-    def search(self, term):
+    def search(self, rx):
         """Find the set of items that match the compiled regexp.
         If this is a reference, then also search a set of frontmatter entries.
         """
@@ -1406,7 +1406,8 @@ class Text(Item):
             "pmc",
             "pmid",
         ]:
-            if rx.search(self.get(key, "")):
+            value = self.get(key)
+            if value and rx.search(value):
                 return set([self])
         for author in self.get("authors", []):
             if rx.search(author):

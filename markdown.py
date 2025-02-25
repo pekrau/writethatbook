@@ -148,7 +148,7 @@ class FencedCodeRenderer:
             except KeyError:
                 return f"<article>\n{svg}\n</article>\n"
             else:
-                description = html_converter.convert(description)
+                description = html_converter2.convert(description)
                 return f"<article>\n{svg}\n<footer>{description}</footer></article>\n"
 
         # All other fenced code.
@@ -159,6 +159,26 @@ class FencedCodeRenderer:
 html_converter = marko.Markdown()
 html_converter.use("footnote")
 html_converter.use(
+    marko.helpers.MarkoExtension(
+        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+        renderer_mixins=[
+            SubscriptRenderer,
+            SuperscriptRenderer,
+            EmdashRenderer,
+            IndexedRenderer,
+            ReferenceRenderer,
+            ThematicBreakRenderer,
+            FencedCodeRenderer,
+        ],
+    )
+)
+
+
+# Apparently, a converter instance cannot be used inside itself.
+# So a new one has to be used for the figure caption text.
+# NOTE: It cannot handle footnotes, so excluded that functionality.
+html_converter2 = marko.Markdown()
+html_converter2.use(
     marko.helpers.MarkoExtension(
         elements=[Subscript, Superscript, Emdash, Indexed, Reference],
         renderer_mixins=[

@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 12, 7)
+VERSION = (1, 12, 8)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -92,11 +92,11 @@ class Status:
 
 
 STARTED = Status("started", 0, "darkgray")
-DRAFT = Status("draft", 2, "darkorange")
-MANUSCRIPT = Status("manuscript", 3, "crimson")
-REVISED = Status("revised", 4, "blueviolet")
-DONE = Status("done", 5, "forestgreen")
-FINAL = Status("final", 6, "black")
+DRAFT = Status("draft", 1, "darkorange")
+MANUSCRIPT = Status("manuscript", 2, "crimson")
+REVISED = Status("revised", 3, "blueviolet")
+DONE = Status("done", 4, "forestgreen")
+FINAL = Status("final", 5, "black")
 STATUSES = (STARTED, DRAFT, MANUSCRIPT, REVISED, DONE, FINAL)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
 STATUS_LOOKUP.update(dict([(str(s), s) for s in STATUSES]))

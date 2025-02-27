@@ -84,6 +84,13 @@ class Creator:
         )
         style.font.name = constants.QUOTE_FONT
 
+        # Create style for caption.
+        style = self.document.styles.add_style(
+            constants.CAPTION_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
+        )
+        style.paragraph_format.left_indent = docx.shared.Pt(constants.CAPTION_LEFT_INDENT)
+        style.font.name = constants.CAPTION_FONT
+
         # Set Dublin core metadata.
         if self.language:
             self.document.core_properties.language = self.language
@@ -465,7 +472,9 @@ class Creator:
             description = vl_spec.get("description")
             if description:
                 dast = markdown.to_ast(description)
+                self.style_stack.append(constants.CAPTION_STYLE)
                 self.render(dast)
+                self.style_stack.pop()
         else:
             self.paragraph = self.document.add_paragraph(style=constants.CODE_STYLE)
             self.style_stack.append(constants.CODE_STYLE)

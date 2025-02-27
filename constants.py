@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 13, 0)
+VERSION = (1, 13, 1)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -123,15 +123,20 @@ ITALIC = "italic"
 NORMAL = "normal"
 UNDERLINE = "underline"
 
-CODE_STYLE = "mdbook Code"
+CODE_STYLE = "writethatbook Code"
 CODE_FONT = "FreeMono"
 CODE_LEFT_INDENT = 30
 
-QUOTE_STYLE = "mdbook Quote"
+QUOTE_STYLE = "writethatbook Quote"
 QUOTE_FONT = "FreeSerif"
 QUOTE_FONT_SIZE = 14
 QUOTE_LEFT_INDENT = 30
 QUOTE_RIGHT_INDENT = 70
+
+CAPTION_STYLE = "writethatbook Caption"
+CAPTION_FONT = "FreeSerif"
+CAPTION_FONT_SIZE = 10
+CAPTION_LEFT_INDENT = 10
 
 FONT = "FreeSans"
 FONT_NORMAL_SIZE = 12

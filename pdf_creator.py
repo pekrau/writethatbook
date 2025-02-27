@@ -526,7 +526,13 @@ class Creator:
             description = vl_spec.get("description")
             if description:
                 dast = markdown.to_ast(description)
+                self.state.set(
+                    family=constants.CAPTION_FONT,
+                    font_size=constants.CAPTION_FONT_SIZE,
+                    left_indent=constants.CAPTION_LEFT_INDENT,
+                )
                 self.render(dast)
+                self.state.reset()
         else:
             self.state.set(
                 family=constants.CODE_FONT,

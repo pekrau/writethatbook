@@ -144,13 +144,13 @@ def get(request, book: Book, position: int = None):
             )
         button_card = Card(*buttons, cls="grid")
         html = markdown.to_html(
-            book, book.content, position=position, edit_href=f"/edit/{book}"
+            book.content, book=book, position=position, edit_href=f"/edit/{book}"
         )
 
     else:
         tools = []
         button_card = ""
-        html = markdown.to_html(book, book.content)
+        html = markdown.to_html(book.content, book=book)
 
     if auth.authorized(request, *auth.book_diff_rules, book=book):
         tools.append(["Differences", f"/diff/{book}"])
@@ -271,12 +271,15 @@ def get(request, book: Book, path: str, position: int = None):
         )
         button_card = Card(*buttons, cls="grid")
         html = markdown.to_html(
-            item.book, item.content, position=position, edit_href=f"/edit/{book}/{path}"
+            item.content,
+            book=item.book,
+            position=position,
+            edit_href=f"/edit/{book}/{path}",
         )
     else:
         tools = []
         button_card = ""
-        html = markdown.to_html(item.book, item.content)
+        html = markdown.to_html(item.content, book=item.book)
 
     segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid")]
     if item.is_text:

@@ -159,8 +159,12 @@ def get(request):
                         href=f"/book/{book}/{text.path}",
                     )
                 )
-            xrefs.append(Li(A(book.title, href=f"/book/{book}"),
-                            Small(Ul(*[Li(e) for e in entries]))))
+            xrefs.append(
+                Li(
+                    A(book.title, href=f"/book/{book}"),
+                    Small(Ul(*[Li(e) for e in entries])),
+                )
+            )
         if xrefs:
             items.append(Ul(*xrefs))
 
@@ -298,8 +302,9 @@ def get(request, ref: Text, position: int = None):
                     href=f"/book/{book.id}/{text.path}",
                 )
             )
-        xrefs.append(Li(A(book.title, href=f"/book/{book}"),
-                        Ul(*[Li(e) for e in entries])))
+        xrefs.append(
+            Li(A(book.title, href=f"/book/{book}"), Ul(*[Li(e) for e in entries]))
+        )
     rows.append(Tr(Td(Tx("Referenced by"), valign="top"), Td(Ul(*xrefs))))
 
     tools = []
@@ -338,7 +343,7 @@ def get(request, ref: Text, position: int = None):
         buttons_card = []
 
     title = f"{ref['name']} ({Tx(ref['type'])})"
-    html = markdown.to_html(get_refs(), ref.content)
+    html = markdown.to_html(ref.content, book=get_refs())
 
     return (
         Title(title),

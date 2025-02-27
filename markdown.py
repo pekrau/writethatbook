@@ -8,7 +8,7 @@ import marko.ast_renderer
 import marko.inline
 import marko.helpers
 
-import vl_convert as vlc
+import vl_convert
 import yaml
 
 import constants
@@ -140,7 +140,7 @@ class FencedCodeRenderer:
             except json.JSONDecodeError as error:
                 return f"<article>Error parsing JSON: {error}</article>"
             try:
-                svg = vlc.vegalite_to_svg(spec)
+                svg = vl_convert.vegalite_to_svg(spec)
             except ValueError as error:
                 return f"<article>Error converting to SVG: {error}</article>"
             try:
@@ -148,61 +148,23 @@ class FencedCodeRenderer:
             except KeyError:
                 return f"<article>\n{svg}\n</article>\n"
             else:
-                description = html_converter2.convert(description)
-                return f"<article>\n{svg}\n<footer>{description}</footer></article>\n"
+                return f"<article>\n{svg}\n<footer>{to_html(description)}</footer></article>\n"
 
         # All other fenced code.
         else:
             return super().render_fenced_code(element)
 
 
-html_converter = marko.Markdown()
-html_converter.use("footnote")
-html_converter.use(
-    marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
-        renderer_mixins=[
-            SubscriptRenderer,
-            SuperscriptRenderer,
-            EmdashRenderer,
-            IndexedRenderer,
-            ReferenceRenderer,
-            ThematicBreakRenderer,
-            FencedCodeRenderer,
-        ],
+def to_ast(content):
+    "Convert Markdown content into an AST structure."
+    converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)
+    converter.use("footnote")
+    converter.use(
+        marko.helpers.MarkoExtension(
+            elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+        )
     )
-)
-
-
-# Apparently, a converter instance cannot be used inside itself.
-# So a new one has to be used for the figure caption text.
-# NOTE: It cannot handle footnotes, so excluded that functionality.
-html_converter2 = marko.Markdown()
-html_converter2.use(
-    marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
-        renderer_mixins=[
-            SubscriptRenderer,
-            SuperscriptRenderer,
-            EmdashRenderer,
-            IndexedRenderer,
-            ReferenceRenderer,
-            ThematicBreakRenderer,
-            FencedCodeRenderer,
-        ],
-    )
-)
-
-
-ast_converter = marko.Markdown(renderer=marko.ast_renderer.ASTRenderer)
-ast_converter.use("footnote")
-ast_converter.use(
-    marko.helpers.MarkoExtension(
-        elements=[Subscript, Superscript, Emdash, Indexed, Reference],
-    )
-)
-
-to_ast = ast_converter.convert
+    return converter.convert(content)
 
 
 POSITION = "!!position!!"
@@ -210,15 +172,33 @@ NEW_PARAGRAPH_RX = re.compile(r"\n\n")
 EDIT_BUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
 
 
-def to_html(book, content, position=None, edit_href=None):
+def to_html(content, book=None, position=None, edit_href=None):
     global _current_book  # Required for index links.
+    # Create new converter instance.
+    converter = marko.Markdown()
+    converter.use("footnote")
+    converter.use(
+        marko.helpers.MarkoExtension(
+            elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+            renderer_mixins=[
+                SubscriptRenderer,
+                SuperscriptRenderer,
+                EmdashRenderer,
+                IndexedRenderer,
+                ReferenceRenderer,
+                ThematicBreakRenderer,
+                FencedCodeRenderer,
+            ],
+        )
+    )
     # Insert the position marker before converting to HTML, to get the position right.
     if position is not None:  # Note: extra newline needed for fenced block!
         content = content[:position] + POSITION + "\n" + content[position:]
     if edit_href:
         content = AddEditButtons(content, edit_href).processed
-    _current_book = book  # Required for index links generated in the next call.
-    html = html_converter.convert(content)
+    if book is not None:
+        _current_book = book  # Required for index links generated in the next call.
+    html = converter.convert(content)
     # Replace the position marker with a proper invisible HTML construct.
     html = html.replace(POSITION, '<span id="position"></span>')
     # Replace the edit button markers with proper HTML links.

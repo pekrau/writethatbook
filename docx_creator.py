@@ -2,12 +2,18 @@
 
 import datetime
 import io
+import json
+import struct
 
 import docx
 import docx.oxml
+import docx.shared
+import PIL
+import vl_convert
 
 import constants
 from errors import *
+import markdown
 import utils
 from utils import Tx
 
@@ -445,11 +451,27 @@ class Creator:
         self.style_stack.pop()
 
     def render_fenced_code(self, ast):
-        self.paragraph = self.document.add_paragraph(style=constants.CODE_STYLE)
-        self.style_stack.append(constants.CODE_STYLE)
-        for child in ast["children"]:
-            self.render(child)
-        self.style_stack.pop()
+        if ast.get("lang") == "vega-lite":
+            vl_spec = json.loads(ast["children"][0]["children"])
+            png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+            im = PIL.Image.open(png)
+            png.seek(0)
+            width, height = im.size
+            px_cm = 72 / 2.54  # Standard 72 pixels per inch.
+            scale = 0.7  # Empirical scale factor...
+            width = docx.shared.Cm(scale * width / px_cm)
+            height = docx.shared.Cm(scale * height / px_cm)
+            self.document.add_picture(png, width=width, height=height)
+            description = vl_spec.get("description")
+            if description:
+                dast = markdown.to_ast(description)
+                self.render(dast)
+        else:
+            self.paragraph = self.document.add_paragraph(style=constants.CODE_STYLE)
+            self.style_stack.append(constants.CODE_STYLE)
+            for child in ast["children"]:
+                self.render(child)
+            self.style_stack.pop()
 
     def render_emphasis(self, ast):
         self.italic = True

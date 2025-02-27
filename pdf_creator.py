@@ -2,11 +2,15 @@
 
 import datetime
 import io
+import json
 
 import fpdf  # fpdf2, actually!
+import PIL
+import vl_convert
 
 import constants
 from errors import *
+import markdown
 import utils
 from utils import Tx
 
@@ -512,14 +516,26 @@ class Creator:
         self.state.ln()
 
     def render_fenced_code(self, ast):
-        self.state.set(
-            family=constants.CODE_FONT,
-            left_indent=constants.CODE_LEFT_INDENT,
-            line_height=1.2,
-        )
-        for child in ast["children"]:
-            self.render(child)
-        self.state.reset()
+        if ast.get("lang") == "vega-lite":
+            vl_spec = json.loads(ast["children"][0]["children"])
+            png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+            im = PIL.Image.open(png)
+            width, height = im.size
+            scale = 0.75  # Empirical scale factor...
+            self.pdf.image(im, w=scale * width, h=scale * height)
+            description = vl_spec.get("description")
+            if description:
+                dast = markdown.to_ast(description)
+                self.render(dast)
+        else:
+            self.state.set(
+                family=constants.CODE_FONT,
+                left_indent=constants.CODE_LEFT_INDENT,
+                line_height=1.2,
+            )
+            for child in ast["children"]:
+                self.render(child)
+            self.state.reset()
         self.state.ln()
 
     def render_emphasis(self, ast):

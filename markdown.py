@@ -2,6 +2,7 @@
 
 import json
 import re
+import xml.etree.ElementTree
 
 import marko
 import marko.ast_renderer
@@ -129,9 +130,19 @@ class FencedCodeRenderer:
     def render_fenced_code(self, element):
         content = element.children[0].children
 
-        # SVG content must contain the root 'svg' element with 'xmlns'.
+        # SVG content must contain the root 'svg' element with xmlns.
         if element.lang == "svg":
-            return f"<article>\n{content}\n</article>\n"
+            root = xml.etree.ElementTree.fromstring(content)
+            # SVG content must contain the root 'svg' element with xmlns.
+            # Add it if missing.
+            if root.tag == "svg":
+                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
+                root = xml.etree.ElementTree.fromstring(content)
+            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
+            if desc is not None:
+                return f"<article>\n{content}\n<footer>{to_html(desc.text)}</footer>\n</article>\n"
+            else:
+                return f"<article>\n{content}\n</article>\n"
 
         # Output Vega-Lite specification as SVG.
         elif element.lang == "vega-lite":

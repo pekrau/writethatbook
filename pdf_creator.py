@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import xml.etree.ElementTree
 
 import fpdf  # fpdf2, actually!
 import PIL
@@ -63,7 +64,7 @@ class Creator:
             self.pdf.set_lang(self.language)
         if self.authors:
             self.pdf.set_author(", ".join(self.authors))
-        self.pdf.set_creator(f"mdbook {constants.__version__}")
+        self.pdf.set_creator(f"writethatbook {constants.__version__}")
         self.pdf.set_creation_date(datetime.datetime.now())
 
         self.pdf.add_font(
@@ -516,12 +517,37 @@ class Creator:
         self.state.ln()
 
     def render_fenced_code(self, ast):
-        if ast.get("lang") == "vega-lite":
-            vl_spec = json.loads(ast["children"][0]["children"])
+        content = ast["children"][0]["children"]
+        scale = 0.75  # Empirical scale factor...
+
+        # Output SVG as PNG.
+        if ast.get("lang") == "svg":
+            root = xml.etree.ElementTree.fromstring(content)
+            # SVG content must contain the root 'svg' element with xmlns.
+            # Add it if missing.
+            if root.tag == "svg":
+                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
+                root = xml.etree.ElementTree.fromstring(content)
+            png = io.BytesIO(vl_convert.svg_to_png(content))
+            im = PIL.Image.open(png)
+            width, height = im.size
+            self.pdf.image(im, w=scale * width, h=scale * height)
+            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
+            if desc is not None:
+                self.state.set(
+                    family=constants.CAPTION_FONT,
+                    font_size=constants.CAPTION_FONT_SIZE,
+                    left_indent=constants.CAPTION_LEFT_INDENT,
+                )
+                self.render(markdown.to_ast(desc.text))
+                self.state.reset()
+
+        # Output Vega-Lite specification as PNG.
+        elif ast.get("lang") == "vega-lite":
+            vl_spec = json.loads(content)
             png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
             im = PIL.Image.open(png)
             width, height = im.size
-            scale = 0.75  # Empirical scale factor...
             self.pdf.image(im, w=scale * width, h=scale * height)
             description = vl_spec.get("description")
             if description:
@@ -533,6 +559,8 @@ class Creator:
                 )
                 self.render(dast)
                 self.state.reset()
+
+        # Fenced code as is.
         else:
             self.state.set(
                 family=constants.CODE_FONT,

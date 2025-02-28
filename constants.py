@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 13, 1)
+VERSION = (1, 13, 2)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -208,6 +208,8 @@ DOCX_MIMETYPE = (
 )
 PDF_MIMETYPE = "application/pdf"
 GZIP_MIMETYPE = "application/gzip"
+
+XMLNS_SVG = "http://www.w3.org/2000/svg"
 
 PDF_HREF_COLOR = (20, 20, 255)
 PDF_LIST_INDENT = 30

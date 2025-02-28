@@ -4,6 +4,7 @@ import datetime
 import io
 import json
 import struct
+import xml.etree.ElementTree
 
 import docx
 import docx.oxml
@@ -88,7 +89,9 @@ class Creator:
         style = self.document.styles.add_style(
             constants.CAPTION_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
         )
-        style.paragraph_format.left_indent = docx.shared.Pt(constants.CAPTION_LEFT_INDENT)
+        style.paragraph_format.left_indent = docx.shared.Pt(
+            constants.CAPTION_LEFT_INDENT
+        )
         style.font.name = constants.CAPTION_FONT
 
         # Set Dublin core metadata.
@@ -458,23 +461,47 @@ class Creator:
         self.style_stack.pop()
 
     def render_fenced_code(self, ast):
-        if ast.get("lang") == "vega-lite":
-            vl_spec = json.loads(ast["children"][0]["children"])
+        content = ast["children"][0]["children"]
+        scale = 0.7  # Empirical scale factor...
+        px_cm = 72 / 2.54  # Standard 72 pixels per inch.
+
+        # Output SVG as PNG.
+        if ast.get("lang") == "svg":
+            root = xml.etree.ElementTree.fromstring(content)
+            # SVG content must contain the root 'svg' element with xmlns.
+            # Add it if missing.
+            if root.tag == "svg":
+                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
+                root = xml.etree.ElementTree.fromstring(content)
+            png = io.BytesIO(vl_convert.svg_to_png(content))
+            im = PIL.Image.open(png)
+            width, height = im.size
+            width = docx.shared.Cm(scale * width / px_cm)
+            height = docx.shared.Cm(scale * height / px_cm)
+            self.document.add_picture(png, width=width, height=height)
+            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
+            if desc is not None:
+                self.style_stack.append(constants.CAPTION_STYLE)
+                self.render(markdown.to_ast(desc.text))
+                self.style_stack.pop()
+
+        # Output Vega-Lite specification as PNG.
+        elif ast.get("lang") == "vega-lite":
+            vl_spec = json.loads(content)
             png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
             im = PIL.Image.open(png)
             png.seek(0)
             width, height = im.size
-            px_cm = 72 / 2.54  # Standard 72 pixels per inch.
-            scale = 0.7  # Empirical scale factor...
             width = docx.shared.Cm(scale * width / px_cm)
             height = docx.shared.Cm(scale * height / px_cm)
             self.document.add_picture(png, width=width, height=height)
             description = vl_spec.get("description")
             if description:
-                dast = markdown.to_ast(description)
                 self.style_stack.append(constants.CAPTION_STYLE)
-                self.render(dast)
+                self.render(markdown.to_ast(description))
                 self.style_stack.pop()
+
+        # Fenced code as is.
         else:
             self.paragraph = self.document.add_paragraph(style=constants.CODE_STYLE)
             self.style_stack.append(constants.CODE_STYLE)

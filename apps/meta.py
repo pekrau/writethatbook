@@ -34,7 +34,11 @@ def get(request):
     title = Tx("Software")
     rows = []
     for name, href, version in [
-        (constants.SOFTWARE, "https://github.com/pekrau/mdbook", constants.__version__),
+        (
+            constants.SOFTWARE,
+            "https://github.com/pekrau/writethatbook",
+            constants.__version__,
+        ),
         (
             "Python",
             "https://www.python.org/",

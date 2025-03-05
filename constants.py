@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 13, 3)
+VERSION = (1, 14, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -210,9 +210,14 @@ GZIP_MIMETYPE = "application/gzip"
 
 XMLNS_SVG = "http://www.w3.org/2000/svg"
 
+DOCX_MAX_PAGE_BREAK_LEVEL = 7
+
+PDF_MAX_CONTENT_PAGES = 20
 PDF_HREF_COLOR = (20, 20, 255)
 PDF_LIST_INDENT = 30
 PDF_THEMATIC_BREAK_INDENT = 100
+PDF_MAX_PAGE_BREAK_LEVEL = 7
+PDF_MAX_CONTENTS_LEVEL = 7
 
 PDF_PAGE_NUMBER = "page number"
 PDF_TEXT_FULLTITLE = "text fulltitle"

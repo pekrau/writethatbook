@@ -22,10 +22,6 @@ class Creator:
     def __init__(self, book, references):
         self.book = book
         self.references = references
-        self.title = book.title
-        self.subtitle = book.subtitle
-        self.authors = book.authors
-        self.language = book.language
         settings = book.frontmatter["pdf"]
         self.title_page_metadata = settings["title_page_metadata"]
         self.contents_pages = settings["contents_pages"]
@@ -34,21 +30,26 @@ class Creator:
         self.footnotes_location = settings["footnotes_location"]
         self.indexed_xref = settings["indexed_xref"]
 
-    def content(self):
-        "Create the PDF document and return it content."
-        if len(list(self.book)) == 0:
-            return self.create_attempt(0)
-        elif self.contents_pages:
-            for contents_pages in range(1, 20):
-                try:
-                    return self.create_attempt(contents_pages)
-                except fpdf.errors.FPDFException:
-                    pass
-        # If 20 isn't enough, give up and skip the contents page.
-        return self.create_attempt(0)
+    def content(self, item=None):
+        "Create the PDF document of the book or given item and return its content."
+        if item is None:
+            # Attempt table of contents only if book.
+            if len(list(self.book)) == 0:
+                return self.content_attempt(0)
+            elif self.contents_pages:
+                for contents_pages in range(1, constants.PDF_MAX_CONTENT_PAGES):
+                    try:
+                        return self.content_attempt(contents_pages)
+                    except fpdf.errors.FPDFException:
+                        pass
+        # If only item, or not enough pages, skip the contents page.
+        return self.content_attempt(0, item=item)
 
-    def create_attempt(self, contents_pages):
+    def content_attempt(self, contents_pages, item=None):
         "Attempt at writing PDF given the number of content pages to use."
+        # Force footnotes after each text if item output.
+        if item is not None:
+            self.footnotes_location = constants.FOOTNOTES_EACH_TEXT
         self.list_stack = []
         # Key: fulltitle; value: dict(label, number, ast_children)
         self.footnotes = {}
@@ -59,11 +60,14 @@ class Creator:
         self.indexed_count = 0
 
         self.pdf = fpdf.FPDF(format="a4", unit="pt")
-        self.pdf.set_title(self.title)
-        if self.language:
-            self.pdf.set_lang(self.language)
-        if self.authors:
-            self.pdf.set_author(", ".join(self.authors))
+        if item is None:
+            self.pdf.set_title(self.book.title)
+        else:
+            self.pdf.set_title(item.title)
+        if self.book.language:
+            self.pdf.set_lang(self.book.language)
+        if self.book.authors:
+            self.pdf.set_author(", ".join(self.book.authors))
         self.pdf.set_creator(f"writethatbook {constants.__version__}")
         self.pdf.set_creation_date(datetime.datetime.now())
 
@@ -129,25 +133,37 @@ class Creator:
         )
 
         self.state = State(self.pdf)
-
-        self.write_title_page()
-        if contents_pages:
-            self.pdf.add_page()
-            self.pdf.start_section(Tx("Contents"), level=0)
-            self.pdf.insert_toc_placeholder(self.write_toc, pages=contents_pages)
-            self.skip_first_add_page = True
-        else:
-            self.skip_first_add_page = False
-
         self.current_text = None
-        # First-level items are chapters.
-        for item in self.book.items:
+        self.skip_first_add_page = False
+
+        # Book output.
+        if item is None:
+            self.write_title_page()
+            if contents_pages:
+                self.pdf.add_page()
+                self.pdf.start_section(Tx("Contents"), level=0)
+                self.pdf.insert_toc_placeholder(self.write_toc, pages=contents_pages)
+                self.skip_first_add_page = True
+
+            # First-level items are chapters.
+            for item in self.book.items:
+                if item.is_section:
+                    self.write_section(item, level=1)
+                else:
+                    self.write_text(item, level=1)
+                if self.footnotes_location == constants.FOOTNOTES_EACH_CHAPTER:
+                    self.write_footnotes_chapter(item)
+            if self.footnotes_location == constants.FOOTNOTES_END_OF_BOOK:
+                self.write_footnotes_book()
+
+        # Item output.
+        else:
+            self.pdf.add_page()
             if item.is_section:
-                self.write_section(item, level=1)
+                self.write_section(item, level=item.level)
             else:
-                self.write_text(item, level=1)
-            self.write_footnotes_chapter(item)
-        self.write_footnotes_book()
+                self.write_text(item, level=item.level)
+            
         self.write_references()
         self.write_indexed()
 
@@ -160,21 +176,22 @@ class Creator:
         self.pdf.add_page()
         self.state.set(style="B", font_size=constants.FONT_TITLE_SIZE)
         self.state.ln()
-        self.state.write(self.title)
+        self.state.write(self.book.title)
         self.state.ln()
         self.state.reset()
 
-        if self.subtitle:
+        if self.book.subtitle:
             self.state.set(font_size=constants.FONT_LARGE_SIZE + 8)
-            self.state.write(self.subtitle)
+            self.state.write(self.book.subtitle)
             self.state.ln()
             self.state.reset()
 
         self.state.set(font_size=constants.FONT_LARGE_SIZE + 4)
         self.state.ln(0.5)
-        for author in self.authors:
+        # Allow line break between authors.
+        for author in self.book.authors:
             self.state.write(author)
-            if author != self.authors[-1]:
+            if author != self.book.authors[-1]:
                 self.state.write(", ")
         self.state.reset()
         self.state.ln(2)
@@ -187,6 +204,8 @@ class Creator:
             self.state.ln()
             now = datetime.datetime.now().strftime(constants.DATETIME_ISO_FORMAT)
             self.state.write(f'{Tx("Created")}: {now}')
+            self.state.ln()
+            self.state.write(f'{Tx("Modified")}: {self.book.modified}')
 
     def write_toc(self, pdf, outline):
         h1 = constants.H_LOOKUP[1]
@@ -197,7 +216,7 @@ class Creator:
         pdf.set_font(style="", size=constants.FONT_NORMAL_SIZE)
 
         self.state.set(line_height=1.1)
-        with pdf.table(first_row_as_headings=False, borders_layout="none") as table:
+        with pdf.table(first_row_as_headings=False, width=520, col_widths=(480, 35), gutter_width=5, text_align=("LEFT", "RIGHT"), borders_layout="NONE") as table:
             for section in outline[1:]:  # Skip "Contents" entry.
                 link = pdf.add_link(page=section.page_number)
                 row = table.row()
@@ -216,6 +235,10 @@ class Creator:
         self.write_heading(section.heading, level)
         if section.subtitle:
             self.write_heading(section.subtitle, level + 1)
+        self.current_text = section
+        self.render(section.ast)
+        if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
+            self.write_footnotes_text(section)
         for item in section.items:
             if item.is_section:
                 self.write_section(item, level=level + 1)
@@ -236,7 +259,8 @@ class Creator:
                 self.write_heading(text.subtitle, level + 1)
         self.current_text = text
         self.render(text.ast)
-        self.write_footnotes_text(text)
+        if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
+            self.write_footnotes_text(text)
 
     def write_heading(self, heading, level, factor=1.5):
         level = min(level, constants.MAX_H_LEVEL)
@@ -247,8 +271,6 @@ class Creator:
 
     def write_footnotes_text(self, text):
         "Footnote definitions at the end of each text."
-        if self.footnotes_location != constants.FOOTNOTES_EACH_TEXT:
-            return
         try:
             footnotes = self.footnotes[text.fulltitle]
         except KeyError:
@@ -266,8 +288,6 @@ class Creator:
 
     def write_footnotes_chapter(self, item):
         "Footnote definitions at the end of a chapter."
-        if self.footnotes_location != constants.FOOTNOTES_EACH_CHAPTER:
-            return
         try:
             footnotes = self.footnotes[item.chapter.fulltitle]
         except KeyError:
@@ -285,12 +305,10 @@ class Creator:
 
     def write_footnotes_book(self):
         "Footnote definitions as a separate section at the end of the book."
-        if self.footnotes_location != constants.FOOTNOTES_END_OF_BOOK:
-            return
         self.pdf.add_page()
         self.pdf.start_section(Tx("Footnotes"), level=0)
         self.write_heading(Tx("Footnotes"), 1)
-        for item in self.source.items:
+        for item in self.book.items:
             footnotes = self.footnotes.get(item.fulltitle, {})
             if not footnotes:
                 continue
@@ -710,7 +728,11 @@ class Creator:
         ):
             fulltitle = self.current_text.chapter.fulltitle
             key = f"{fulltitle}-{label}"
-        self.footnotes[fulltitle][key]["ast_children"] = ast["children"]
+        # Footnote def may be missing.
+        try:
+            self.footnotes[fulltitle][key]["ast_children"] = ast["children"]
+        except KeyError:
+            pass
 
     def render_reference(self, ast):
         self.referenced.add(ast["id"])

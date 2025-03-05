@@ -181,7 +181,6 @@ def get(request, book: Book, position: int = None):
             request,
             title,
             book=book,
-            status=book.status,
             tools=tools,
         ),
         Main(
@@ -196,10 +195,32 @@ def get(request, book: Book, position: int = None):
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
-    "Display text or section contents."
+    "Display text or section contents, or download DOCX or PDF file."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
+
+    # Download DOCX file for item.
+    if path.endswith(".docx"):
+        if not "docx" in book.frontmatter:
+            raise Error("no DOCX output parameters have been set")
+        item = book[path[:-5]]
+        return Response(
+            content=docx_creator.Creator(book, books.get_refs()).content(item),
+            media_type=constants.DOCX_MIMETYPE,
+            headers={"Content-Disposition": f'attachment; filename="{item.title}.docx"'},
+        )
+
+    # Download PDF file for item.
+    if path.endswith(".pdf"):
+        if not "pdf" in book.frontmatter:
+            raise Error("no PDF output parameters have been set")
+        item = book[path[:-4]]
+        return Response(
+            content=pdf_creator.Creator(book, books.get_refs()).content(item),
+            media_type=constants.PDF_MIMETYPE,
+            headers={"Content-Disposition": f'attachment; filename="{item.title}.pdf"'},
+        )
 
     item = book[path]
 
@@ -309,7 +330,7 @@ def get(request, book: Book, path: str, position: int = None):
             request,
             item.title,
             book=book,
-            status=item.status,
+            item=item,
             tools=tools,
         ),
         Main(
@@ -419,14 +440,14 @@ def toc(book, items, toplevel=True, edit=False):
 
 @rt("/{book:Book}.docx")
 def get(request, book: Book):
-    "Download the DOCX for the book. First get the parameters."
+    "Download the book DOCX file. First get the parameters."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
     title_page_metadata = settings.get("title_page_metadata", True)
     page_break_level = settings.get("page_break_level", 1)
     page_break_options = []
-    for value in range(0, 7):
+    for value in range(0, constants.DOCX_MAX_PAGE_BREAK_LEVEL):
         if value == page_break_level:
             page_break_options.append(Option(str(value), selected=True))
         else:
@@ -490,14 +511,14 @@ def get(request, book: Book):
         ),
     ]
 
-    title = f'{Tx("Download")} {Tx("DOCX file")}: {book.title}'
+    title = Tx("Book as DOCX file")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(
             Form(
                 *fields,
-                components.save_button("Download DOCX file"),
+                components.save_button(Tx("Book as DOCX file")),
                 action=f"/book/{book}.docx",
                 method="post",
             ),
@@ -510,7 +531,7 @@ def get(request, book: Book):
 
 @rt("/{book:Book}.docx")
 def post(request, book: Book, form: dict):
-    "Actually download the DOCX file of the entire book."
+    "Actually download the book as DOCX file."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
@@ -533,14 +554,14 @@ def post(request, book: Book, form: dict):
 
 @rt("/{book:Book}.pdf")
 def get(request, book: Book):
-    "Download the PDF file for the book. First get the parameters."
+    "Download the book as PDF file. First get the parameters."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     title_page_metadata = settings.get("title_page_metadata", True)
     page_break_level = settings.get("page_break_level", 1)
     page_break_options = []
-    for value in range(0, 7):
+    for value in range(0, constants.PDF_MAX_PAGE_BREAK_LEVEL):
         if value == page_break_level:
             page_break_options.append(Option(str(value), selected=True))
         else:
@@ -548,7 +569,7 @@ def get(request, book: Book):
     contents_pages = settings.get("contents_pages", True)
     contents_level = settings.get("contents_level", 1)
     contents_level_options = []
-    for value in range(0, 7):
+    for value in range(1, constants.PDF_MAX_CONTENTS_LEVEL):
         if value == contents_level:
             contents_level_options.append(Option(str(value), selected=True))
         else:
@@ -619,14 +640,14 @@ def get(request, book: Book):
         ),
     ]
 
-    title = f'{Tx("Download")} {Tx("PDF file")}'
+    title = Tx("Book as PDF file")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(
             Form(
                 *fields,
-                components.save_button("Download PDF file"),
+                components.save_button(Tx("Book as PDF file")),
                 action=f"/book/{book}.pdf",
                 method="post",
             ),
@@ -639,14 +660,14 @@ def get(request, book: Book):
 
 @rt("/{book:Book}.pdf")
 def post(request, book: Book, form: dict):
-    "Actually download the PDF file for the book."
+    "Actually download the book as PDF file."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
-    settings["page_break_level"] = form["page_break_level"]
+    settings["page_break_level"] = int(form["page_break_level"])
     settings["contents_pages"] = form["contents_pages"]
-    settings["contents_level"] = form["contents_level"]
+    settings["contents_level"] = int(form["contents_level"])
     settings["footnotes_location"] = form["footnotes_location"]
     settings["indexed_xref"] = form["indexed_xref"]
 

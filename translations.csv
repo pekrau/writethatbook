@@ -83,8 +83,10 @@ upload reference(s),ladda upp referens(er)
 Reference(s) TGZ file,Referens(er) TGZ-fil
 status list,statuslista
 download dump file,ladda ner dump-fil
-Download book DOCX file,Ladda ner bokens DOCX-fil
-Download book PDF file,Ladda ner bokens PDF-fil
+Book as DOCX file,Boken som DOCX-fil
+Book as PDF file,Boken som PDF-fil
+Text as DOCX file,Texten som DOCX-fil
+Text as PDF file,Texten som PDF-fil
 Download book TGZ file,Ladda ner bokens TGZ-fil
 Download references TGZ file,Ladda ner referenserna i TGZ-fil
 upload,ladda upp
@@ -148,7 +150,10 @@ information,information
 system,system
 software,mjukvara
 version,version
+metadata on title page,metadata på titelsidan
 contents,innehåll
+contents pages,innehållsförteckning
+contents level,innehållsnivå
 BibTex data,BibTex data
 delete book,radera bok
 note: all contents will be lost!,notera: allt innehåll kommer att försvinna!

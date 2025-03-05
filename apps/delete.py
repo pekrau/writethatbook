@@ -24,7 +24,7 @@ def get(request, book: Book):
     title = f"{Tx('Delete book')} '{book.title}'?"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(
             H3(Tx("Delete"), "?"),
             *segments,
@@ -61,7 +61,7 @@ def get(request, book: Book, path: str):
     title = f"{Tx('Delete')} {Tx(item.type)} '{item.fulltitle}'?"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, item=item),
         Main(
             H3(Tx("Delete"), "?"),
             *segments,

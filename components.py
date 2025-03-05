@@ -79,7 +79,7 @@ def search_form(action, term=None, autofocus=False):
     )
 
 
-def header(request, title, book=None, status=None, tools=None, search=True):
+def header(request, title, book=None, item=None, tools=None, search=True):
     "The standard page header with navigation bar."
 
     # General menu items.
@@ -114,11 +114,18 @@ def header(request, title, book=None, status=None, tools=None, search=True):
                     A(Tx("Status list"), href=f"/meta/status/{book}"),
                     A(Tx("Information"), href=f"/meta/info/{book}"),
                     A(Tx("Book state (JSON)"), href=f"/state/{book}"),
-                    A(Tx("Download book DOCX file"), href=f"/book/{book}.docx"),
-                    A(Tx("Download book PDF file"), href=f"/book/{book}.pdf"),
                     A(Tx("Download book TGZ file"), href=f"/book/{book}.tgz"),
+                    A(Tx("Book as DOCX file"), href=f"/book/{book}.docx"),
+                    A(Tx("Book as PDF file"), href=f"/book/{book}.pdf"),
                 ]
             )
+            if item is not None:
+                menu.extend(
+                    [
+                        A(Tx("Text as DOCX file"), href=f"/book/{book}/{item.path}.docx"),
+                        A(Tx("Text as PDF file"), href=f"/book/{book}/{item.path}.pdf"),
+                    ]
+                )
 
     # Links to pages for admin.
     if auth.is_admin(request):
@@ -204,8 +211,10 @@ def header(request, title, book=None, status=None, tools=None, search=True):
 
     # Set the color of the nav frame.
     nav_style = "outline-color: {color}; outline-width:8px; outline-style:solid; padding:0px 10px; border-radius:5px;"
-    if status:
-        nav_style = nav_style.format(color=status.color)
+    if book:
+        nav_style = nav_style.format(color=book.status.color)
+    elif item:
+        nav_style = nav_style.format(color=item.status.color)
     else:
         nav_style = nav_style.format(color="black")
     return Header(Nav(*navs, style=nav_style), cls="container")
@@ -216,25 +225,20 @@ def footer(request, item=None):
         cells = [
             Div(Tx(item.status), title=Tx("Status")),
             Div(item.modified, title=Tx("Modified")),
+            Div(
+                f'{thousands(item.n_words)} {Tx("words")}; ',
+                f'{thousands(item.n_characters)} {Tx("characters")}',
+            ),
         ]
         if item.type in (constants.BOOK, constants.SECTION):
             cells.append(
                 Div(
                     f'{thousands(item.sum_words)} {Tx("words")}; ',
                     f'{thousands(item.sum_characters)} {Tx("characters")}',
-                    " (",
-                    f'{thousands(item.n_words)} {Tx("words")}; ',
-                    f'{thousands(item.n_characters)} {Tx("characters")}',
-                    ")",
                 )
             )
         else:
-            cells.append(
-                Div(
-                    f'{thousands(item.n_words)} {Tx("words")}; ',
-                    f'{thousands(item.n_characters)} {Tx("characters")}',
-                )
-            )
+            cells.append(Div())
 
     else:
         cells = [Div(), Div(), Div()]

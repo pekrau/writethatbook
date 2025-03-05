@@ -21,7 +21,7 @@ def get(request, book: Book):
     title = f"{Tx('Search in')} {Tx('book')}"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, search=False),
+        components.header(request, title, book=book, search=False),
         Main(
             components.search_form(f"/search/{book}", autofocus=True),
             cls="container",
@@ -55,7 +55,7 @@ def post(request, book: Book, form: dict):
     title = f"{Tx('Search in')} {Tx('book')}"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status, search=False),
+        components.header(request, title, book=book, search=False),
         Main(
             components.search_form(f"/search/{book}", term=term, autofocus=True),
             result,

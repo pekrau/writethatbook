@@ -157,7 +157,7 @@ def get(request, book: Book):
     title = Tx("Index")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(Ul(*items), cls="container"),
         components.footer(request),
     )
@@ -179,7 +179,7 @@ def get(request, book: Book):
     title = Tx("Recently modified")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(
             P(Table(Tbody(*rows))),
             cls="container",
@@ -220,7 +220,7 @@ def get(request, book: Book):
     title = Tx("Information")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(*segments, cls="container"),
         components.footer(request),
     )
@@ -254,7 +254,7 @@ def get(request, book: Book):
     title = Tx("Status list")
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(Table(*rows), cls="container"),
         components.footer(request),
     )

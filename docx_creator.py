@@ -25,10 +25,6 @@ class Creator:
     def __init__(self, book, references):
         self.book = book
         self.references = references
-        self.title = book.title
-        self.subtitle = book.subtitle
-        self.authors = book.authors
-        self.language = book.language
         settings = book.frontmatter["docx"]
         self.title_page_metadata = settings["title_page_metadata"]
         self.page_break_level = settings["page_break_level"]
@@ -36,8 +32,11 @@ class Creator:
         self.indexed_font = settings.get("indexed_font")
         self.reference_font = settings.get("reference_font")
 
-    def content(self):
-        "Create the DOCX document and return its content."
+    def content(self, item=None):
+        "Create the DOCX document of the book or the given item and return its content."
+        # Force footnotes after each text if item output.
+        if item is not None:
+            self.footnotes_location = constants.FOOTNOTES_EACH_TEXT
         # Key: fulltitle; value: dict(label, ast_children)
         self.footnotes = {}
         # References, key: refid; value: reference
@@ -50,11 +49,11 @@ class Creator:
 
         # Set the default document-wide language.
         # From https://stackoverflow.com/questions/36967416/how-can-i-set-the-language-in-text-with-python-docx
-        if self.language:
+        if self.book.language:
             styles_element = self.document.styles.element
             rpr_default = styles_element.xpath("./w:docDefaults/w:rPrDefault/w:rPr")[0]
             lang_default = rpr_default.xpath("w:lang")[0]
-            lang_default.set(docx.oxml.shared.qn("w:val"), self.language)
+            lang_default.set(docx.oxml.shared.qn("w:val"), self.book.language)
 
         # Set to A4 page size.
         section = self.document.sections[0]
@@ -95,24 +94,42 @@ class Creator:
         style.font.name = constants.CAPTION_FONT
 
         # Set Dublin core metadata.
-        if self.language:
-            self.document.core_properties.language = self.language
-            self.document.core_properties.modified = datetime.datetime.now()
-        # XXX authors
+        self.document.core_properties.author = ", ".join(self.book.authors)
+        self.document.core_properties.created = datetime.datetime.now()
+        if item is None:
+            self.document.core_properties.modified = datetime.datetime.fromisoformat(self.book.modified)
+        else:
+            self.document.core_properties.modified = datetime.datetime.fromisoformat(item.modified)
+        if self.book.language:
+            self.document.core_properties.language = self.book.language
 
         self.current_text = None
         self.footnote_paragraph = None
 
-        self.write_title_page()
-        self.write_toc()
-        self.write_page_number()
-        for item in self.book.items:
+        # Book output.
+        if item is None:
+            self.write_title_page()
+            self.write_toc()
+            self.write_page_number()
+
+            # First-level items are chapters.
+            for item in self.book.items:
+                if item.is_section:
+                    self.write_section(item, level=item.level)
+                else:
+                    self.write_text(item, level=item.level)
+                if self.footnotes_location == constants.FOOTNOTES_EACH_CHAPTER:
+                    self.write_footnotes_chapter(item)
+            if self.footnotes_location == constants.FOOTNOTES_END_OF_BOOK:
+                self.write_footnotes_book()
+
+        # Item output.
+        else:
             if item.is_section:
-                self.write_section(item, level=item.level)
+                self.write_section(item, level=item.level, skip_page_break=True)
             else:
-                self.write_text(item, level=item.level)
-            self.write_footnotes_chapter(item)
-        self.write_footnotes_book()
+                self.write_text(item, level=item.level, skip_page_break=True)
+            
         self.write_references()
         self.write_indexed()
 
@@ -122,20 +139,21 @@ class Creator:
 
     def write_title_page(self):
         paragraph = self.document.add_paragraph(style="Title")
-        run = paragraph.add_run(self.title)
+        run = paragraph.add_run(self.book.title)
         run.font.size = docx.shared.Pt(28)
         run.font.bold = True
 
-        if self.subtitle:
+        if self.book.subtitle:
             paragraph = self.document.add_paragraph(style="Heading 1")
             paragraph.paragraph_format.space_after = docx.shared.Pt(20)
-            paragraph.add_run(self.subtitle)
+            paragraph.add_run(self.book.subtitle)
 
         paragraph = self.document.add_paragraph(style="Heading 2")
         paragraph.paragraph_format.space_after = docx.shared.Pt(10)
-        for author in self.authors:
+        # Allow line break between authors.
+        for author in self.book.authors:
             paragraph.add_run(author)
-            if author != self.authors[-1]:
+            if author != self.book.authors[-1]:
                 paragraph.add_run(", ")
 
         self.render(self.book.ast, initialize=True)
@@ -147,6 +165,7 @@ class Creator:
             paragraph.add_run(f"{Tx('Status')}: {Tx(self.book.status)}")
             now = datetime.datetime.now().strftime(constants.DATETIME_ISO_FORMAT)
             self.document.add_paragraph(f"{Tx('Created')}: {now}")
+            self.document.add_paragraph(f'{Tx("Modified")}: {self.book.modified}')
 
     def write_toc(self):
         "Write table of contents."
@@ -170,20 +189,24 @@ class Creator:
         run._r.append(instrText)
         run._r.append(fldChar2)
 
-    def write_section(self, section, level):
-        if level <= self.page_break_level:
+    def write_section(self, section, level, skip_page_break=False):
+        if level <= self.page_break_level and not skip_page_break:
             self.document.add_page_break()
         self.write_heading(section.heading, level)
         if section.subtitle:
             self.write_heading(section.subtitle, level + 1)
+        self.current_text = section
+        self.render(section.ast, initialize=True)
+        if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
+            self.write_footnotes_text(section)
         for item in section.items:
             if item.is_section:
                 self.write_section(item, level=level + 1)
             else:
                 self.write_text(item, level=level + 1)
 
-    def write_text(self, text, level):
-        if level <= self.page_break_level:
+    def write_text(self, text, level, skip_page_break=False):
+        if level <= self.page_break_level and not skip_page_break:
             self.document.add_page_break()
         if not text.frontmatter.get("suppress_title"):
             self.write_heading(text.heading, level)
@@ -191,7 +214,8 @@ class Creator:
                 self.write_heading(text.subtitle, level + 1)
         self.current_text = text
         self.render(text.ast, initialize=True)
-        self.write_footnotes_text(text)
+        if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
+            self.write_footnotes_text(text)
 
     def write_heading(self, heading, level):
         level = min(level, constants.MAX_H_LEVEL)
@@ -204,8 +228,6 @@ class Creator:
 
     def write_footnotes_text(self, text):
         "Footnotes at end of the text."
-        if self.footnotes_location != constants.FOOTNOTES_EACH_TEXT:
-            return
         try:
             footnotes = self.footnotes[text.fulltitle]
         except KeyError:
@@ -223,8 +245,6 @@ class Creator:
 
     def write_footnotes_chapter(self, item):
         "Footnote definitions at the end of a chapter."
-        if self.footnotes_location != constants.FOOTNOTES_EACH_CHAPTER:
-            return
         try:
             footnotes = self.footnotes[item.chapter.fulltitle]
         except KeyError:
@@ -241,8 +261,6 @@ class Creator:
 
     def write_footnotes_book(self):
         "Footnote definitions as a separate section at the end of the book."
-        if self.footnotes_location != constants.FOOTNOTES_END_OF_BOOK:
-            return
         self.document.add_page_break()
         self.write_heading(Tx("Footnotes"), 1)
         for item in self.book.items:
@@ -318,7 +336,7 @@ class Creator:
         run = paragraph.add_run(utils.full_title(reference))
         run.font.italic = True
         try:
-            paragraph.add_run(f"{reference['publisher']}. ")
+            paragraph.add_run(f" {reference['publisher']}. ")
         except KeyError:
             pass
 
@@ -625,7 +643,11 @@ class Creator:
         ):
             fulltitle = self.current_text.chapter.fulltitle
             key = f"{fulltitle}-{label}"
-        self.footnotes[fulltitle][key]["ast_children"] = ast["children"]
+        # Footnote def may be missing.
+        try:
+            self.footnotes[fulltitle][key]["ast_children"] = ast["children"]
+        except KeyError:
+            pass
 
     def render_reference(self, ast):
         self.referenced.add(ast["id"])

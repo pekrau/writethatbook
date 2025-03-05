@@ -353,7 +353,7 @@ def get(request, ref: Text, position: int = None):
             request,
             title,
             book=get_refs(),
-            status=ref.status,
+            item=ref,
             tools=tools,
         ),
         Main(
@@ -648,7 +648,7 @@ def get(request, ref: Text):
     title = f"{Tx('Delete')} '{ref['name']}'?"
     return (
         Title(title),
-        components.header(request, title, book=get_refs(), status=ref.status),
+        components.header(request, title, book=get_refs(), item=ref),
         Main(
             H3(Tx("Delete"), "?"),
             *segments,

@@ -71,7 +71,7 @@ def get(request, book: Book, path: str):
     title = f"{Tx('Merge')} '{item.title}'?"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, item=item),
         Main(
             H3(Tx("Merge"), "?"),
             P(Strong(Tx("All subitems will be merged into one text!"))),
@@ -106,7 +106,7 @@ def get(request, book: Book, path: str):
     title = f"{Tx('Split')} '{item.title}'?"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, item=item),
         Main(
             H3(Tx("Split"), "?"),
             P(Strong(Tx("The text will be converted into a section with subtexts!"))),

@@ -130,7 +130,7 @@ def get(request, book: Book, first: int = None, last: int = None):
     title = f"{Tx('Edit')} {Tx('book')} '{book.title}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=book.status),
+        components.header(request, title, book=book),
         Main(
             Form(
                 *fields, components.save_button(), action=f"/edit/{book}", method="post"
@@ -253,7 +253,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
     title = f"{Tx('Edit')} {Tx(item.type)} '{item.title}'"
     return (
         Title(title),
-        components.header(request, title, book=book, status=item.status),
+        components.header(request, title, book=book, item=item),
         Main(
             Form(
                 *fields,

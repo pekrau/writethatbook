@@ -211,10 +211,10 @@ def header(request, title, book=None, item=None, tools=None, search=True):
 
     # Set the color of the nav frame.
     nav_style = "outline-color: {color}; outline-width:8px; outline-style:solid; padding:0px 10px; border-radius:5px;"
-    if book:
-        nav_style = nav_style.format(color=book.status.color)
-    elif item:
+    if item:
         nav_style = nav_style.format(color=item.status.color)
+    elif book:
+        nav_style = nav_style.format(color=book.status.color)
     else:
         nav_style = nav_style.format(color="black")
     return Header(Nav(*navs, style=nav_style), cls="container")

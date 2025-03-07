@@ -3,7 +3,7 @@
 import csv
 import datetime
 import hashlib
-import os.path
+import os
 import re
 import string
 import time
@@ -160,8 +160,3 @@ class Timer:
 
     def restart(self):
         self.start = time.process_time()
-
-
-if __name__ == "__main__":
-    for id in ["id", "i", "å", "2an", "z9123_", "z_123", "a___"]:
-        print(id, valid_id(id))

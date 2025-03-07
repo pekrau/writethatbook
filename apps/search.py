@@ -23,7 +23,7 @@ def get(request, book: Book):
         Title(title),
         components.header(request, title, book=book, search=False),
         Main(
-            components.search_form(f"/search/{book}", autofocus=True),
+            components.search_form(book),
             cls="container",
         ),
     )
@@ -57,7 +57,7 @@ def post(request, book: Book, form: dict):
         Title(title),
         components.header(request, title, book=book, search=False),
         Main(
-            components.search_form(f"/search/{book}", term=term, autofocus=True),
+            components.search_form(book, term=term),
             result,
             cls="container",
         ),

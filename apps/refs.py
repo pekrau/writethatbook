@@ -684,7 +684,7 @@ def get(request):
         Title(title),
         components.header(request, title, book=refs, search=False),
         Main(
-            components.search_form(f"/refs/search", term=term),
+            components.search_form(refs, term=term),
             cls="container",
         ),
     )
@@ -719,7 +719,7 @@ def post(request, form: dict):
         Title(title),
         components.header(request, title, book=refs, search=False),
         Main(
-            components.search_form(f"/refs/search", term=term),
+            components.search_form(refs, term=term),
             result,
             cls="container",
         ),

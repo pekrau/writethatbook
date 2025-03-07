@@ -62,12 +62,18 @@ def cancel_button(href):
     )
 
 
-def search_form(action, term=None, autofocus=False):
+def search_form(book, term=None, autofocus=True):
+    if book is books.get_refs():
+        action = "/refs/search"
+        placeholder = f'{Tx("Search in")} {Tx("references")}'
+    else:
+        action = f"/search/{book}"
+        placeholder = f'{Tx("Search in")} {Tx("book")}'
     return Form(
         Input(
             name="term",
             type="search",
-            placeholder=f'{Tx("Search in")} {Tx("book")}',
+            placeholder=placeholder,
             value=term,
             autofocus=autofocus,
         ),
@@ -88,38 +94,32 @@ def header(request, title, book=None, item=None, tools=None, search=True):
         A(Tx("References"), href="/refs"),
     ]
 
-    # Links to pages for book.
+    # Links to pages for book and item.
     if book:
         if book is books.get_refs():
-            if search:
-                menu.append(
-                    A(f'{Tx("Search in")} {Tx("references")}', href="/refs/search")
+            if item is None:
+                menu.extend(
+                    [
+                        A(Tx("Keywords"), href="/refs/keywords"),
+                        A(Tx("Recently modified"), href="/refs/recent"),
+                        A(Tx("Download references TGZ file"), href="/refs/all.tgz"),
+                    ]
                 )
-            menu.extend(
-                [
-                    A(Tx("Keywords"), href="/refs/keywords"),
-                    A(Tx("Recently modified"), href="/refs/recent"),
-                    A(Tx("Download references TGZ file"), href="/refs/all.tgz"),
-                ]
-            )
         else:
-            if search:
-                menu.append(
-                    A(f'{Tx("Search in")} {Tx("book")}', href=f"/search/{book}")
+            menu.append(A(Tx("Index"), href=f"/meta/index/{book}"))
+            if item is None:
+                menu.extend(
+                    [
+                        A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
+                        A(Tx("Status list"), href=f"/meta/status/{book}"),
+                        A(Tx("Information"), href=f"/meta/info/{book}"),
+                        A(Tx("Book state (JSON)"), href=f"/state/{book}"),
+                        A(Tx("Download book TGZ file"), href=f"/book/{book}.tgz"),
+                        A(Tx("Book as DOCX file"), href=f"/book/{book}.docx"),
+                        A(Tx("Book as PDF file"), href=f"/book/{book}.pdf"),
+                    ]
                 )
-            menu.extend(
-                [
-                    A(Tx("Index"), href=f"/meta/index/{book}"),
-                    A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
-                    A(Tx("Status list"), href=f"/meta/status/{book}"),
-                    A(Tx("Information"), href=f"/meta/info/{book}"),
-                    A(Tx("Book state (JSON)"), href=f"/state/{book}"),
-                    A(Tx("Download book TGZ file"), href=f"/book/{book}.tgz"),
-                    A(Tx("Book as DOCX file"), href=f"/book/{book}.docx"),
-                    A(Tx("Book as PDF file"), href=f"/book/{book}.pdf"),
-                ]
-            )
-            if item is not None:
+            else:
                 menu.extend(
                     [
                         A(Tx("Text as DOCX file"), href=f"/book/{book}/{item.path}.docx"),
@@ -128,18 +128,18 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                 )
 
     # Links to pages for admin.
-    if auth.is_admin(request):
-        menu.extend(
-            [
-                A(Tx("All users"), href="/user/list"),
-                A(Tx("Download dump file"), href="/dump"),
-                A(Tx("Site state (JSON)"), href="/state"),
-                A(Tx("System"), href="/meta/system"),
-            ]
-        )
-
-    # Links to general pages.
-    menu.append(A(Tx("Software"), href="/meta/software"))
+    if book is None:
+        if auth.is_admin(request):
+            menu.extend(
+                [
+                    A(Tx("All users"), href="/user/list"),
+                    A(Tx("Download dump file"), href="/dump"),
+                    A(Tx("Site state (JSON)"), href="/state"),
+                    A(Tx("System"), href="/meta/system"),
+                ]
+            )
+        # Links to general pages.
+        menu.append(A(Tx("Software"), href="/meta/software"))
 
     if tools:
         tools = [A(NotStr(Tx(text)), href=href) for text, href in tools]
@@ -190,10 +190,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
 
     # Search field, if book is defined.
     if search and book:
-        if book is books.get_refs():
-            navs.append(Ul(Li(search_form("/refs/search"))))
-        else:
-            navs.append(Ul(Li(search_form(f"/search/{book}"))))
+        navs.append(Ul(Li(search_form(book, autofocus=False))))
 
     # Login button, if not logged in.
     if auth.logged_in(request) is None:

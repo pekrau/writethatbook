@@ -97,9 +97,13 @@ class Creator:
         self.document.core_properties.author = ", ".join(self.book.authors)
         self.document.core_properties.created = datetime.datetime.now()
         if item is None:
-            self.document.core_properties.modified = datetime.datetime.fromisoformat(self.book.modified)
+            self.document.core_properties.modified = datetime.datetime.fromisoformat(
+                self.book.modified
+            )
         else:
-            self.document.core_properties.modified = datetime.datetime.fromisoformat(item.modified)
+            self.document.core_properties.modified = datetime.datetime.fromisoformat(
+                item.modified
+            )
         if self.book.language:
             self.document.core_properties.language = self.book.language
 
@@ -129,7 +133,7 @@ class Creator:
                 self.write_section(item, level=item.level, skip_page_break=True)
             else:
                 self.write_text(item, level=item.level, skip_page_break=True)
-            
+
         self.write_references()
         self.write_indexed()
 

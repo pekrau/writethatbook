@@ -208,7 +208,9 @@ def get(request, book: Book, path: str, position: int = None):
         return Response(
             content=docx_creator.Creator(book, books.get_refs()).content(item),
             media_type=constants.DOCX_MIMETYPE,
-            headers={"Content-Disposition": f'attachment; filename="{item.title}.docx"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{item.title}.docx"'
+            },
         )
 
     # Download PDF file for item.

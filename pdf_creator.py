@@ -163,7 +163,7 @@ class Creator:
                 self.write_section(item, level=item.level)
             else:
                 self.write_text(item, level=item.level)
-            
+
         self.write_references()
         self.write_indexed()
 
@@ -216,7 +216,14 @@ class Creator:
         pdf.set_font(style="", size=constants.FONT_NORMAL_SIZE)
 
         self.state.set(line_height=1.1)
-        with pdf.table(first_row_as_headings=False, width=520, col_widths=(480, 35), gutter_width=5, text_align=("LEFT", "RIGHT"), borders_layout="NONE") as table:
+        with pdf.table(
+            first_row_as_headings=False,
+            width=520,
+            col_widths=(480, 35),
+            gutter_width=5,
+            text_align=("LEFT", "RIGHT"),
+            borders_layout="NONE",
+        ) as table:
             for section in outline[1:]:  # Skip "Contents" entry.
                 link = pdf.add_link(page=section.page_number)
                 row = table.row()

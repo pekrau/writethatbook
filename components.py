@@ -122,7 +122,10 @@ def header(request, title, book=None, item=None, tools=None, search=True):
             else:
                 menu.extend(
                     [
-                        A(Tx("Text as DOCX file"), href=f"/book/{book}/{item.path}.docx"),
+                        A(
+                            Tx("Text as DOCX file"),
+                            href=f"/book/{book}/{item.path}.docx",
+                        ),
                         A(Tx("Text as PDF file"), href=f"/book/{book}/{item.path}.pdf"),
                     ]
                 )

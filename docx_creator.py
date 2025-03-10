@@ -425,23 +425,23 @@ class Creator:
             self.paragraph = self.document.add_paragraph()
         if self.list_stack:
             data = self.list_stack[-1]
-            depth = min(3, data["depth"])  # Max list depth in predef styles.
+            levels = min(3, data["levels"])  # Max list levels in predef styles.
             if data["first_paragraph"]:
                 if data["ordered"]:
-                    if depth == 1:
+                    if levels == 1:
                         style = self.document.styles["List Number"]
                     else:
-                        style = self.document.styles[f"List Number {depth}"]
+                        style = self.document.styles[f"List Number {levels}"]
                 else:
-                    if depth == 1:
+                    if levels == 1:
                         style = self.document.styles["List Bullet"]
                     else:
-                        style = self.document.styles[f"List Bullet {depth}"]
+                        style = self.document.styles[f"List Bullet {levels}"]
             else:
-                if depth == 1:
+                if levels == 1:
                     style = self.document.styles["List Continue"]
                 else:
-                    style = self.document.styles[f"List Continue {depth}"]
+                    style = self.document.styles[f"List Continue {levels}"]
             data["first_paragraph"] = False
             self.paragraph.style = style
         else:
@@ -583,7 +583,7 @@ class Creator:
             start=ast["start"],  # Currently useless.
             tight=ast["tight"],  # Currently useless.
             count=0,  # Currently useless.
-            depth=len(self.list_stack) + 1,
+            levels=len(self.list_stack) + 1,
         )
         self.list_stack.append(data)
         for child in ast["children"]:

@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 14, 3)
+VERSION = (1, 14, 4)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -91,12 +91,13 @@ class Status:
         return self.ordinal < other.ordinal
 
 
-STARTED = Status("started", 0, "gray")
+STARTED = Status("started", 0, "black")
 DRAFT = Status("draft", 1, "crimson")
 MANUSCRIPT = Status("manuscript", 2, "dodgerblue")
 REVISED = Status("revised", 3, "darkorange")
 FINAL = Status("final", 4, "green")
-STATUSES = (STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL)
+OMITTED = Status("omitted", 5, "silver")
+STATUSES = (STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL, OMITTED)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
 STATUS_LOOKUP.update(dict([(str(s), s) for s in STATUSES]))
 

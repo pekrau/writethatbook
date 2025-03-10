@@ -663,7 +663,7 @@ class Creator:
             bullet=ast["bullet"],  # Currently useless.
             start=ast["start"],  # Currently useless.
             tight=ast["tight"],
-            depth=len(self.list_stack) + 1,
+            levels=len(self.list_stack) + 1,
             count=0,
         )
         self.list_stack.append(data)
@@ -684,7 +684,7 @@ class Creator:
         else:
             self.state.write("- ")
         self.state.reset()
-        self.state.set(left_indent=data["depth"] * constants.PDF_LIST_INDENT)
+        self.state.set(left_indent=data["levels"] * constants.PDF_LIST_INDENT)
         for child in ast["children"]:
             self.render(child)
         self.state.reset()

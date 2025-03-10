@@ -1158,7 +1158,10 @@ class Section(Item):
     @property
     def sum_words(self):
         "Approximate number of words in the entire section."
-        return sum([i.sum_words for i in self.items]) + len(self.content.split())
+        if self.status is constants.OMITTED:
+            return 0
+        else:
+            return sum([i.sum_words for i in self.items]) + len(self.content.split())
 
     @property
     def n_characters(self):
@@ -1168,7 +1171,10 @@ class Section(Item):
     @property
     def sum_characters(self):
         "Approximate number of characters in the entire section."
-        return sum([i.sum_characters for i in self.items]) + len(self.content)
+        if self.status is constants.OMITTED:
+            return 0
+        else:
+            return sum([i.sum_characters for i in self.items]) + len(self.content)
 
     @property
     def modified(self):
@@ -1294,7 +1300,10 @@ class Text(Item):
     @property
     def sum_words(self):
         "Approximate number of words in the text."
-        return self.n_words
+        if self.status is constants.OMITTED:
+            return 0
+        else:        
+            return self.n_words
 
     @property
     def n_characters(self):
@@ -1304,7 +1313,10 @@ class Text(Item):
     @property
     def sum_characters(self):
         "Approximate number of characters in the text."
-        return self.n_characters
+        if self.status is constants.OMITTED:
+            return 0
+        else:        
+            return self.n_characters
 
     @property
     def modified(self):

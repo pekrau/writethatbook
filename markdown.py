@@ -63,7 +63,7 @@ class SuperscriptRenderer:
 class Emdash(marko.inline.InlineElement):
     "Markdown extension for em-dash."
 
-    pattern = re.compile(r"(\s\-\-\s)")
+    pattern = re.compile(r"(\-\-)")
     parse_children = False
 
 
@@ -71,7 +71,7 @@ class EmdashRenderer:
     "Output em-dash character."
 
     def render_emdash(self, element):
-        return " " + constants.EM_DASH + " "
+        return constants.EM_DASH
 
 
 class Indexed(marko.inline.InlineElement):

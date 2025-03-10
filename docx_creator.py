@@ -118,6 +118,8 @@ class Creator:
 
             # First-level items are chapters.
             for item in self.book.items:
+                if item.status == constants.OMITTED:
+                    continue
                 if item.is_section:
                     self.write_section(item, level=item.level)
                 else:
@@ -173,8 +175,13 @@ class Creator:
 
     def write_toc(self):
         "Write table of contents."
-        # XXX
-        pass
+        self.document.add_page_break()
+        self.write_heading(Tx("Contents"), 1)
+        for item in self.book.items:
+            if item.status == constants.OMITTED:
+                continue
+            paragraph = self.document.add_paragraph()
+            paragraph.add_run(item.heading)
 
     def write_page_number(self):
         "Display page number in the header."
@@ -194,6 +201,8 @@ class Creator:
         run._r.append(fldChar2)
 
     def write_section(self, section, level, skip_page_break=False):
+        if section.status == constants.OMITTED:
+            return
         if level <= self.page_break_level and not skip_page_break:
             self.document.add_page_break()
         self.write_heading(section.heading, level)
@@ -210,6 +219,8 @@ class Creator:
                 self.write_text(item, level=level + 1)
 
     def write_text(self, text, level, skip_page_break=False):
+        if text.status == constants.OMITTED:
+            return
         if level <= self.page_break_level and not skip_page_break:
             self.document.add_page_break()
         if not text.frontmatter.get("suppress_title"):
@@ -241,8 +252,9 @@ class Creator:
         paragraph.paragraph_format.space_after = docx.shared.Pt(10)
         for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
             self.footnote_paragraph = self.document.add_paragraph()
-            run = self.footnote_paragraph.add_run(f"{entry['number']}. ")
+            run = self.footnote_paragraph.add_run(f"{entry['number']}.")
             run.italic = True
+            self.footnote_paragraph.add_run(" ")
             for child in entry["ast_children"]:
                 self.render(child)
             self.footnote_paragraph = None
@@ -257,8 +269,9 @@ class Creator:
         self.write_heading(Tx("Footnotes"), 4)
         for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
             self.footnote_paragraph = self.document.add_paragraph()
-            run = self.footnote_paragraph.add_run(f"{entry['number']}. ")
+            run = self.footnote_paragraph.add_run(f"{entry['number']}.")
             run.italic = True
+            self.footnote_paragraph.add_run(" ")
             for child in entry["ast_children"]:
                 self.render(child)
             self.footnote_paragraph = None
@@ -274,8 +287,9 @@ class Creator:
             self.write_heading(item.heading, 2)
             for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
                 self.footnote_paragraph = self.document.add_paragraph()
-                run = self.footnote_paragraph.add_run(f"{entry['number']}. ")
+                run = self.footnote_paragraph.add_run(f"{entry['number']}.")
                 run.italic = True
+                self.footnote_paragraph.add_run(" ")
                 for child in entry["ast_children"]:
                     self.render(child)
                 self.footnote_paragraph = None
@@ -314,15 +328,19 @@ class Creator:
             paragraph.add_run(utils.short_name(author))
 
     def write_reference_article(self, paragraph, reference):
-        paragraph.add_run(f"({reference['year']}) ")
+        paragraph.add_run(" ")
+        paragraph.add_run(f"({reference['year']})")
+        paragraph.add_run(" ")
         paragraph.add_run(utils.full_title(reference))
         try:
-            run = paragraph.add_run(f"{reference['journal']} ")
+            run = paragraph.add_run(f"{reference['journal']}")
             run.font.italic = True
+            paragraph.add_run(" ")
         except KeyError:
             pass
         try:
-            paragraph.add_run(f"{reference['volume']} ")
+            paragraph.add_run(f"{reference['volume']}")
+            paragraph.add_run(" ")
         except KeyError:
             pass
         else:
@@ -336,20 +354,26 @@ class Creator:
             pass
 
     def write_reference_book(self, paragraph, reference):
-        paragraph.add_run(f"({reference['year']}). ")
+        paragraph.add_run(" ")
+        paragraph.add_run(f"({reference['year']})")
+        paragraph.add_run(" ")
         run = paragraph.add_run(utils.full_title(reference))
         run.font.italic = True
         try:
-            paragraph.add_run(f" {reference['publisher']}. ")
+            paragraph.add_run(f" {reference['publisher']}.")
+            paragraph.add_run(" ")
         except KeyError:
             pass
 
     def write_reference_link(self, paragraph, reference):
-        paragraph.add_run(f"({reference['year']}). ")
-        title = utils.full_title(reference)
-        paragraph.add_run(title)
+        paragraph.add_run(" ")
+        paragraph.add_run(f"({reference['year']})")
+        paragraph.add_run(" ")
+        run = paragraph.add_run(utils.full_title(reference))
+        run.font.italic = True
+        paragraph.add_run(" ")
         try:
-            add_hyperlink(paragraph, reference["url"], title)
+            add_hyperlink(paragraph, reference["url"], "")
         except KeyError:
             pass
         try:
@@ -368,7 +392,7 @@ class Creator:
                 if any_item:
                     paragraph.add_run(", ")
                 else:
-                    paragraph.add_run("  ")
+                    paragraph.add_run(" ")
                 add_hyperlink(
                     paragraph, template.format(value=value), f"{label}:{value}"
                 )
@@ -556,7 +580,7 @@ class Creator:
         self.superscript = False
 
     def render_emdash(self, ast):
-        self.paragraph.add_run(" " + constants.EM_DASH + " ")
+        self.paragraph.add_run(constants.EM_DASH)
 
     def render_line_break(self, ast):
         if ast.get("soft"):

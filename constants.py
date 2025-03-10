@@ -4,7 +4,7 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 14, 4)
+VERSION = (1, 14, 5)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -91,11 +91,11 @@ class Status:
         return self.ordinal < other.ordinal
 
 
-STARTED = Status("started", 0, "black")
+STARTED = Status("started", 0, "green")
 DRAFT = Status("draft", 1, "crimson")
 MANUSCRIPT = Status("manuscript", 2, "dodgerblue")
-REVISED = Status("revised", 3, "darkorange")
-FINAL = Status("final", 4, "green")
+REVISED = Status("revised", 3, "blueviolet")
+FINAL = Status("final", 4, "black")
 OMITTED = Status("omitted", 5, "silver")
 STATUSES = (STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL, OMITTED)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
@@ -213,7 +213,7 @@ XMLNS_SVG = "http://www.w3.org/2000/svg"
 
 DOCX_MAX_PAGE_BREAK_LEVEL = 7
 
-PDF_MAX_CONTENT_PAGES = 20
+PDF_MAX_CONTENTS_PAGES = 20
 PDF_HREF_COLOR = (20, 20, 255)
 PDF_LIST_INDENT = 30
 PDF_THEMATIC_BREAK_INDENT = 100

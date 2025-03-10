@@ -37,7 +37,7 @@ class Creator:
             if len(list(self.book)) == 0:
                 return self.content_attempt(0)
             elif self.contents_pages:
-                for contents_pages in range(1, constants.PDF_MAX_CONTENT_PAGES):
+                for contents_pages in range(1, constants.PDF_MAX_CONTENTS_PAGES):
                     try:
                         return self.content_attempt(contents_pages)
                     except fpdf.errors.FPDFException:
@@ -147,6 +147,8 @@ class Creator:
 
             # First-level items are chapters.
             for item in self.book.items:
+                if item.status == constants.OMITTED:
+                    continue
                 if item.is_section:
                     self.write_section(item, level=1)
                 else:
@@ -232,6 +234,8 @@ class Creator:
         self.state.reset()
 
     def write_section(self, section, level):
+        if section.status == constants.OMITTED:
+            return
         if level <= self.page_break_level:
             if self.skip_first_add_page:
                 self.skip_first_add_page = False
@@ -253,6 +257,8 @@ class Creator:
                 self.write_text(item, level=level + 1)
 
     def write_text(self, text, level):
+        if text.status == constants.OMITTED:
+            return
         if level <= self.page_break_level:
             if self.skip_first_add_page:
                 self.skip_first_add_page = False
@@ -622,7 +628,7 @@ class Creator:
         self.state.reset()
 
     def render_emdash(self, ast):
-        self.state.write(" " + constants.EM_DASH + " ")
+        self.state.write(constants.EM_DASH)
 
     def render_line_break(self, ast):
         if ast.get("soft"):

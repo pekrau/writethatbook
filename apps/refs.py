@@ -20,7 +20,7 @@ from utils import Tx
 
 
 class RefConvertor(Convertor):
-    regex = "[a-z-]+-[0-9]+[a-z]*"
+    regex = "[a-z-]+-+[0-9]+[a-z]*"
 
     def convert(self, value: str) -> Text:
         return get_refs()[value]

@@ -4,12 +4,13 @@ import functools
 from pathlib import Path
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 14, 6)
+VERSION = (1, 14, 7)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
 LANGUAGE_CODES = ("sv-SE", "en-GB", "en-US")
 ENCODING = "utf-8"
+LOCALE = "sv_SE"
 
 MARKDOWN_EXT = ".md"
 SOURCE_DIRPATH = Path(__file__).parent

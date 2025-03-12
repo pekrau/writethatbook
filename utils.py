@@ -9,6 +9,8 @@ import string
 import time
 import unicodedata
 
+import babel.numbers
+
 import constants
 
 
@@ -95,6 +97,11 @@ def localtime(utctime=None):
         mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
         lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
     return lt.strftime(constants.DATETIME_ISO_FORMAT)
+
+
+def thousands(i):
+    "Return integer as string formatted according to locale."
+    return babel.numbers.format_decimal(i, locale=constants.LOCALE)
 
 
 def wildcard_to_regexp(pattern):

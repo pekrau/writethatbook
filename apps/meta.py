@@ -113,17 +113,17 @@ def get(request):
                 Tr(
                     Td(Tx("RAM usage")),
                     Td(
-                        components.thousands(psutil.Process().memory_info().rss),
+                        utils.thousands(psutil.Process().memory_info().rss),
                         " bytes",
                     ),
                 ),
                 Tr(
                     Td(Tx("Data size")),
-                    Td(components.thousands(dir_size), " bytes"),
+                    Td(utils.thousands(dir_size), " bytes"),
                 ),
                 Tr(
                     Td(Tx("Disk free")),
-                    Td(components.thousands(disk_usage.free), " bytes"),
+                    Td(utils.thousands(disk_usage.free), " bytes"),
                 ),
                 Tr(
                     Td(Tx("# users")),
@@ -211,8 +211,8 @@ def get(request, book: Book):
             Tr(Th(Tx("Status")), Td(Tx(book.status))),
             Tr(Th(Tx("Owner")), Td(owner)),
             Tr(Th(Tx("Modified")), Td(Tx(book.modified))),
-            Tr(Th(Tx("Words")), Td(Tx(components.thousands(book.sum_words)))),
-            Tr(Th(Tx("Characters")), Td(components.thousands(book.sum_characters))),
+            Tr(Th(Tx("Words")), Td(Tx(utils.thousands(book.sum_words)))),
+            Tr(Th(Tx("Characters")), Td(utils.thousands(book.sum_characters))),
             Tr(Th(Tx("Language")), Td(Tx(book.frontmatter.get("language") or "-"))),
         )
     )
@@ -231,30 +231,40 @@ def get(request, book: Book):
     "List each status and texts of the book in it."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
-    rows = [Tr(Th(Tx("Status"), Th(Tx("Texts"))))]
+    rows = [Tr(Th(Tx("Status"), 
+                  Th(Tx("Texts")),
+                  Th(Tx("Words"), cls="right"),
+                  Th(Tx("Characters"), cls="right")))]
     for status in constants.STATUSES:
-        texts = []
-        for item in book:
-            if item.is_text and item.status == status:
-                if texts:
-                    texts.append(Br())
-                texts.append(A(item.heading, href=f"/book/{book}/{item.path}"))
-        rows.append(
-            Tr(
-                Td(
-                    components.blank(0.5, f"background-color: {status.color};"),
-                    components.blank(0.2),
-                    Tx(str(status)),
-                    valign="top",
-                ),
-                Td(*texts),
-            )
-        )
-
+        texts = [i for i in book if i.is_text and i.status == status]
+        cells = [Td(
+            components.blank(0.5, f"background-color: {status.color};"),
+            components.blank(0.2),
+            Tx(str(status)),
+            rowspan=max(1, len(texts)),
+            valign="top",
+        )]
+        if len(texts) == 0:
+            cells.append(Td("-", colspan=3))
+            rows.append(Tr(cls="noborder", *cells))
+        else:
+            text = texts[0]
+            cells.extend([
+                Td(A(text.heading, href=f"/book/{book}/{text.path}")),
+                Td(str(text.sum_words), cls="right"),
+                Td(str(text.sum_characters), cls="right")
+            ])
+            rows.append(Tr(cls="noborder", *cells))
+            for text in texts[1:]:
+                rows.append(Tr(
+                    Td(A(text.heading, href=f"/book/{book}/{text.path}")),
+                    Td(str(text.sum_words), cls="right"),
+                    Td(str(text.sum_characters), cls="right"),
+                    cls="noborder"))
     title = Tx("Status list")
     return (
         Title(title),
         components.header(request, title, book=book),
-        Main(Table(*rows), cls="container"),
+        Main(Table(cls="striped", *rows), cls="container"),
         components.footer(request),
     )

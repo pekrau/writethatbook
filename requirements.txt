@@ -1,5 +1,6 @@
 anyio==4.7.0
 asttokens==3.0.0
+babel==2.17.0
 beautifulsoup4==4.12.3
 bibtexparser==1.4.2
 certifi==2024.12.14

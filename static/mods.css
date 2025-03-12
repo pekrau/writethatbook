@@ -15,3 +15,7 @@ hr.break {border: 2px solid;
 .plain-text {text-decoration: none;}
 
 .thin-button {padding: 0 1em;}
+
+th.right {text-align: right;}
+td.right {text-align: right;}
+tr.noborder td {border: none; padding: 3px;}

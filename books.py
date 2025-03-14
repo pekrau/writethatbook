@@ -44,6 +44,7 @@ def read_books():
             outfile.write(yaml.dump({"owner": constants.SYSTEM_USERID}))
             outfile.write("---\n")
     _refs = Book(refspath)
+    _refs.items.sort(key=lambda r: r["id"])
 
     global _books
     _books.clear()

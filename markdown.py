@@ -63,7 +63,7 @@ class SuperscriptRenderer:
 class Emdash(marko.inline.InlineElement):
     "Markdown extension for em-dash."
 
-    pattern = re.compile(r"(\-\-)")
+    pattern = re.compile(r"(?<=\s)(\-\-)(?=\s)")
     parse_children = False
 
 
@@ -77,15 +77,15 @@ class EmdashRenderer:
 class Indexed(marko.inline.InlineElement):
     "Markdown extension for indexed term."
 
-    pattern = re.compile(r"\[#(.+?)(\|(.+?))?\]")  # I know, this isn't quite right.
+    pattern = re.compile(r"\[#(.+?)(\|(.+?))?\]", re.S)  # Yes, this isn't quite right.
     parse_children = False
 
     def __init__(self, match):
         self.term = match.group(1).strip()
         if match.group(3):  # Because of the not-quite-right regexp...
-            self.canonical = match.group(3).strip()
+            self.canonical = " ".join(match.group(3).strip().split())
         else:
-            self.canonical = self.term
+            self.canonical = " ".join(self.term.split())
 
 
 class IndexedRenderer:

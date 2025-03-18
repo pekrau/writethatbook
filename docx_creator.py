@@ -97,13 +97,9 @@ class Creator:
         self.document.core_properties.author = ", ".join(self.book.authors)
         self.document.core_properties.created = datetime.datetime.now()
         if item is None:
-            self.document.core_properties.modified = datetime.datetime.fromisoformat(
-                self.book.modified
-            )
+            self.document.core_properties.modified = self.book.modified
         else:
-            self.document.core_properties.modified = datetime.datetime.fromisoformat(
-                item.modified
-            )
+            self.document.core_properties.modified = item.modified
         if self.book.language:
             self.document.core_properties.language = self.book.language
 
@@ -169,9 +165,12 @@ class Creator:
             paragraph.paragraph_format.space_before = docx.shared.Pt(50)
 
             paragraph.add_run(f"{Tx('Status')}: {Tx(self.book.status)}")
-            now = datetime.datetime.now().strftime(constants.DATETIME_ISO_FORMAT)
-            self.document.add_paragraph(f"{Tx('Created')}: {now}")
-            self.document.add_paragraph(f'{Tx("Modified")}: {self.book.modified}')
+            self.document.add_paragraph(
+                f"{Tx('Created')}: {utils.str_datetime_display()}"
+            )
+            self.document.add_paragraph(
+                f'{Tx("Modified")}: {utils.str_datetime_display(self.book.modified)}'
+            )
 
     def write_toc(self):
         "Write table of contents."
@@ -325,13 +324,13 @@ class Creator:
                     paragraph.add_run(" & ")
                 else:
                     paragraph.add_run(", ")
-            paragraph.add_run(utils.short_name(author))
+            paragraph.add_run(utils.short_person_name(author))
 
     def write_reference_article(self, paragraph, reference):
         paragraph.add_run(" ")
         paragraph.add_run(f"({reference['year']})")
         paragraph.add_run(" ")
-        paragraph.add_run(utils.full_title(reference))
+        paragraph.add_run(reference.reftitle)
         try:
             run = paragraph.add_run(f"{reference['journal']}")
             run.font.italic = True
@@ -357,7 +356,7 @@ class Creator:
         paragraph.add_run(" ")
         paragraph.add_run(f"({reference['year']})")
         paragraph.add_run(" ")
-        run = paragraph.add_run(utils.full_title(reference))
+        run = paragraph.add_run(reference.reftitle)
         run.font.italic = True
         try:
             paragraph.add_run(f" {reference['publisher']}.")
@@ -369,7 +368,7 @@ class Creator:
         paragraph.add_run(" ")
         paragraph.add_run(f"({reference['year']})")
         paragraph.add_run(" ")
-        run = paragraph.add_run(utils.full_title(reference))
+        run = paragraph.add_run(reference.reftitle)
         run.font.italic = True
         paragraph.add_run(" ")
         try:

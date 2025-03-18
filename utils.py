@@ -9,6 +9,7 @@ import string
 import time
 import unicodedata
 
+import babel.dates
 import babel.numbers
 
 import constants
@@ -30,7 +31,7 @@ def get_digest(content, digest=None):
     return get_digest_instance(content, digest=digest).hexdigest()
 
 
-def short_name(name):
+def short_person_name(name):
     "Return the person name in short form; given names as initials."
     parts = [p.strip() for p in name.split(",")]
     if len(parts) == 1:
@@ -38,16 +39,6 @@ def short_name(name):
     initials = [p.strip()[0] for p in parts.pop().split(" ")]
     parts.append("".join([f"{i}." for i in initials]))
     return ", ".join(parts)
-
-
-def full_title(reference):
-    "Return the full title for the reference."
-    title = reference.get("title")
-    if not title:
-        title = "[no title]"
-    if reference.get("subtitle"):
-        title += ": " + reference["subtitle"]
-    return title.rstrip(".") + "."
 
 
 SAFE_CHARACTERS = set(string.ascii_letters + string.digits)
@@ -69,39 +60,42 @@ def valid_id(id):
     return bool(VALID_ID_RX.match(id))
 
 
-def timestr(filepath=None, localtime=True, display=True, safe=False):
-    "Return time string for modification date of the given file, or now."
-    if filepath:
-        timestamp = os.path.getmtime(filepath)
-        if localtime:
-            result = datetime.datetime.fromtimestamp(timestamp)
-        else:
-            result = datetime.datetime.fromtimestamp(timestamp, datetime.UTC)
-    elif localtime:
-        result = datetime.datetime.now()
-    else:
-        result = datetime.datetime.now(datetime.UTC)
-    result = result.strftime(constants.DATETIME_ISO_FORMAT)
-    if not display:
-        result = result.replace(" ", "T") + "Z"
-    if safe:
-        result = result.replace(" ", "_").replace(":", "-")
-    return result
+def str_datetime_iso(dt):
+    "Return the datetime instance as ISO format string."
+    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def localtime(utctime=None):
-    "Convert a time string in UTC to local time, or given current local time."
-    if utctime is None:
-        lt = datetime.datetime.now()
-    else:
-        mytz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-        lt = datetime.datetime.fromisoformat(utctime).astimezone(mytz)
-    return lt.strftime(constants.DATETIME_ISO_FORMAT)
+def str_datetime_safe(dt=None):
+    """Return the datetime as ISO format string with safe characters.
+    If no datetime instance, then use now in UTC.
+    """
+    if dt is None:
+        dt = datetime.datetime.now(tz=datetime.UTC)
+    return (
+        dt.isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+        .replace(":", "_")
+        .replace(" ", "_")
+    )
+
+
+def str_datetime_display(dt=None):
+    """Return the UTC datetime instance formatted for the locale.
+    If no datetime instance, then use now in UTC.
+    """
+    if dt is None:
+        dt = datetime.datetime.now(tz=datetime.UTC)
+    return babel.dates.format_datetime(
+        dt,
+        tzinfo=constants.DEFAULT_TIMEZONE,
+        locale=constants.DEFAULT_LOCALE,
+        format="short",
+    )
 
 
 def thousands(i):
     "Return integer as string formatted according to locale."
-    return babel.numbers.format_decimal(i, locale=constants.LOCALE)
+    return babel.numbers.format_decimal(i, locale=constants.DEFAULT_LOCALE)
 
 
 def wildcard_to_regexp(pattern):

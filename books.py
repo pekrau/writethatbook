@@ -1,6 +1,7 @@
 "Markdown book texts in files and directories."
 
 import copy
+import datetime
 import hashlib
 import io
 import json
@@ -400,7 +401,9 @@ class Book(Container):
 
     @property
     def modified(self):
-        return utils.timestr(filepath=self.absfilepath)
+        return datetime.datetime.fromtimestamp(
+            os.path.getmtime(self.absfilepath), tz=datetime.UTC
+        )
 
     @property
     def owner(self):
@@ -511,9 +514,7 @@ class Book(Container):
             type="book",
             id=self.id,
             title=self.title,
-            modified=utils.timestr(
-                filepath=self.absfilepath, localtime=False, display=False
-            ),
+            modified=utils.str_datetime_iso(self.modified),
             n_characters=self.n_characters,
             sum_characters=self.sum_characters,
             digest=self.digest,
@@ -851,7 +852,7 @@ class Item(Container):
         if self.parent is self.book:
             return self.title
         else:
-            return f"{self.parent.fulltitle}; {self.title}"
+            return f"{self.parent.fulltitle} / {self.title}"
 
     @property
     def level(self):
@@ -1179,7 +1180,9 @@ class Section(Item):
 
     @property
     def modified(self):
-        return utils.timestr(filepath=self.absfilepath)
+        return datetime.datetime.fromtimestamp(
+            os.path.getmtime(self.absfilepath), tz=datetime.UTC
+        )
 
     @property
     def status(self):
@@ -1199,9 +1202,7 @@ class Section(Item):
             type=constants.SECTION,
             name=self.name,
             title=self.title,
-            modified=utils.timestr(
-                filepath=self.absfilepath, localtime=False, display=False
-            ),
+            modified=utils.str_datetime_iso(self.modified),
             n_characters=self.n_characters,
             digest=self.digest,
             items=[i.state for i in self.items],
@@ -1303,7 +1304,7 @@ class Text(Item):
         "Approximate number of words in the text."
         if self.status is constants.OMITTED:
             return 0
-        else:        
+        else:
             return self.n_words
 
     @property
@@ -1316,12 +1317,14 @@ class Text(Item):
         "Approximate number of characters in the text."
         if self.status is constants.OMITTED:
             return 0
-        else:        
+        else:
             return self.n_characters
 
     @property
     def modified(self):
-        return utils.timestr(filepath=self.abspath)
+        return datetime.datetime.fromtimestamp(
+            os.path.getmtime(self.abspath), tz=datetime.UTC
+        )
 
     @property
     def status(self):
@@ -1346,12 +1349,20 @@ class Text(Item):
             type=constants.TEXT,
             name=self.name,
             title=self.title,
-            modified=utils.timestr(
-                filepath=self.abspath, localtime=False, display=False
-            ),
+            modified=utils.str_datetime_iso(self.modified),
             n_characters=self.n_characters,
             digest=self.digest,
         )
+
+    @property
+    def reftitle(self):
+        "Return the full title for the text as if it is a reference."
+        result = self.get("title")
+        if not result:
+            result = "[no title]"
+        if self.get("subtitle"):
+            result += ": " + self["subtitle"]
+        return result.rstrip(".") + "."
 
     @property
     def absfilepath(self):

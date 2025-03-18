@@ -6,14 +6,14 @@ from pathlib import Path
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 14, 9)
+VERSION = (1, 14, 10)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
 LANGUAGE_CODES = ("sv-SE", "en-GB", "en-US")
 ENCODING = "utf-8"
-LOCALE = "sv_SE"
-TIMEZONE = babel.dates.get_timezone("Europe/Stockholm")
+DEFAULT_LOCALE = "sv_SE"
+DEFAULT_TIMEZONE = babel.dates.get_timezone("Europe/Stockholm")
 
 MARKDOWN_EXT = ".md"
 SOURCE_DIRPATH = Path(__file__).parent

@@ -59,10 +59,10 @@ def get(request):
             ),
             components.blank(0.2),
         ]
-        parts.append(utils.full_title(ref))
+        parts.append(ref.reftitle)
         parts.append(Br())
         if ref.get("authors"):
-            authors = [utils.short_name(a) for a in ref["authors"]]
+            authors = [utils.short_person_name(a) for a in ref["authors"]]
             if len(authors) > constants.MAX_DISPLAY_AUTHORS:
                 authors = (
                     authors[: constants.MAX_DISPLAY_AUTHORS - 1]
@@ -505,9 +505,9 @@ def get(request):
                     href=f"/refs/{ref}",
                 ),
                 components.blank(0.4),
-                utils.full_title(ref),
+                ref.reftitle,
             ),
-            Td(ref.modified),
+            Td(utils.str_datetime_display(ref.modified)),
         )
         for ref in items
     ]
@@ -731,7 +731,7 @@ def get(request):
     "Download a gzipped tar file of the references."
     auth.allow_anyone(request)
 
-    filename = f"writethatbook_refs_{utils.timestr(safe=True)}.tgz"
+    filename = f"writethatbook_refs_{utils.str_datetime_safe()}.tgz"
 
     return Response(
         content=get_refs().get_tgz_content(),

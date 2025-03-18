@@ -689,7 +689,7 @@ def get(request, book: Book):
     "Download a gzipped tar file of the book."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
-    filename = f"writethatbook_{book}_{utils.timestr(safe=True)}.tgz"
+    filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
 
     return Response(
         content=book.get_tgz_content(),
@@ -716,7 +716,7 @@ def get_books_table(request, books):
                 Td(Tx(utils.thousands(book.sum_characters)), cls="right"),
                 Td(owner),
                 Td(Tx(book.public and "Yes" or "No")),
-                Td(book.modified),
+                Td(utils.str_datetime_display(book.modified)),
             )
         )
     if rows:

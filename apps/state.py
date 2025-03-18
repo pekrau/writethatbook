@@ -1,5 +1,7 @@
 "Return JSON file for the current state of the site or a book."
 
+import datetime
+
 import auth
 from books import Book, get_books, get_refs
 import components
@@ -16,9 +18,7 @@ def get_books_state(request):
     for book in get_books(request) + [get_refs()]:
         result[book.id] = dict(
             title=book.title,
-            modified=utils.timestr(
-                filepath=book.absfilepath, localtime=False, display=False
-            ),
+            modified=utils.str_datetime_iso(book.modified),
             sum_characters=book.sum_characters,
             digest=book.digest,
         )
@@ -30,7 +30,7 @@ def get_general_state():
     return dict(
         software=constants.SOFTWARE,
         version=constants.__version__,
-        now=utils.timestr(localtime=False, display=False),
+        now=utils.str_datetime_iso(datetime.datetime.now(tz=datetime.UTC)),
     )
 
 

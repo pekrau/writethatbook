@@ -113,7 +113,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                         A(Tx("Recently modified"), href=f"/meta/recent/{book}"),
                         A(Tx("Status list"), href=f"/meta/status/{book}"),
                         A(Tx("Information"), href=f"/meta/info/{book}"),
-                        A(Tx("Book state (JSON)"), href=f"/state/{book}"),
+                        A(Tx("State (JSON)"), href=f"/state/{book}"),
                         A(Tx("Download book TGZ file"), href=f"/book/{book}.tgz"),
                         A(Tx("Book as DOCX file"), href=f"/book/{book}.docx"),
                         A(Tx("Book as PDF file"), href=f"/book/{book}.pdf"),
@@ -137,7 +137,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                 [
                     A(Tx("All users"), href="/user/list"),
                     A(Tx("Download dump file"), href="/dump"),
-                    A(Tx("Site state (JSON)"), href="/state"),
+                    A(Tx("State (JSON)"), href="/state"),
                     A(Tx("System"), href="/meta/system"),
                 ]
             )
@@ -224,7 +224,7 @@ def footer(request, item=None):
     if item:
         cells = [
             Div(Tx(item.status), title=Tx("Status")),
-            Div(item.modified, title=Tx("Modified")),
+            Div(utils.str_datetime_display(item.modified), title=Tx("Modified")),
             Div(
                 f'{utils.thousands(item.n_words)} {Tx("words")}; ',
                 f'{utils.thousands(item.n_characters)} {Tx("characters")}',

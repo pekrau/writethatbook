@@ -87,7 +87,7 @@ def get(request):
     "Download a gzipped tar file of all data."
     auth.allow_admin(request)
 
-    filename = f"writethatbook_{utils.timestr(safe=True)}.tgz"
+    filename = f"writethatbook_{utils.str_datetime_safe()}.tgz"
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as tgzfile:
         for path in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():

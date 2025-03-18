@@ -204,10 +204,11 @@ class Creator:
             self.state.ln(2)
             self.state.write(f'{Tx("Status")}: {Tx(self.book.status)}')
             self.state.ln()
-            now = datetime.datetime.now().strftime(constants.DATETIME_ISO_FORMAT)
-            self.state.write(f'{Tx("Created")}: {now}')
+            self.state.write(f'{Tx("Created")}: {utils.str_datetime_display()}')
             self.state.ln()
-            self.state.write(f'{Tx("Modified")}: {self.book.modified}')
+            self.state.write(
+                f'{Tx("Modified")}: {utils.str_datetime_display(self.book.modified)}'
+            )
 
     def write_toc(self, pdf, outline):
         h1 = constants.H_LOOKUP[1]
@@ -368,12 +369,12 @@ class Creator:
                     self.state.write(" & ")
                 else:
                     self.state.write(", ")
-            self.state.write(utils.short_name(author))
+            self.state.write(utils.short_person_name(author))
 
     def write_reference_article(self, reference):
         "Write data for reference of type 'article'."
         self.state.write(f" ({reference['year']})")
-        self.state.write(" " + utils.full_title(reference))
+        self.state.write(f" {reference.reftitle}")
         journal = reference.get("journal")
         if journal:
             self.state.set(style="I")
@@ -397,7 +398,7 @@ class Creator:
         "Write data for reference of type 'book'."
         self.state.write(f" ({reference['year']}).")
         self.state.set(style="I")
-        self.state.write(" " + utils.full_title(reference))
+        self.state.write(f" {reference.reftitle}")
         self.state.reset()
         try:
             self.state.write(f" {reference['publisher']}.")
@@ -407,13 +408,12 @@ class Creator:
     def write_reference_link(self, reference):
         "Write data for reference of type 'link'."
         self.state.write(f" ({reference['year']}).")
-        title = utils.full_title(reference)
-        self.state.write(" " + title)
+        self.state.write(f" {reference.reftitle}")
         try:
             self.state.set(style="U", text_color=constants.PDF_HREF_COLOR)
             self.pdf.cell(
                 h=self.state.line_height * self.state.font_size,
-                text=title,
+                text=reference.reftitle,
                 link=reference["url"],
             )
             self.state.reset()

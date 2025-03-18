@@ -1,4 +1,4 @@
-"Pages for information about system and state."
+"Pages for information about system and contents."
 
 import os
 import shutil
@@ -150,7 +150,13 @@ def get(request, book: Book):
         refs = []
         for text in sorted(texts, key=lambda t: t.ordinal):
             refs.append(
-                Li(A(text.fulltitle, cls="secondary", href=f"/book/{book}/{text.path}"))
+                Li(
+                    A(
+                        text.fullheading,
+                        cls="secondary",
+                        href=f"/book/{book}/{text.path}",
+                    )
+                )
             )
         items.append(Li(key, Small(Ul(*refs)), id=key))
 
@@ -172,7 +178,10 @@ def get(request, book: Book):
     items = items[: constants.MAX_RECENT]
 
     rows = [
-        Tr(Td(A(i.fulltitle, href=f"/book/{book}/{i.path}")), Td(i.modified))
+        Tr(
+            Td(A(i.fullheading, href=f"/book/{book}/{i.path}")),
+            Td(utils.str_datetime_display(i.modified)),
+        )
         for i in items
     ]
 
@@ -210,7 +219,7 @@ def get(request, book: Book):
             Tr(Th(Tx("Type")), Td(Tx(book.type.capitalize()))),
             Tr(Th(Tx("Status")), Td(Tx(book.status))),
             Tr(Th(Tx("Owner")), Td(owner)),
-            Tr(Th(Tx("Modified")), Td(Tx(book.modified))),
+            Tr(Th(Tx("Modified")), Td(utils.str_datetime_display(book.modified))),
             Tr(Th(Tx("Words")), Td(Tx(utils.thousands(book.sum_words)))),
             Tr(Th(Tx("Characters")), Td(utils.thousands(book.sum_characters))),
             Tr(Th(Tx("Language")), Td(Tx(book.frontmatter.get("language") or "-"))),
@@ -231,36 +240,49 @@ def get(request, book: Book):
     "List each status and texts of the book in it."
     auth.authorize(request, *auth.book_view_rules, book=book)
 
-    rows = [Tr(Th(Tx("Status"), 
-                  Th(Tx("Texts")),
-                  Th(Tx("Words"), cls="right"),
-                  Th(Tx("Characters"), cls="right")))]
+    rows = [
+        Tr(
+            Th(
+                Tx("Status"),
+                Th(Tx("Texts")),
+                Th(Tx("Words"), cls="right"),
+                Th(Tx("Characters"), cls="right"),
+            )
+        )
+    ]
     for status in constants.STATUSES:
         texts = [i for i in book if i.is_text and i.status == status]
-        cells = [Td(
-            components.blank(0.5, f"background-color: {status.color};"),
-            components.blank(0.2),
-            Tx(str(status)),
-            rowspan=max(1, len(texts)),
-            valign="top",
-        )]
+        cells = [
+            Td(
+                components.blank(0.5, f"background-color: {status.color};"),
+                components.blank(0.2),
+                Tx(str(status)),
+                rowspan=max(1, len(texts)),
+                valign="top",
+            )
+        ]
         if len(texts) == 0:
             cells.append(Td("-", colspan=3))
             rows.append(Tr(cls="noborder", *cells))
         else:
             text = texts[0]
-            cells.extend([
-                Td(A(text.heading, href=f"/book/{book}/{text.path}")),
-                Td(str(text.sum_words), cls="right"),
-                Td(str(text.sum_characters), cls="right")
-            ])
-            rows.append(Tr(cls="noborder", *cells))
-            for text in texts[1:]:
-                rows.append(Tr(
+            cells.extend(
+                [
                     Td(A(text.heading, href=f"/book/{book}/{text.path}")),
                     Td(str(text.sum_words), cls="right"),
                     Td(str(text.sum_characters), cls="right"),
-                    cls="noborder"))
+                ]
+            )
+            rows.append(Tr(cls="noborder", *cells))
+            for text in texts[1:]:
+                rows.append(
+                    Tr(
+                        Td(A(text.heading, href=f"/book/{book}/{text.path}")),
+                        Td(str(text.sum_words), cls="right"),
+                        Td(str(text.sum_characters), cls="right"),
+                        cls="noborder",
+                    )
+                )
     title = Tx("Status list")
     return (
         Title(title),

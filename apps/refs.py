@@ -123,7 +123,7 @@ def get(request):
             parts.append(Br())
             parts.append(A(ref["url"], href=ref["url"]))
             if ref.get("accessed"):
-                parts.append(f' (Accessed: {ref["accessed"]})')
+                parts.append(f' ({Tx("Accessed")}: {ref["accessed"]})')
         if ref.get("doi"):
             symbol, url = constants.REFS_LINKS["doi"]
             url = url.format(value=ref["doi"])
@@ -258,10 +258,10 @@ def get(request, ref: Text, position: int = None):
                 Tr(Td((Tx(key.replace("_", " ")).title()), valign="top"), Td(value))
             )
 
-    if ref.get("keywords"):
-        rows.append(
-            Tr(Td(Tx("Keywords"), valign="top"), Td("; ".join(ref["keywords"])))
-        )
+    if ref.get("url"):
+        rows.append(Tr(Td("Url"), Td(A(ref["url"], href=ref["url"]))))
+    if ref.get("accessed"):
+        rows.append(Tr(Td(Tx("Accessed")), Td(ref.get("accessed", "?"))))
     if ref.get("issn"):
         rows.append(Tr(Td("ISSN"), Td(ref["issn"])))
     if ref.get("isbn"):
@@ -273,8 +273,10 @@ def get(request, ref: Text, position: int = None):
     if ref.get("doi"):
         url = constants.REFS_LINKS["doi"][1].format(value=ref["doi"])
         rows.append(Tr(Td("DOI"), Td(A(ref["doi"], href=url))))
-    if ref.get("url"):
-        rows.append(Tr(Td("Url"), Td(A(ref["url"], href=ref["url"]))))
+    if ref.get("keywords"):
+        rows.append(
+            Tr(Td(Tx("Keywords"), valign="top"), Td("; ".join(ref["keywords"])))
+        )
 
     contains = []
     refvalue = f"[@{ref['name']}]"
@@ -797,13 +799,8 @@ def get_ref_fields(ref=None, type=None):
             ),
         )
 
-    else:
-        result = [Input(type="hidden", name="type", value=type)]
-    if ref is None:
-        ref = {}
-        autofocus = True
-    else:
-        autofocus = False
+    ref = ref or {}
+    result = [Input(type="hidden", name="type", value=type)]
     result.append(
         Fieldset(
             Legend(Tx("Authors"), components.required()),
@@ -811,7 +808,7 @@ def get_ref_fields(ref=None, type=None):
                 "\n".join(ref.get("authors") or []),
                 name="authors",
                 required=True,
-                autofocus=autofocus,
+                autofocus=not ref,
             ),
         )
     )
@@ -821,6 +818,7 @@ def get_ref_fields(ref=None, type=None):
             Input(name="title", value=ref.get("title") or "", required=True),
         )
     )
+
     if type == constants.BOOK:
         result.append(
             Fieldset(
@@ -828,6 +826,7 @@ def get_ref_fields(ref=None, type=None):
                 Input(name="subtitle", value=ref.get("subtitle") or ""),
             )
         )
+
     # The year cannot be edited once the reference has been created.
     if ref:
         result.append(Input(type="hidden", name="year", value=ref["year"]))
@@ -838,6 +837,7 @@ def get_ref_fields(ref=None, type=None):
                 Input(name="year", value=ref.get("year") or "", required=True),
             )
         )
+
     # Both a book and an article may have been reprinted.
     if type in (constants.BOOK, constants.ARTICLE):
         result.append(
@@ -848,9 +848,11 @@ def get_ref_fields(ref=None, type=None):
                 ),
             )
         )
+
     result.append(
         Fieldset(Legend(Tx("Date")), Input(name="date", value=ref.get("date") or ""))
     )
+
     if type == constants.ARTICLE:
         result.append(
             Fieldset(
@@ -875,6 +877,30 @@ def get_ref_fields(ref=None, type=None):
                 Legend(Tx("Pages")), Input(name="pages", value=ref.get("pages") or "")
             )
         )
+
+    result.append(
+        Fieldset(
+            Legend(Tx("Language")),
+            Input(name="language", value=ref.get("language") or ""),
+        )
+    )
+    result.append(
+        Fieldset(
+            Legend(Tx("Publisher")),
+            Input(name="publisher", value=ref.get("publisher") or ""),
+        )
+    )
+    result.append(
+        Fieldset(Legend(Tx("URL")), Input(name="url", value=ref.get("url") or ""))
+    )
+    result.append(
+        Fieldset(
+            Legend(Tx("Accessed")),
+            Input(name="accessed", value=ref.get("accessed") or ""),
+        )
+    )
+
+    if type == constants.ARTICLE:
         result.append(
             Fieldset(
                 Legend(Tx("ISSN")), Input(name="issn", value=ref.get("issn") or "")
@@ -895,21 +921,7 @@ def get_ref_fields(ref=None, type=None):
         result.append(
             Fieldset(Legend(Tx("DOI")), Input(name="doi", value=ref.get("doi") or ""))
         )
-    result.append(
-        Fieldset(Legend(Tx("URL")), Input(name="url", value=ref.get("url") or ""))
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Publisher")),
-            Input(name="publisher", value=ref.get("publisher") or ""),
-        )
-    )
-    result.append(
-        Fieldset(
-            Legend(Tx("Language")),
-            Input(name="language", value=ref.get("language") or ""),
-        )
-    )
+
     result.append(
         Fieldset(
             Legend(Tx("Keywords")),
@@ -986,6 +998,7 @@ def get_ref_from_form(form, ref=None):
     ref.set("pmid", form.get("pmid", "").strip())
     ref.set("doi", form.get("doi", "").strip())
     ref.set("url", form.get("url", "").strip())
+    ref.set("accessed", form.get("accessed", "").strip())
     ref.write(content=form.get("notes", "").strip())
     return ref
 

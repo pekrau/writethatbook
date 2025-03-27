@@ -6,7 +6,7 @@ from pathlib import Path
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 14, 11)
+VERSION = (1, 15, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -17,7 +17,6 @@ DEFAULT_TIMEZONE = babel.dates.get_timezone("Europe/Stockholm")
 
 MARKDOWN_EXT = ".md"
 SOURCE_DIRPATH = Path(__file__).parent
-FONT_DIRPATH = SOURCE_DIRPATH / "freefont"
 TRANSLATIONS_FILEPATH = SOURCE_DIRPATH / "translations.csv"
 
 USERS_DATABASE_FILENAME = "users.yaml"
@@ -122,81 +121,13 @@ REFS_LINKS = dict(
 )
 MAX_DISPLAY_AUTHORS = 4
 
-BOLD = "bold"
-ITALIC = "italic"
-NORMAL = "normal"
-UNDERLINE = "underline"
-
-CODE_STYLE = "writethatbook Code"
-CODE_FONT = "FreeMono"
-CODE_LEFT_INDENT = 30
-
-QUOTE_STYLE = "writethatbook Quote"
-QUOTE_FONT = "FreeSerif"
-QUOTE_FONT_SIZE = 14
-QUOTE_LEFT_INDENT = 30
-QUOTE_RIGHT_INDENT = 70
-
-CAPTION_STYLE = "writethatbook Caption"
-CAPTION_FONT = "FreeSerif"
-CAPTION_FONT_SIZE = 10
-CAPTION_LEFT_INDENT = 10
-
-FONT = "FreeSans"
-FONT_NORMAL_SIZE = 12
-FONT_LARGE_SIZE = FONT_NORMAL_SIZE + 2
-FONT_TITLE_SIZE = 28
-FONT_NORMAL = (FONT, FONT_NORMAL_SIZE)
-FONT_ITALIC = (FONT, FONT_NORMAL_SIZE, ITALIC)
-FONT_BOLD = (FONT, FONT_NORMAL_SIZE, BOLD)
-FONT_LARGE_BOLD = (FONT, FONT_LARGE_SIZE, BOLD)
-FONT_SMALL_SIZE = FONT_NORMAL_SIZE - 2
-FONT_SMALL = (FONT, FONT_SMALL_SIZE)
-
 NORMAL = "normal"
 ITALIC = "italic"
 BOLD = "bold"
 UNDERLINE = "underline"
 FONT_STYLES = (NORMAL, ITALIC, BOLD, UNDERLINE)
 
-H1 = dict(
-    tag="h1",
-    font=(FONT, FONT_LARGE_SIZE + 10, BOLD),
-    left_margin=40,
-    spacing=30,
-)
-H2 = dict(
-    tag="h2",
-    font=(FONT, FONT_LARGE_SIZE + 5, BOLD),
-    left_margin=30,
-    spacing=20,
-)
-H3 = dict(
-    tag="h3",
-    font=(FONT, FONT_LARGE_SIZE + 3, BOLD),
-    left_margin=20,
-    spacing=15,
-)
-H4 = dict(
-    tag="h4",
-    font=(FONT, FONT_NORMAL_SIZE, BOLD),
-    left_margin=15,
-    spacing=10,
-)
-H5 = dict(
-    tag="h5",
-    font=(FONT, FONT_NORMAL_SIZE, BOLD),
-    left_margin=10,
-    spacing=5,
-)
-H6 = dict(
-    tag="h6",
-    font=(FONT, FONT_NORMAL_SIZE),
-    left_margin=10,
-    spacing=5,
-)
-H_LOOKUP = dict([(1, H1), (2, H2), (3, H3), (4, H4), (5, H5), (6, H6)])
-MAX_H_LEVEL = max(H_LOOKUP)
+MAX_LEVEL = 6
 
 FOOTNOTES_EACH_TEXT = "after each text"
 FOOTNOTES_EACH_CHAPTER = "after each chapter"
@@ -215,21 +146,8 @@ GZIP_MIMETYPE = "application/gzip"
 
 XMLNS_SVG = "http://www.w3.org/2000/svg"
 
-DOCX_MAX_PAGE_BREAK_LEVEL = 7
+DOCX_MAX_PAGE_BREAK_LEVEL = 4
+DOCX_MAX_TOC_LEVEL = 4
 
-PDF_MAX_CONTENTS_PAGES = 20
-PDF_HREF_COLOR = (20, 20, 255)
-PDF_LIST_INDENT = 30
-PDF_THEMATIC_BREAK_INDENT = 100
-PDF_MAX_PAGE_BREAK_LEVEL = 7
-PDF_MAX_CONTENTS_LEVEL = 7
-
-PDF_PAGE_NUMBER = "page number"
-PDF_TEXT_FULLTITLE = "text fulltitle"
-PDF_TEXT_HEADING = "text heading"
-
-PDF_INDEXED_XREF_DISPLAY = (
-    PDF_PAGE_NUMBER,
-    PDF_TEXT_FULLTITLE,
-    PDF_TEXT_HEADING,
-)
+PDF_MAX_PAGE_BREAK_LEVEL = 4
+PDF_MAX_TOC_LEVEL = 4

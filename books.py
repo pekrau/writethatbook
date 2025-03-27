@@ -257,6 +257,9 @@ class Book(Container):
         except KeyError:
             raise Error(f"no such text '{path}'", HTTP.NOT_FOUND)
 
+    def __contains__(self, path):
+        return path in self.path_lookup
+
     def __iter__(self):
         for item in self.items:
             yield item

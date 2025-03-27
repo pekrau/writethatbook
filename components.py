@@ -114,9 +114,9 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                         A(Tx("Status list"), href=f"/meta/status/{book}"),
                         A(Tx("Information"), href=f"/meta/info/{book}"),
                         A(Tx("State (JSON)"), href=f"/state/{book}"),
-                        A(Tx("Download book TGZ file"), href=f"/book/{book}.tgz"),
-                        A(Tx("Book as DOCX file"), href=f"/book/{book}.docx"),
-                        A(Tx("Book as PDF file"), href=f"/book/{book}.pdf"),
+                        A(Tx("Download book TGZ file"), href=f"/tgz/{book}"),
+                        A(Tx("Book as DOCX file"), href=f"/docx/{book}"),
+                        A(Tx("Book as PDF file"), href=f"/pdf/{book}"),
                     ]
                 )
             else:
@@ -124,9 +124,9 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                     [
                         A(
                             Tx("Text as DOCX file"),
-                            href=f"/book/{book}/{item.path}.docx",
+                            href=f"/docx/{book}/{item.path}",
                         ),
-                        A(Tx("Text as PDF file"), href=f"/book/{book}/{item.path}.pdf"),
+                        A(Tx("Text as PDF file"), href=f"/pdf/{book}/{item.path}"),
                     ]
                 )
 

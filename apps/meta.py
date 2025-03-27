@@ -8,10 +8,10 @@ import bibtexparser
 import docx
 import fasthtml
 from fasthtml.common import *
-import fpdf
 import marko
 import psutil
 import yaml
+import reportlab
 
 import auth
 from books import Book, get_books, get_refs
@@ -51,7 +51,7 @@ def get(request):
             "https://python-docx.readthedocs.io/en/latest/",
             docx.__version__,
         ),
-        ("fpdf2", "https://py-pdf.github.io/fpdf2/", fpdf.__version__),
+        ("ReportLab", "https://docs.reportlab.com/", reportlab.__version__),
         ("PyYAML", "https://pypi.org/project/PyYAML/", yaml.__version__),
         (
             "bibtexparser",

@@ -1,9 +1,9 @@
 img.white {background-color: white;
            padding: 2px;}
 
-hr.break {border: 2px solid;
-          margin-left: 5em;
-          margin-right: 5em;}
+hr.break {border: 1px solid;
+          margin-left: 10em;
+          margin-right: 10em;}
 
 .footnote-ref {outline-color: blue;
                outline-width: 2px;

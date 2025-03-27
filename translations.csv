@@ -56,7 +56,7 @@ file path,filnamn
 owner,ägare
 footnotes,fotnoter
 footnotes location,placering av fotnoter
-page break level,nivå för radbrytning
+page break level,nivå för sidbrytning
 after each text,efter varje text
 after each chapter,efter varje kapitel
 at end of book,i slutet av boken
@@ -71,7 +71,6 @@ display,visa
 true,sant
 false,falskt
 display on title page,visa på titelsidan
-display of indexed term reference,visning av referens för indexerad term
 page number,sidnummer
 text full name,textens hela namn
 text heading,textens titel
@@ -109,7 +108,6 @@ create section in,skapa sektion i
 optional,valfritt
 language,språk
 keywords,nyckelord
-display in output,visa i utdata
 article,artikel
 logged in,inloggad
 user,användare
@@ -151,8 +149,8 @@ software,mjukvara
 version,version
 metadata on title page,metadata på titelsidan
 contents,innehåll
-contents pages,innehållsförteckning
-contents level,innehållsnivå
+table of contents pages,innehållsförteckning
+table of contents level,nivå på innehållsförteckning
 BibTex data,BibTex data
 delete book,radera bok
 note: all contents will be lost!,notera: allt innehåll kommer att försvinna!

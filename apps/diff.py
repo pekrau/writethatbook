@@ -252,7 +252,7 @@ def get(request, id: str):
                 Thead(
                     Tr(
                         Th(Tx("Title"), scope="col"),
-                        Th(Tx("Remote site"), " ", A(rurl, href=rurl), scope="col"),
+                        Th(A(rurl, href=rurl), scope="col"),
                         Th(Tx("Here"), scope="col"),
                         Th(Tx("Age"), scope="col"),
                         Th(Tx("Size"), scope="col"),

@@ -9,10 +9,8 @@ import books
 from books import Book
 import components
 import constants
-import docx_creator
 from errors import *
 import markdown
-import pdf_creator
 import users
 import utils
 from utils import Tx
@@ -21,10 +19,10 @@ from utils import Tx
 class BookConvertor(Convertor):
     regex = "[^_./][^./]*"
 
-    def convert(self, value: str) -> Book:
+    def convert(self, value: str) -> books.Book:
         return books.get_book(value)
 
-    def to_string(self, value: Book) -> str:
+    def to_string(self, value: books.Book) -> str:
         return value.id
 
 
@@ -98,6 +96,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 @rt("/{book:Book}")
 def get(request, book: Book, position: int = None):
     "Display book; contents list of sections and texts."
+    ic(book)
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     if auth.authorized(request, *auth.book_edit_rules, book=book):
@@ -195,34 +194,10 @@ def get(request, book: Book, position: int = None):
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
-    "Display text or section contents, or download DOCX or PDF file."
+    "Display text or section contents."
     auth.authorize(request, *auth.book_view_rules, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
-
-    # Download DOCX file for item.
-    if path.endswith(".docx"):
-        if not "docx" in book.frontmatter:
-            raise Error("no DOCX output parameters have been set")
-        item = book[path[:-5]]
-        return Response(
-            content=docx_creator.Creator(book, books.get_refs()).content(item),
-            media_type=constants.DOCX_MIMETYPE,
-            headers={
-                "Content-Disposition": f'attachment; filename="{item.title}.docx"'
-            },
-        )
-
-    # Download PDF file for item.
-    if path.endswith(".pdf"):
-        if not "pdf" in book.frontmatter:
-            raise Error("no PDF output parameters have been set")
-        item = book[path[:-4]]
-        return Response(
-            content=pdf_creator.Creator(book, books.get_refs()).content(item),
-            media_type=constants.PDF_MIMETYPE,
-            headers={"Content-Disposition": f'attachment; filename="{item.title}.pdf"'},
-        )
 
     item = book[path]
 
@@ -438,264 +413,6 @@ def toc(book, items, toplevel=True, edit=False):
         if item.is_section:
             parts.append(toc(book, item.items, toplevel=False, edit=edit))
     return Ol(*parts)
-
-
-@rt("/{book:Book}.docx")
-def get(request, book: Book):
-    "Download the book DOCX file. First get the parameters."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    settings = book.frontmatter.setdefault("docx", {})
-    title_page_metadata = settings.get("title_page_metadata", True)
-    page_break_level = settings.get("page_break_level", 1)
-    page_break_options = []
-    for value in range(0, constants.DOCX_MAX_PAGE_BREAK_LEVEL):
-        if value == page_break_level:
-            page_break_options.append(Option(str(value), selected=True))
-        else:
-            page_break_options.append(Option(str(value)))
-    footnotes_location = settings.get(
-        "footnotes_location", constants.FOOTNOTES_EACH_TEXT
-    )
-    footnotes_options = []
-    for value in constants.FOOTNOTES_LOCATIONS:
-        if value == footnotes_location:
-            footnotes_options.append(
-                Option(Tx(value.capitalize()), value=value, selected=True)
-            )
-        else:
-            footnotes_options.append(Option(Tx(value.capitalize()), value=value))
-    reference_font = settings.get("reference_font", constants.NORMAL)
-    reference_options = []
-    for value in constants.FONT_STYLES:
-        if value == reference_font:
-            reference_options.append(
-                Option(Tx(value.capitalize()), value=value, selected=True)
-            )
-        else:
-            reference_options.append(Option(Tx(value.capitalize())))
-    indexed_font = settings.get("indexed_font", constants.NORMAL)
-    indexed_options = []
-    for value in constants.FONT_STYLES:
-        if value == indexed_font:
-            indexed_options.append(
-                Option(Tx(value.capitalize()), value=value, selected=True)
-            )
-        else:
-            indexed_options.append(Option(Tx(value.capitalize()), value=value))
-    fields = [
-        Fieldset(
-            Legend(Tx("Metadata on title page")),
-            Label(
-                Input(
-                    type="checkbox",
-                    name="title_page_metadata",
-                    role="switch",
-                    checked=bool(title_page_metadata),
-                ),
-                Tx("Display"),
-            ),
-        ),
-        Fieldset(
-            Legend(Tx("Page break level")),
-            Select(*page_break_options, name="page_break_level"),
-        ),
-        Fieldset(
-            Legend(Tx("Footnotes location")),
-            Select(*footnotes_options, name="footnotes_location"),
-        ),
-        Fieldset(
-            Legend(Tx("Reference font")),
-            Select(*reference_options, name="reference_font"),
-        ),
-        Fieldset(
-            Legend(Tx("Indexed font")), Select(*indexed_options, name="indexed_font")
-        ),
-    ]
-
-    title = Tx("Book as DOCX file")
-    return (
-        Title(title),
-        components.header(request, title, book=book),
-        Main(
-            Form(
-                *fields,
-                components.save_button(Tx("Book as DOCX file")),
-                action=f"/book/{book}.docx",
-                method="post",
-            ),
-            components.cancel_button(f"/book/{book}"),
-            cls="container",
-        ),
-        components.footer(request, book),
-    )
-
-
-@rt("/{book:Book}.docx")
-def post(request, book: Book, form: dict):
-    "Actually download the book as DOCX file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    settings = book.frontmatter.setdefault("docx", {})
-    settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
-    settings["page_break_level"] = int(form["page_break_level"])
-    settings["footnotes_location"] = form["footnotes_location"]
-    settings["reference_font"] = form["reference_font"]
-    settings["indexed_font"] = form["indexed_font"]
-
-    # Save settings.
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
-        book.write()
-
-    return Response(
-        content=docx_creator.Creator(book, books.get_refs()).content(),
-        media_type=constants.DOCX_MIMETYPE,
-        headers={"Content-Disposition": f'attachment; filename="{book.title}.docx"'},
-    )
-
-
-@rt("/{book:Book}.pdf")
-def get(request, book: Book):
-    "Download the book as PDF file. First get the parameters."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    settings = book.frontmatter.setdefault("pdf", {})
-    title_page_metadata = settings.get("title_page_metadata", True)
-    page_break_level = settings.get("page_break_level", 1)
-    page_break_options = []
-    for value in range(0, constants.PDF_MAX_PAGE_BREAK_LEVEL):
-        if value == page_break_level:
-            page_break_options.append(Option(str(value), selected=True))
-        else:
-            page_break_options.append(Option(str(value)))
-    contents_pages = settings.get("contents_pages", True)
-    contents_level = settings.get("contents_level", 1)
-    contents_level_options = []
-    for value in range(1, constants.PDF_MAX_CONTENTS_LEVEL):
-        if value == contents_level:
-            contents_level_options.append(Option(str(value), selected=True))
-        else:
-            contents_level_options.append(Option(str(value)))
-
-    footnotes_location = settings.get(
-        "footnotes_location", constants.FOOTNOTES_EACH_TEXT
-    )
-    footnotes_options = []
-    for value in constants.FOOTNOTES_LOCATIONS:
-        if value == footnotes_location:
-            footnotes_options.append(
-                Option(Tx(value.capitalize()), value=value, selected=True)
-            )
-        else:
-            footnotes_options.append(Option(Tx(value.capitalize()), value=value))
-
-    indexed_xref = settings.get("indexed_xref", constants.PDF_PAGE_NUMBER)
-    indexed_options = []
-    for value in constants.PDF_INDEXED_XREF_DISPLAY:
-        if value == indexed_xref:
-            indexed_options.append(
-                Option(Tx(value.capitalize()), value=value, selected=True)
-            )
-        else:
-            indexed_options.append(Option(Tx(value.capitalize()), value=value))
-
-    fields = [
-        Fieldset(
-            Legend(Tx("Metadata on title page")),
-            Label(
-                Input(
-                    type="checkbox",
-                    name="title_page_metadata",
-                    role="switch",
-                    checked=bool(title_page_metadata),
-                ),
-                Tx("Display"),
-            ),
-        ),
-        Fieldset(
-            Legend(Tx("Page break level")),
-            Select(*page_break_options, name="page_break_level"),
-        ),
-        Fieldset(
-            Legend(Tx("Contents pages")),
-            Label(
-                Input(
-                    type="checkbox",
-                    name="contents_pages",
-                    role="switch",
-                    checked=bool(contents_pages),
-                ),
-                Tx("Display in output"),
-            ),
-        ),
-        Fieldset(
-            Legend(Tx("Contents level")),
-            Select(*contents_level_options, name="contents_level"),
-        ),
-        Fieldset(
-            Legend(Tx("Footnotes location")),
-            Select(*footnotes_options, name="footnotes_location"),
-        ),
-        Fieldset(
-            Legend(Tx("Display of indexed term reference")),
-            Select(*indexed_options, name="indexed_xref"),
-        ),
-    ]
-
-    title = Tx("Book as PDF file")
-    return (
-        Title(title),
-        components.header(request, title, book=book),
-        Main(
-            Form(
-                *fields,
-                components.save_button(Tx("Book as PDF file")),
-                action=f"/book/{book}.pdf",
-                method="post",
-            ),
-            components.cancel_button(f"/book/{book}"),
-            cls="container",
-        ),
-        components.footer(request, book),
-    )
-
-
-@rt("/{book:Book}.pdf")
-def post(request, book: Book, form: dict):
-    "Actually download the book as PDF file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    settings = book.frontmatter.setdefault("pdf", {})
-    settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
-    settings["page_break_level"] = int(form["page_break_level"])
-    settings["contents_pages"] = form["contents_pages"]
-    settings["contents_level"] = int(form["contents_level"])
-    settings["footnotes_location"] = form["footnotes_location"]
-    settings["indexed_xref"] = form["indexed_xref"]
-
-    # Save settings.
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
-        book.write()
-
-    return Response(
-        content=pdf_creator.Creator(book, books.get_refs()).content(),
-        media_type=constants.PDF_MIMETYPE,
-        headers={"Content-Disposition": f'attachment; filename="{book.title}.pdf"'},
-    )
-
-
-@rt("/{book:Book}.tgz")
-def get(request, book: Book):
-    "Download a gzipped tar file of the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
-
-    filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
-
-    return Response(
-        content=book.get_tgz_content(),
-        media_type=constants.GZIP_MIMETYPE,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 
 def get_books_table(request, books):

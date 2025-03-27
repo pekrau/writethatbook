@@ -44,14 +44,7 @@ def get(request):
     items = []
     for ref in refs.items:
         parts = [
-            Img(
-                src="/clipboard.svg",
-                title=Tx("Reference to clipboard"),
-                style="cursor: pointer;",
-                cls="white to_clipboard",
-                data_clipboard_action="copy",
-                data_clipboard_text=f"[@{ref['name']}]",
-            ),
+            get_ref_clipboard(ref),
             components.blank(0.1),
             A(
                 Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
@@ -207,14 +200,7 @@ def get(request, ref: Text, position: int = None):
             Td(
                 f"{ref['name']}",
                 components.blank(0.1),
-                Img(
-                    src="/clipboard.svg",
-                    title=Tx("Reference to clipboard"),
-                    style="cursor: pointer;",
-                    cls="white to_clipboard",
-                    data_clipboard_action="copy",
-                    data_clipboard_text=f"[@{ref['name']}]",
-                ),
+                get_ref_clipboard(ref),
             ),
         ),
         Tr(Td(Tx("Authors"), valign="top"), Td("; ".join(ref.get("authors") or []))),
@@ -493,14 +479,7 @@ def get(request):
     rows = [
         Tr(
             Td(
-                Img(
-                    src="/clipboard.svg",
-                    title="Copy refid to clipboard",
-                    style="cursor: pointer;",
-                    cls="white to_clipboard",
-                    data_clipboard_action="copy",
-                    data_clipboard_text=f"[@{ref['name']}]",
-                ),
+                get_ref_clipboard(ref),
                 components.blank(0.1),
                 A(
                     Strong(ref["name"], style=f"color: {constants.REFS_COLOR};"),
@@ -517,6 +496,8 @@ def get(request):
     title = Tx("Recently modified")
     return (
         Title(title),
+        Script(src="/clipboard.min.js"),
+        Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=refs),
         Main(
             P(Table(Tbody(*rows))),
@@ -598,9 +579,16 @@ def post(request, data: str):
     title = Tx("Added reference(s)")
     return (
         Title(title),
+        Script(src="/clipboard.min.js"),
+        Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=refs),
         Main(
-            Ul(*[Li(A(r["name"], href=f'/refs/{r["id"]}')) for r in result]),
+            Ul(
+                *[
+                    Li(get_ref_clipboard(r), A(r["name"], href=f'/refs/{r["id"]}'))
+                    for r in result
+                ]
+            ),
             cls="container",
         ),
         components.footer(request),
@@ -1011,3 +999,14 @@ def cleanup_latex(value):
 def cleanup_whitespaces(value):
     "Replace all whitespaces with blanks."
     return " ".join([s for s in value.split()])
+
+
+def get_ref_clipboard(ref):
+    return Img(
+        src="/clipboard.svg",
+        title=Tx("Reference to clipboard"),
+        style="cursor: pointer;",
+        cls="white to_clipboard",
+        data_clipboard_action="copy",
+        data_clipboard_text=f"[@{ref['name']}]",
+    )

@@ -12,6 +12,8 @@ import apps.refs
 import apps.meta
 import apps.state
 import apps.search
+import apps.docx
+import apps.pdf
 import apps.user
 import apps.diff
 
@@ -27,6 +29,8 @@ routes = [
     Mount("/meta", apps.meta.app),
     Mount("/state", apps.state.app),
     Mount("/search", apps.search.app),
+    Mount("/docx", apps.docx.app),
+    Mount("/pdf", apps.pdf.app),
     Mount("/user", apps.user.app),
     Mount("/diff", apps.diff.app),
 ]

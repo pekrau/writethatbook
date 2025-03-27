@@ -99,6 +99,20 @@ def get(request):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+@rt("/tgz/{book:Book}")
+def get(request, book: books.Book):
+    "Download a gzipped tar file of the book."
+    auth.authorize(request, *auth.book_view_rules, book=book)
+
+    filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
+
+    return Response(
+        content=book.get_tgz_content(),
+        media_type=constants.GZIP_MIMETYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 
 # Initialize the users database.
 users.initialize()

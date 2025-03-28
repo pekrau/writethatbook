@@ -99,6 +99,7 @@ def get(request):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+
 @rt("/tgz/{book:Book}")
 def get(request, book: books.Book):
     "Download a gzipped tar file of the book."
@@ -111,7 +112,6 @@ def get(request, book: books.Book):
         media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
 
 
 # Initialize the users database.

@@ -10,6 +10,7 @@ import docx
 import docx
 import docx.oxml
 import docx.shared
+import docx.styles.style
 import PIL
 import vl_convert
 
@@ -27,11 +28,6 @@ import utils
 from utils import Tx
 
 
-CODE_STYLE = "writethatbook Code"
-QUOTE_STYLE = "writethatbook Quote"
-CAPTION_STYLE = "writethatbook Caption"
-
-
 app, rt = components.get_fast_app()
 
 
@@ -44,7 +40,7 @@ def get(request, book: Book):
     title_page_metadata = bool(settings.get("title_page_metadata", False))
     page_break_level = int(settings.get("page_break_level", 1))
     toc_pages = bool(settings.get("toc_pages"))
-    toc_level = settings.get("toc_level", 1)
+    toc_level = int(settings.get("toc_level", 1))
     toc_level_options = []
     for value in range(1, constants.DOCX_MAX_TOC_LEVEL + 1):
         if value == toc_level:
@@ -158,12 +154,14 @@ def post(request, book: Book, form: dict):
 
     settings = book.frontmatter.setdefault("docx", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
-    settings["page_break_level"] = int(form["page_break_level"])
+    settings["page_break_level"] = int(form.get("page_break_level", 1))
     settings["toc_pages"] = bool(form.get("toc_pages"))
-    settings["toc_level"] = int(form["toc_level"])
-    settings["footnotes_location"] = form["footnotes_location"]
-    settings["reference_font"] = form["reference_font"]
-    settings["indexed_font"] = form["indexed_font"]
+    settings["toc_level"] = int(form.get("toc_level", 1))
+    settings["footnotes_location"] = form.get(
+        "footnotes_location", constants.FOOTNOTES_EACH_TEXT
+    )
+    settings["reference_font"] = form.get("reference_font", constants.NORMAL)
+    settings["indexed_font"] = form.get("indexed_font", constants.NORMAL)
 
     # Save settings.
     if auth.authorized(request, *auth.book_edit_rules, book=book):
@@ -186,13 +184,11 @@ def get(request, book: Book, path: str, position: int = None):
     if not "docx" in book.frontmatter:
         raise Error("no DOCX output parameters have been set")
 
-    item = book[path[:-5]]
+    item = book[path]
     return Response(
         content=ItemWriter(book).get_content(item),
         media_type=constants.DOCX_MIMETYPE,
-        headers={
-            "Content-Disposition": f'attachment; filename="{item.title}.docx"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{item.title}.docx"'},
     )
 
 
@@ -203,18 +199,21 @@ class Writer:
         self.book = book
         self.references = books.get_refs()
 
-        settings = book.frontmatter["docx"]
-        self.title_page_metadata = bool(settings["title_page_metadata"])
-        self.page_break_level = int(settings["page_break_level"])
-        self.toc_pages = bool(settings["toc_pages"])
-        self.toc_level = int(settings["toc_level"])
-        self.footnotes_location = settings["footnotes_location"]
-        self.reference_font = settings.get("reference_font")
-        self.indexed_font = settings.get("indexed_font")
+        settings = book.frontmatter.get("docx", {})
+        self.title_page_metadata = bool(settings.get("title_page_metadata", False))
+        self.page_break_level = int(settings.get("page_break_level", 1))
+        self.toc_pages = bool(settings.get("toc_pages"))
+        self.toc_level = int(settings.get("toc_level", 1))
+        self.footnotes_location = settings.get(
+            "footnotes_location", constants.FOOTNOTES_EACH_TEXT
+        )
+        self.reference_font = settings.get("reference_font", constants.NORMAL)
+        self.indexed_font = settings.get("indexed_font", constants.NORMAL)
 
         # Key: fulltitle; value: dict(label, ast_children)
         self.footnotes = {}
-        self.footnote_paragraph = None
+        # 0 = not in footnote; -1 = footnote started; >= 1 = footnote number to start
+        self.footnote_def_flag = 0
         # Actually referenced, key: refid; value: reference
         self.referenced = set()
         # Key: canonical; value: dict(id, fulltitle, ordinal)
@@ -241,28 +240,51 @@ class Writer:
         section.header_distance = docx.shared.Mm(12.7)
         section.footer_distance = docx.shared.Mm(12.7)
 
-        # Create style for code.
-        style = self.document.styles.add_style(
-            CODE_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
+        # Modify styles.
+        style = self.document.styles["Normal"]
+        style.font.name = constants.DOCX_NORMAL_FONT
+        style.font.size = docx.shared.Pt(constants.DOCX_NORMAL_FONT_SIZE)
+        style.paragraph_format.line_spacing = docx.shared.Pt(
+            constants.DOCX_NORMAL_LINE_SPACING
         )
-        style.font.name = "Courier New"
-        style.base_style = self.document.styles["macro"]
-        style.paragraph_format.left_indent = docx.shared.Pt(30)
 
-        # Create style for quote.
-        style = self.document.styles.add_style(
-            QUOTE_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
+        # XXX Body Text
+        style = self.document.styles["Body Text"]
+        style.paragraph_format.space_before = docx.shared.Pt(
+            constants.DOCX_TOC_SPACE_BEFORE
         )
-        style.font.name = "Times New Roman"
-        style.paragraph_format.left_indent = docx.shared.Pt(30)
-        style.paragraph_format.right_indent = docx.shared.Pt(70)
+        style.paragraph_format.space_after = docx.shared.Pt(
+            constants.DOCX_TOC_SPACE_AFTER
+        )
 
-        # Create style for caption.
-        style = self.document.styles.add_style(
-            CAPTION_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
+        style = self.document.styles["Title"]
+        style.font.color.rgb = docx.shared.RGBColor(0, 0, 0)
+
+        for level in range(1, constants.MAX_LEVEL + 1):
+            style = self.document.styles[f"Heading {level}"]
+            style.paragraph_format.space_after = docx.shared.Pt(
+                2 * (constants.MAX_LEVEL + 1 - level)
+            )
+            style.font.color.rgb = docx.shared.RGBColor(0, 0, 0)
+
+        style = self.document.styles["Quote"]
+        style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_QUOTE_INDENT)
+
+        style = self.document.styles["macro"]
+        style.font.name = constants.DOCX_CODE_FONT
+        style.font.size = docx.shared.Pt(constants.DOCX_CODE_FONT_SIZE)
+        style.paragraph_format.line_spacing = docx.shared.Pt(
+            constants.DOCX_CODE_LINE_SPACING
         )
-        style.font.name = "Arial"
-        style.paragraph_format.left_indent = docx.shared.Pt(10)
+        style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_CODE_INDENT)
+
+        # # Create style for caption.
+        # style = self.document.styles.add_style(
+        #     CAPTION_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
+        # )
+        # style.base_style = self.document.styles["Normal"]
+        # style.font.name = constants.DOCX_CAPTION_FONT
+        # style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_CAPTION_FONT_SIZE)
 
         # Set Dublin core metadata.
         self.document.core_properties.author = ", ".join(self.book.authors)
@@ -331,17 +353,14 @@ class Writer:
             footnotes = self.footnotes[text.fulltitle]
         except KeyError:
             return
-        paragraph = self.document.add_heading(Tx("Footnotes"), constants.MAX_LEVEL)
-        paragraph.paragraph_format.space_before = docx.shared.Pt(25)
-        paragraph.paragraph_format.space_after = docx.shared.Pt(10)
+        paragraph = self.document.add_heading(
+            Tx("Footnotes"), max(3, constants.MAX_LEVEL - 1)
+        )
         for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
-            self.footnote_paragraph = self.document.add_paragraph()
-            run = self.footnote_paragraph.add_run(f"{entry['number']}.")
-            run.italic = True
-            self.footnote_paragraph.add_run(" ")
+            self.footnote_def_flag = entry["number"]
             for child in entry["ast_children"]:
                 self.render(child)
-            self.footnote_paragraph = None
+            self.footnote_def_flag = 0
 
     def write_chapter_footnotes(self, item):
         "Footnote definitions at the end of a chapter."
@@ -351,15 +370,12 @@ class Writer:
         except KeyError:
             return
         self.document.add_page_break()
-        self.write_heading(Tx("Footnotes"), 4)
+        self.write_heading(Tx("Footnotes"), 3)
         for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
-            self.footnote_paragraph = self.document.add_paragraph()
-            run = self.footnote_paragraph.add_run(f"{entry['number']}.")
-            run.italic = True
-            self.footnote_paragraph.add_run(" ")
+            self.footnote_def_flag = entry["number"]
             for child in entry["ast_children"]:
                 self.render(child)
-            self.footnote_paragraph = None
+            self.footnote_def_flag = 0
 
     def write_book_footnotes(self):
         "Footnote definitions as a separate section at the end of the book."
@@ -372,13 +388,10 @@ class Writer:
                 continue
             self.write_heading(item.heading, 2)
             for entry in sorted(footnotes.values(), key=lambda e: e["number"]):
-                self.footnote_paragraph = self.document.add_paragraph()
-                run = self.footnote_paragraph.add_run(f"{entry['number']}.")
-                run.italic = True
-                self.footnote_paragraph.add_run(" ")
+                self.footnote_def_flag = entry["number"]
                 for child in entry["ast_children"]:
                     self.render(child)
-                self.footnote_paragraph = None
+                self.footnote_def_flag = 0
 
     def write_references(self):
         self.document.add_page_break()
@@ -389,6 +402,12 @@ class Writer:
             except Error:
                 continue
             paragraph = self.document.add_paragraph()
+            paragraph.paragraph_format.left_indent = docx.shared.Pt(
+                constants.DOCX_REFERENCE_INDENT
+            )
+            paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
+                constants.DOCX_REFERENCE_INDENT
+            )
             run = paragraph.add_run(reference["name"])
             run.bold = True
             paragraph.add_run("  ")
@@ -445,7 +464,10 @@ class Writer:
         run.font.italic = True
         try:
             paragraph.add_run(f" {reference['publisher']}.")
-            paragraph.add_run(" ")
+        except KeyError:
+            pass
+        try:
+            paragraph.add_run(f", {reference['edition_published']}")
         except KeyError:
             pass
 
@@ -526,14 +548,24 @@ class Writer:
         self.write_heading(text, ast["level"])
 
     def render_paragraph(self, ast):
-        if self.footnote_paragraph:
-            self.paragraph = self.footnote_paragraph
-            self.footnote_paragraph = self.document.add_paragraph()
-        else:
-            self.paragraph = self.document.add_paragraph()
+        self.paragraph = self.document.add_paragraph()
+
+        if self.footnote_def_flag != 0:
+            self.paragraph.paragraph_format.left_indent = docx.shared.Pt(
+                constants.DOCX_FOOTNOTE_INDENT
+            )
+            if self.footnote_def_flag > 0:
+                self.paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
+                    constants.DOCX_FOOTNOTE_INDENT
+                )
+                run = self.paragraph.add_run(f"{self.footnote_def_flag}.")
+                run.bold = True
+                self.paragraph.add_run(" ")
+                self.footnote_def_flag = -1
+
         if self.list_stack:
             data = self.list_stack[-1]
-            levels = min(3, data["levels"])  # Max list levels in predef styles.
+            levels = min(3, data["levels"])  # Max list levels in predef list styles.
             if data["first_paragraph"]:
                 if data["ordered"]:
                     if levels == 1:
@@ -574,7 +606,7 @@ class Writer:
         pass
 
     def render_quote(self, ast):
-        self.style_stack.append(QUOTE_STYLE)
+        self.style_stack.append("Quote")
         for child in ast["children"]:
             self.render(child)
         self.style_stack.pop()
@@ -584,8 +616,8 @@ class Writer:
         run.style = self.document.styles["Macro Text Char"]
 
     def render_code_block(self, ast):
-        self.paragraph = self.document.add_paragraph(style=CODE_STYLE)
-        self.style_stack.append(CODE_STYLE)
+        self.paragraph = self.document.add_paragraph(style="macro")
+        self.style_stack.append("macro")
         for child in ast["children"]:
             self.render(child)
         self.style_stack.pop()
@@ -593,48 +625,54 @@ class Writer:
     def render_fenced_code(self, ast):
         content = ast["children"][0]["children"]
         scale = 0.7  # Empirical scale factor...
-        px_cm = 72 / 2.54  # Standard 72 pixels per inch.
+        cm_px = 2.54 / 72.0  # 1 inch = 2.54 cm per 72 pixels is a standard for online.
 
         # Output SVG as PNG.
         if ast.get("lang") == "svg":
             root = xml.etree.ElementTree.fromstring(content)
-            # SVG content must contain the root 'svg' element with xmlns.
-            # Add it if missing.
+            # SVG content must contain root 'svg' element with xmlns; add if missing.
             if root.tag == "svg":
                 content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
                 root = xml.etree.ElementTree.fromstring(content)
-            png = io.BytesIO(vl_convert.svg_to_png(content))
-            im = PIL.Image.open(png)
-            width, height = im.size
-            width = docx.shared.Cm(scale * width / px_cm)
-            height = docx.shared.Cm(scale * height / px_cm)
-            self.document.add_picture(png, width=width, height=height)
+            pngdata = io.BytesIO(vl_convert.svg_to_png(content))
+            image = PIL.Image.open(pngdata)
+            width, height = image.size
+            width = docx.shared.Pt(scale * width)
+            height = docx.shared.Pt(scale * height)
+            # This is a kludge; seems required to avoid an obscure bug?
+            paragraph = self.document.add_paragraph()
+            paragraph.paragraph_format.line_spacing = 1
+            paragraph.add_run().add_picture(pngdata, width=width, height=height)
             desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
             if desc is not None:
-                self.style_stack.append(CAPTION_STYLE)
+                self.style_stack.append("Normal")
                 self.render(markdown.to_ast(desc.text))
                 self.style_stack.pop()
 
         # Output Vega-Lite specification as PNG.
         elif ast.get("lang") == "vega-lite":
             vl_spec = json.loads(content)
-            png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
-            im = PIL.Image.open(png)
-            png.seek(0)
-            width, height = im.size
-            width = docx.shared.Cm(scale * width / px_cm)
-            height = docx.shared.Cm(scale * height / px_cm)
-            self.document.add_picture(png, width=width, height=height)
+            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+            image = PIL.Image.open(pngdata)
+            width, height = image.size
+            width = docx.shared.Pt(scale * width)
+            height = docx.shared.Pt(scale * height)
+            # This is a kludge; seems required to avoid an obscure bug?
+            paragraph = self.document.add_paragraph()
+            paragraph.paragraph_format.line_spacing = 1
+            paragraph.add_run().add_picture(pngdata, width=width, height=height)
             description = vl_spec.get("description")
             if description:
-                self.style_stack.append(CAPTION_STYLE)
-                self.render(markdown.to_ast(description))
+                self.style_stack.append("Normal")
+                ast = markdown.to_ast(description)
+                ic(ast)
+                self.render(ast)
                 self.style_stack.pop()
 
         # Fenced code as is.
         else:
-            self.paragraph = self.document.add_paragraph(style=CODE_STYLE)
-            self.style_stack.append(CODE_STYLE)
+            self.paragraph = self.document.add_paragraph(style="macro")
+            self.style_stack.append("macro")
             for child in ast["children"]:
                 self.render(child)
             self.style_stack.pop()
@@ -687,10 +725,10 @@ class Writer:
     def render_list(self, ast):
         data = dict(
             ordered=ast["ordered"],
-            bullet=ast["bullet"],  # Currently useless.
-            start=ast["start"],  # Currently useless.
-            tight=ast["tight"],  # Currently useless.
-            count=0,  # Currently useless.
+            bullet=ast["bullet"],  # XXX Currently not used.
+            start=ast["start"],  # XXX Currently not used.
+            tight=ast["tight"],  # XXX Currently not used.
+            count=0,  # XXX Currently not used.
             levels=len(self.list_stack) + 1,
         )
         self.list_stack.append(data)
@@ -772,7 +810,6 @@ class Writer:
         else:
             self.paragraph.add_run(f'??? no such refid {ast["name"]} ???')
 
-
     # https://github.com/python-openxml/python-docx/issues/74#issuecomment-261169410
     def add_hyperlink(self, paragraph, url, text, color="2222FF", underline=True):
         """
@@ -831,20 +868,15 @@ class BookWriter(Writer):
 
     def get_content(self):
         "Create the DOCX document of the book return its content."
-        # Write book title page containing authors and metadata.
         paragraph = self.document.add_paragraph(style="Title")
         run = paragraph.add_run(self.book.title)
-        run.font.size = docx.shared.Pt(28)
-        run.font.bold = True
 
         if self.book.subtitle:
             paragraph = self.document.add_paragraph(style="Heading 1")
-            paragraph.paragraph_format.space_after = docx.shared.Pt(20)
             paragraph.add_run(self.book.subtitle)
 
+        # Split authors into runs to allow line break between them.
         paragraph = self.document.add_paragraph(style="Heading 2")
-        paragraph.paragraph_format.space_after = docx.shared.Pt(10)
-        # Allow line break between authors.
         for author in self.book.authors:
             paragraph.add_run(author)
             if author != self.book.authors[-1]:
@@ -854,7 +886,9 @@ class BookWriter(Writer):
 
         if self.title_page_metadata:
             paragraph = self.document.add_paragraph()
-            paragraph.paragraph_format.space_before = docx.shared.Pt(100)
+            paragraph.paragraph_format.space_before = docx.shared.Pt(
+                constants.DOCX_METADATA_SPACER
+            )
 
             run = paragraph.add_run(f"{Tx('Status')}: {Tx(self.book.status)}")
             run.italic = True
@@ -872,12 +906,17 @@ class BookWriter(Writer):
             self.document.add_page_break()
             self.write_heading(Tx("Contents"), 1)
             for item in self.book:
-                ic(item.level, self.toc_level)
                 if item.level > self.toc_level:
                     continue
                 if item.status == constants.OMITTED:
                     continue
-                paragraph = self.document.add_paragraph()
+                paragraph = self.document.add_paragraph(style="Body Text")
+                paragraph.paragraph_format.left_indent = docx.shared.Pt(
+                    constants.DOCX_TOC_INDENT * item.level
+                )
+                paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
+                    constants.DOCX_TOC_INDENT
+                )
                 paragraph.add_run(item.heading)
             self.document.add_paragraph(Tx("References"))
             self.document.add_paragraph(Tx("Index"))

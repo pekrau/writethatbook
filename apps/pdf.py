@@ -52,7 +52,7 @@ def get(request, book: Book):
         else:
             page_break_options.append(Option(str(value)))
     toc_pages = bool(settings.get("toc_pages"))
-    toc_level = settings.get("toc_level", 1)
+    toc_level = int(settings.get("toc_level", 1))
     toc_level_options = []
     for value in range(1, constants.PDF_MAX_TOC_LEVEL + 1):
         if value == toc_level:
@@ -164,12 +164,14 @@ def post(request, book: Book, form: dict):
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
-    settings["page_break_level"] = int(form["page_break_level"])
+    settings["page_break_level"] = int(form.get("page_break_level", 1))
     settings["toc_pages"] = bool(form.get("toc_pages"))
-    settings["toc_level"] = int(form["toc_level"])
-    settings["footnotes_location"] = form["footnotes_location"]
-    settings["reference_font"] = form["reference_font"]
-    settings["indexed_font"] = form["indexed_font"]
+    settings["toc_level"] = int(form.get("toc_level", 1))
+    settings["footnotes_location"] = form.get(
+        "footnotes_location", constants.FOOTNOTES_EACH_TEXT
+    )
+    settings["reference_font"] = form.get("reference_font", constants.NORMAL)
+    settings["indexed_font"] = form.get("indexed_font", constants.NORMAL)
 
     # Save settings.
     if auth.authorized(request, *auth.book_edit_rules, book=book):
@@ -180,6 +182,7 @@ def post(request, book: Book, form: dict):
         media_type=constants.PDF_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{book.title}.pdf"'},
     )
+
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
@@ -206,23 +209,43 @@ class Writer:
         self.book = book
         self.references = books.get_refs()
 
-        settings = book.frontmatter["pdf"]
-        self.title_page_metadata = bool(settings["title_page_metadata"])
-        self.page_break_level = int(settings["page_break_level"])
-        self.toc_pages = bool(settings["toc_pages"])
-        self.toc_level = int(settings["toc_level"])
-        self.footnotes_location = settings["footnotes_location"]
-        self.reference_font = settings.get("reference_font")
-        self.indexed_font = settings.get("indexed_font")
+        settings = book.frontmatter.get("pdf", {})
+        self.title_page_metadata = bool(settings.get("title_page_metadata", False))
+        self.page_break_level = int(settings.get("page_break_level", 1))
+        self.toc_pages = bool(settings.get("toc_pages"))
+        self.toc_level = int(settings.get("toc_level", 1))
+        self.footnotes_location = settings.get(
+            "footnotes_location", constants.FOOTNOTES_EACH_TEXT
+        )
+        self.reference_font = settings.get("reference_font", constants.NORMAL)
+        self.indexed_font = settings.get("indexed_font", constants.NORMAL)
 
         self.stylesheet = getSampleStyleSheet()
-        self.stylesheet["Title"].fontSize = 24
-        self.stylesheet["Title"].leading = 30
-        self.stylesheet["Title"].alignment = 0
-        self.stylesheet["Title"].spaceAfter = 15
-        self.stylesheet["Code"].fontSize = 9
-        self.stylesheet["Code"].leading = 10
-        self.stylesheet["Code"].leftIndent = 28
+        # self.stylesheet.list()
+
+        # These modifications will affect subsquent styles inheriting from Normal.
+        self.stylesheet["Normal"].fontName = constants.PDF_NORMAL_FONT
+        self.stylesheet["Normal"].fontSize = constants.PDF_NORMAL_FONT_SIZE
+        self.stylesheet["Normal"].leading = constants.PDF_NORMAL_LEADING
+
+        self.stylesheet["Title"].fontSize = constants.PDF_TITLE_FONT_SIZE
+        self.stylesheet["Title"].leading = constants.PDF_TITLE_LEADING
+        self.stylesheet["Title"].alignment = 0  # Left
+        self.stylesheet["Title"].spaceAfter = constants.PDF_TITLE_SPACE_AFTER
+
+        self.stylesheet["Code"].fontName = constants.PDF_CODE_FONT
+        self.stylesheet["Code"].fontSize = constants.PDF_CODE_FONT_SIZE
+        self.stylesheet["Code"].leading = constants.PDF_CODE_LEADING
+        self.stylesheet["Code"].leftIndent = constants.PDF_CODE_INDENT
+
+        self.stylesheet["OrderedList"].fontName = constants.PDF_NORMAL_FONT
+        self.stylesheet["OrderedList"].fontSize = constants.PDF_NORMAL_FONT_SIZE
+        self.stylesheet["OrderedList"].bulletFormat = "%s. "
+        self.stylesheet["UnorderedList"].fontName = constants.PDF_NORMAL_FONT
+        self.stylesheet["UnorderedList"].fontSize = constants.PDF_NORMAL_FONT_SIZE
+        self.stylesheet["UnorderedList"].bulletType = "bullet"
+        self.stylesheet["UnorderedList"].bulletFont = constants.PDF_NORMAL_FONT_SIZE
+
         self.stylesheet.add(
             ParagraphStyle(
                 name="Index",
@@ -233,37 +256,20 @@ class Writer:
             ParagraphStyle(
                 name="Quote",
                 parent=self.stylesheet["Normal"],
-                fontName="Times-Roman",
-                fontSize=11,
-                leading=14,
-                spaceBefore=6,
-                leftIndent=28,
-                rightIndent=28,
-            )
-        )
-        self.stylesheet.add(
-            ParagraphStyle(
-                name="List",
-                parent=self.stylesheet["Normal"],
-                spaceBefore=14,
-                spaceAfter=14,
-            )
-        )
-        self.stylesheet.add(
-            ParagraphStyle(
-                name="List tight",
-                parent=self.stylesheet["Normal"],
-                spaceBefore=4,
-                spaceAfter=4,
+                fontName=constants.PDF_QUOTE_FONT,
+                fontSize=constants.PDF_QUOTE_FONT_SIZE,
+                leading=constants.PDF_QUOTE_LEADING,
+                spaceBefore=constants.PDF_QUOTE_SPACE_BEFORE,
+                leftIndent=constants.PDF_QUOTE_INDENT,
+                rightIndent=constants.PDF_QUOTE_INDENT,
             )
         )
         self.stylesheet.add(
             ParagraphStyle(
                 name="Footnote",
                 parent=self.stylesheet["Normal"],
-                spaceBefore=4,
-                firstLineIndent=-10,
-                leftIndent=10,
+                leftIndent=constants.PDF_FOOTNOTE_INDENT,
+                firstLineIndent=-constants.PDF_FOOTNOTE_INDENT,
             )
         )
         self.stylesheet.add(
@@ -277,14 +283,15 @@ class Writer:
             ParagraphStyle(
                 name="Reference",
                 parent=self.stylesheet["Normal"],
-                spaceAfter=5,
-                firstLineIndent=-20,
-                leftIndent=20,
+                spaceBefore=constants.PDF_REFERENCE_SPACE_BEFORE,
+                leftIndent=constants.PDF_REFERENCE_INDENT,
+                firstLineIndent=-constants.PDF_REFERENCE_INDENT,
             )
         )
-        self.stylesheet["Normal"].leading = 15
-        self.stylesheet["Normal"].spaceBefore = 5
-        self.stylesheet["Normal"].spaceAfter = 5
+
+        # Placed here to avoid affecting previously defined styles.
+        self.stylesheet["Normal"].spaceBefore = constants.PDF_NORMAL_SPACE_BEFORE
+        self.stylesheet["Normal"].spaceAfter = constants.PDF_NORMAL_SPACE_AFTER
 
         # Key: fulltitle; value: dict(label, number, ast_children)
         self.footnotes = {}
@@ -346,7 +353,7 @@ class Writer:
             self.within_footnote = f"<b>{entry['number']}.</b> "
             for child in entry["ast_children"]:
                 self.render(child)
-            self.within_footnote = None
+            self.within_footnote = False
 
     def write_chapter_footnotes(self, item):
         "Footnote definitions at the end of a chapter; i.e. top-level section."
@@ -361,7 +368,7 @@ class Writer:
             self.within_footnote = f"<b>{entry['number']}.</b> "
             for child in entry["ast_children"]:
                 self.render(child)
-            self.within_footnote = None
+            self.within_footnote = False
 
     def write_book_footnotes(self):
         "Footnote definitions as a separate section at the end of the book."
@@ -377,7 +384,7 @@ class Writer:
                 self.within_footnote = f"<b>{entry['number']}.</b> "
                 for child in entry["ast_children"]:
                     self.render(child)
-                self.within_footnote = None
+                self.within_footnote = False
 
     def write_references(self):
         "Write the references pages."
@@ -475,9 +482,10 @@ class Writer:
                 pass
         if not links:
             return
-        self.para_text("<br/>")
         for pos, (text, url) in enumerate(links):
-            if pos != 0:
+            if pos == 0:
+                self.para_text(" ")
+            else:
                 self.para_text(", ")
             self.para_text(
                 f'<link href="{url}" underline="true" color="blue">{text}</link>'
@@ -662,24 +670,12 @@ class Writer:
         self.list_stack.append([])
         for child in ast["children"]:
             self.render(child)
-        if ast["tight"]:
-            style = self.stylesheet["List tight"]
-        else:
-            style = self.stylesheet["List"]
+        # XXX ast["tight"] is currently not used.
         if ast["ordered"]:
-            bullet_type = "1"
-            bullet_format = "%s."
+            style = self.stylesheet["OrderedList"]
         else:
-            bullet_type = "bullet"
-            bullet_format = None
-        flowable = ListFlowable(
-            self.list_stack.pop(),
-            bulletFontSize=style.bulletFontSize,
-            bulletType=bullet_type,
-            bulletFormat=bullet_format,
-            spaceBefore=style.spaceBefore,
-            spaceAfter=style.spaceAfter,
-        )
+            style = self.stylesheet["UnorderedList"]
+        flowable = ListFlowable(self.list_stack.pop(), style=style)
         if self.list_stack:
             self.list_stack[-1].append(flowable)
         else:
@@ -853,6 +849,7 @@ class BookWriter(Writer):
         "Create the PDF document of the book return its content."
         # Write book title page containing authors and metadata.
         self.add_paragraph(self.book.title, "Title")
+        self.flowables.append(HRFlowable(width="100%", color=BLACK, spaceAfter=20))
         if self.book.subtitle:
             self.add_paragraph(self.book.subtitle, "Heading1")
         for author in self.book.authors:
@@ -881,8 +878,8 @@ class BookWriter(Writer):
                     fontName="Helvetica",
                     fontSize=10,
                     leading=11,
-                    firstLineIndent=15 * level,
-                    leftIndent=15 + 15 * level,
+                    firstLineIndent=constants.PDF_TOC_INDENT * level,
+                    leftIndent=constants.PDF_TOC_INDENT * (level + 1),
                 )
                 level_styles.append(style)
             self.toc = TableOfContents(
@@ -930,7 +927,9 @@ class BookWriter(Writer):
                     canvasmaker=self.index.getCanvasMaker(),
                 )
             else:
-                document.multiBuild(self.flowables, onLaterPages=self.display_page_number)
+                document.multiBuild(
+                    self.flowables, onLaterPages=self.display_page_number
+                )
         else:
             document = SimpleDocTemplate(
                 output,

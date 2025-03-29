@@ -30,8 +30,8 @@ import utils
 from utils import Tx
 
 
-PAGE_WIDTH, PAGE_HEIGHT = reportlab.rl_config.defaultPageSize
 BLACK = reportlab.lib.colors.black
+GREY = reportlab.lib.colors.grey
 
 
 app, rt = components.get_fast_app()
@@ -301,6 +301,7 @@ class Writer:
         self.current_text = None
         self.flowables = []
         self.list_stack = []
+        self.caption = None
         self.index = SimpleIndex(style=self.stylesheet["Index"], headers=False)
         self.any_indexed = False
 
@@ -572,59 +573,60 @@ class Writer:
     def render_fenced_code(self, ast):
         "Fenced code may be SVG or Vega-Lite."
         content = ast["children"][0]["children"]
-        # scale = 0.75  # Empirical scale factor...
+        scale = 0.75  # Empirical scale factor...
 
-        # # Output SVG as PNG.
-        # if ast.get("lang") == "svg":
-        #     root = xml.etree.ElementTree.fromstring(content)
-        #     # SVG content must contain the root 'svg' element with xmlns.
-        #     # Add it if missing.
-        #     if root.tag == "svg":
-        #         content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
-        #         root = xml.etree.ElementTree.fromstring(content)
-        #     png = io.BytesIO(vl_convert.svg_to_png(content))
-        #     im = PIL.Image.open(png)
-        #     width, height = im.size
-        #     self.pdf.image(im, w=scale * width, h=scale * height)
-        #     desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
-        #     if desc is not None:
-        #         self.state.set(
-        #             family=constants.CAPTION_FONT,
-        #             font_size=constants.CAPTION_FONT_SIZE,
-        #             left_indent=constants.CAPTION_LEFT_INDENT,
-        #         )
-        #         self.render(markdown.to_ast(desc.text))
-        #         self.state.reset()
+        # Output SVG as PNG.
+        if ast.get("lang") == "svg":
+            flowables = [HRFlowable(width="100%", color=GREY, spaceBefore=constants.PDF_IMAGE_SPACE, spaceAfter=4)]
+            root = xml.etree.ElementTree.fromstring(content)
+            # SVG content must contain root 'svg' element with xmlns; add if missing.
+            if root.tag == "svg":
+                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
+                root = xml.etree.ElementTree.fromstring(content)
+            pngdata = io.BytesIO(vl_convert.svg_to_png(content))
+            width, height = PIL.Image.open(pngdata).size
+            flowables.append(Image(pngdata, hAlign="LEFT", width=scale * width, height=scale * height))
+            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
+            if desc is None:
+                desc = ast.get("extra")
+            else:
+                desc = desc.text
+            if desc:
+                self.caption = True
+                self.para_push()
+                self.render(markdown.to_ast(desc))
+                flowables.append(self.caption)
+                self.caption = None
+            flowables.append(HRFlowable(width="100%", color=GREY, spaceBefore=4, spaceAfter=constants.PDF_IMAGE_SPACE))
+            self.flowables.append(KeepTogether(flowables))
 
-        # # Output Vega-Lite specification as PNG.
-        # elif ast.get("lang") == "vega-lite":
-        #     vl_spec = json.loads(content)
-        #     png = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
-        #     im = PIL.Image.open(png)
-        #     width, height = im.size
-        #     self.pdf.image(im, w=scale * width, h=scale * height)
-        #     description = vl_spec.get("description")
-        #     if description:
-        #         dast = markdown.to_ast(description)
-        #         self.state.set(
-        #             family=constants.CAPTION_FONT,
-        #             font_size=constants.CAPTION_FONT_SIZE,
-        #             left_indent=constants.CAPTION_LEFT_INDENT,
-        #         )
-        #         self.render(dast)
-        #         self.state.reset()
+        # Output Vega-Lite specification as PNG.
+        elif ast.get("lang") == "vega-lite":
+            flowables = [HRFlowable(width="100%", color=GREY, spaceBefore=constants.PDF_IMAGE_SPACE, spaceAfter=4)]
+            vl_spec = json.loads(content)
+            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+            width, height = PIL.Image.open(pngdata).size
+            flowables.append(Image(pngdata, hAlign="LEFT", width=scale * width, height=scale * height))
+            desc = vl_spec.get("description")
+            if not desc:
+                desc = ast.get("extra")
+            if desc:
+                self.caption = True
+                self.para_push()
+                self.render(markdown.to_ast(desc))
+                flowables.append(self.caption)
+                self.caption = None
+            flowables.append(HRFlowable(width="100%", color=GREY, spaceBefore=4, spaceAfter=constants.PDF_IMAGE_SPACE))
+            self.flowables.append(KeepTogether(flowables))
 
-        # # Fenced code as is.
-        # else:
-        #     self.state.set(
-        #         family=constants.CODE_FONT,
-        #         left_indent=constants.CODE_LEFT_INDENT,
-        #         line_height=1.2,
-        #     )
-        #     for child in ast["children"]:
-        #         self.render(child)
-        #     self.state.reset()
-        # self.state.ln()
+        # Fenced code as is.
+        else:
+            self.within_code = True
+            self.para_push()
+            for child in ast["children"]:
+                self.render(child)
+            self.para_pop("Code", preformatted=True)
+            self.within_code = False
 
     def render_emphasis(self, ast):
         self.para_text("<i>")
@@ -787,7 +789,7 @@ class Writer:
 
     def para_pop(self, stylename, preformatted=False):
         "Output paragraph containing the saved-up text."
-        text = "".join(self.para_stack[-1])
+        text = "".join(self.para_stack.pop())
         if self.list_stack:
             if preformatted:
                 self.list_stack[-1].append(
@@ -797,6 +799,8 @@ class Writer:
                 self.list_stack[-1].append(
                     Paragraph(text, style=self.stylesheet[stylename])
                 )
+        elif self.caption:
+            self.caption = Paragraph(text, style=self.stylesheet[stylename])
         else:
             if preformatted:
                 self.add_preformatted(text, stylename)
@@ -809,9 +813,10 @@ class Writer:
 
     def display_page_number(self, canvas, doc):
         "Output page number onto the current canvas."
+        width, height = reportlab.rl_config.defaultPageSize
         canvas.saveState()
         canvas.setFont("Helvetica", 10)
-        canvas.drawString(PAGE_WIDTH - 84, PAGE_HEIGHT - 56, str(doc.page))
+        canvas.drawString(width - 84, height - 56, str(doc.page))
         canvas.restoreState()
 
 

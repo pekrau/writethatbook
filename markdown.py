@@ -139,8 +139,12 @@ class FencedCodeRenderer:
                 content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
                 root = xml.etree.ElementTree.fromstring(content)
             desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
-            if desc is not None:
-                return f"<article>\n{content}\n<footer>{to_html(desc.text)}</footer>\n</article>\n"
+            if desc:
+                desc = desc.text
+            else:
+                desc = element.extra
+            if desc:
+                return f"<article>\n{content}\n<footer>{to_html(desc)}</footer>\n</article>\n"
             else:
                 return f"<article>\n{content}\n</article>\n"
 
@@ -155,11 +159,13 @@ class FencedCodeRenderer:
             except ValueError as error:
                 return f"<article>Error converting to SVG: {error}</article>"
             try:
-                description = spec["description"]
+                desc = spec["description"]
             except KeyError:
-                return f"<article>\n{svg}\n</article>\n"
+                desc = element.extra
+            if desc:
+                return f"<article>\n{svg}\n<footer>{to_html(desc)}</footer></article>\n"
             else:
-                return f"<article>\n{svg}\n<footer>{to_html(description)}</footer></article>\n"
+                return f"<article>\n{svg}\n</article>\n"
 
         # All other fenced code.
         else:

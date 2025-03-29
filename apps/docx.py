@@ -318,7 +318,8 @@ class Writer:
         if section.subtitle:
             self.write_heading(section.subtitle, level + 1)
         self.current_text = section
-        self.render(section.ast, initialize=True)
+        self.render_initialize()
+        self.render(section.ast)
         if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
             self.write_text_footnotes(section)
         for item in section.items:
@@ -337,7 +338,8 @@ class Writer:
             if text.subtitle:
                 self.write_heading(text.subtitle, level + 1)
         self.current_text = text
-        self.render(text.ast, initialize=True)
+        self.render_initialize()
+        self.render(text.ast)
         if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
             self.write_text_footnotes(text)
 
@@ -521,15 +523,17 @@ class Writer:
                 if entry is not entries[-1]:
                     paragraph.add_run(", ")
 
-    def render(self, ast, initialize=False):
+    def render_initialize(self):
+        "Set up for rendering."
+        self.list_stack = []
+        self.style_stack = ["Normal"]
+        self.bold = False
+        self.italic = False
+        self.subscript = False
+        self.superscript = False
+
+    def render(self, ast):
         "Render the content AST node hierarchy."
-        if initialize:
-            self.list_stack = []
-            self.style_stack = ["Normal"]
-            self.bold = False
-            self.italic = False
-            self.subscript = False
-            self.superscript = False
         try:
             method = getattr(self, f"render_{ast['element']}")
         except AttributeError:
@@ -625,7 +629,7 @@ class Writer:
     def render_fenced_code(self, ast):
         content = ast["children"][0]["children"]
         scale = 0.7  # Empirical scale factor...
-        cm_px = 2.54 / 72.0  # 1 inch = 2.54 cm per 72 pixels is a standard for online.
+        cm_px = 2.54 / 72.0  # 1 inch = 2.54 cm per 72 pixels is standard for online.
 
         # Output SVG as PNG.
         if ast.get("lang") == "svg":
@@ -635,8 +639,7 @@ class Writer:
                 content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
                 root = xml.etree.ElementTree.fromstring(content)
             pngdata = io.BytesIO(vl_convert.svg_to_png(content))
-            image = PIL.Image.open(pngdata)
-            width, height = image.size
+            width, height = PIL.Image.open(pngdata).size
             width = docx.shared.Pt(scale * width)
             height = docx.shared.Pt(scale * height)
             # This is a kludge; seems required to avoid an obscure bug?
@@ -644,29 +647,34 @@ class Writer:
             paragraph.paragraph_format.line_spacing = 1
             paragraph.add_run().add_picture(pngdata, width=width, height=height)
             desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
-            if desc is not None:
+            if desc is None:
+                desc = ast.get("extra")
+            else:
+                desc = desc.text
+            if desc:
+                paragraph.paragraph_format.keep_with_next = True
                 self.style_stack.append("Normal")
-                self.render(markdown.to_ast(desc.text))
+                self.render(markdown.to_ast(desc))
                 self.style_stack.pop()
 
         # Output Vega-Lite specification as PNG.
         elif ast.get("lang") == "vega-lite":
             vl_spec = json.loads(content)
             pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
-            image = PIL.Image.open(pngdata)
-            width, height = image.size
+            width, height = PIL.Image.open(pngdata).size
             width = docx.shared.Pt(scale * width)
             height = docx.shared.Pt(scale * height)
             # This is a kludge; seems required to avoid an obscure bug?
             paragraph = self.document.add_paragraph()
             paragraph.paragraph_format.line_spacing = 1
             paragraph.add_run().add_picture(pngdata, width=width, height=height)
-            description = vl_spec.get("description")
-            if description:
+            desc = vl_spec.get("description")
+            if not desc:
+                desc = ast.get("extra")
+            if desc:
+                paragraph.paragraph_format.keep_with_next = True
                 self.style_stack.append("Normal")
-                ast = markdown.to_ast(description)
-                ic(ast)
-                self.render(ast)
+                self.render(markdown.to_ast(desc))
                 self.style_stack.pop()
 
         # Fenced code as is.
@@ -882,7 +890,8 @@ class BookWriter(Writer):
             if author != self.book.authors[-1]:
                 paragraph.add_run(", ")
 
-        self.render(self.book.ast, initialize=True)
+        self.render_initialize()
+        self.render(self.book.ast)
 
         if self.title_page_metadata:
             paragraph = self.document.add_paragraph()
@@ -918,8 +927,9 @@ class BookWriter(Writer):
                     constants.DOCX_TOC_INDENT
                 )
                 paragraph.add_run(item.heading)
-            self.document.add_paragraph(Tx("References"))
-            self.document.add_paragraph(Tx("Index"))
+            # At this stage it is not known if any references or indexed.
+            self.document.add_paragraph(Tx("References"), style="Body Text")
+            self.document.add_paragraph(Tx("Index"), style="Body Text")
 
         # First-level items are chapters.
         for item in self.book.items:
@@ -937,8 +947,12 @@ class BookWriter(Writer):
         if self.footnotes_location == constants.FOOTNOTES_END_OF_BOOK:
             self.write_book_footnotes()
 
-        self.write_references()
-        self.write_indexed()
+        # References pages written, even if empty, since TOC pages contains item.
+        if self.toc_pages or self.referenced:
+            self.write_references()
+        # Indexed pages written, even if empty, since TOC pages contains item.
+        if self.toc_pages or self.indexed:
+            self.write_indexed()
 
         output = io.BytesIO()
         self.document.save(output)
@@ -961,8 +975,10 @@ class ItemWriter(Writer):
         else:
             self.write_text(item, level=item.level, skip_page_break=True)
 
+        # Here it is possible to skip references pages, in none.
         if self.referenced:
             self.write_references()
+        # Here it is possible to skip indexed pages, in none.
         if self.indexed:
             self.write_indexed()
 

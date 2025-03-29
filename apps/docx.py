@@ -240,6 +240,11 @@ class Writer:
         section.header_distance = docx.shared.Mm(12.7)
         section.footer_distance = docx.shared.Mm(12.7)
 
+        pstyles = [s for s in self.document.styles 
+                   if isinstance(s, docx.styles.style.ParagraphStyle)
+                   and not isinstance(s, docx.styles.style._TableStyle)]
+        ic(pstyles)
+
         # Modify styles.
         style = self.document.styles["Normal"]
         style.font.name = constants.DOCX_NORMAL_FONT
@@ -248,7 +253,7 @@ class Writer:
             constants.DOCX_NORMAL_LINE_SPACING
         )
 
-        # XXX Body Text
+        # "Body Text": used for TOC entries and for index pages.
         style = self.document.styles["Body Text"]
         style.paragraph_format.space_before = docx.shared.Pt(
             constants.DOCX_TOC_SPACE_BEFORE
@@ -277,14 +282,6 @@ class Writer:
             constants.DOCX_CODE_LINE_SPACING
         )
         style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_CODE_INDENT)
-
-        # # Create style for caption.
-        # style = self.document.styles.add_style(
-        #     CAPTION_STYLE, docx.enum.style.WD_STYLE_TYPE.PARAGRAPH
-        # )
-        # style.base_style = self.document.styles["Normal"]
-        # style.font.name = constants.DOCX_CAPTION_FONT
-        # style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_CAPTION_FONT_SIZE)
 
         # Set Dublin core metadata.
         self.document.core_properties.author = ", ".join(self.book.authors)
@@ -513,15 +510,15 @@ class Writer:
         self.write_heading(Tx("Index"), 1)
         items = sorted(self.indexed.items(), key=lambda i: i[0].lower())
         for canonical, entries in items:
-            paragraph = self.document.add_paragraph()
-            run = paragraph.add_run(canonical)
-            run.bold = True
-            paragraph.add_run("  ")
+            paragraph = self.document.add_paragraph(canonical, style="Body Text")
+            paragraph.paragraph_format.keep_with_next = True
             entries.sort(key=lambda e: e["ordinal"])
             for entry in entries:
-                paragraph.add_run(entry["heading"])
-                if entry is not entries[-1]:
-                    paragraph.add_run(", ")
+                paragraph = self.document.add_paragraph(entry["heading"], style="Body Text")
+                paragraph.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_INDEXED_INDENT)
+                # XXX
+                paragraph.paragraph_format.keep_with_next = True
+            paragraph.paragraph_format.space_after = docx.shared.Pt(constants.DOCX_INDEXED_SPACE_AFTER)
 
     def render_initialize(self):
         "Set up for rendering."
@@ -552,19 +549,19 @@ class Writer:
         self.write_heading(text, ast["level"])
 
     def render_paragraph(self, ast):
-        self.paragraph = self.document.add_paragraph()
+        self.current_paragraph = self.document.add_paragraph()
 
         if self.footnote_def_flag != 0:
-            self.paragraph.paragraph_format.left_indent = docx.shared.Pt(
+            self.current_paragraph.paragraph_format.left_indent = docx.shared.Pt(
                 constants.DOCX_FOOTNOTE_INDENT
             )
             if self.footnote_def_flag > 0:
-                self.paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
+                self.current_paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
                     constants.DOCX_FOOTNOTE_INDENT
                 )
-                run = self.paragraph.add_run(f"{self.footnote_def_flag}.")
+                run = self.current_paragraph.add_run(f"{self.footnote_def_flag}.")
                 run.bold = True
-                self.paragraph.add_run(" ")
+                self.current_paragraph.add_run(" ")
                 self.footnote_def_flag = -1
 
         if self.list_stack:
@@ -587,16 +584,16 @@ class Writer:
                 else:
                     style = self.document.styles[f"List Continue {levels}"]
             data["first_paragraph"] = False
-            self.paragraph.style = style
+            self.current_paragraph.style = style
         else:
-            self.paragraph.style = self.style_stack[-1]
+            self.current_paragraph.style = self.style_stack[-1]
         for child in ast["children"]:
             self.render(child)
 
     def render_raw_text(self, ast):
         line = ast["children"]
         line = line.rstrip("\n")
-        run = self.paragraph.add_run(line)
+        run = self.current_paragraph.add_run(line)
         if self.bold:
             run.font.bold = True
         if self.italic:
@@ -616,11 +613,11 @@ class Writer:
         self.style_stack.pop()
 
     def render_code_span(self, ast):
-        run = self.paragraph.add_run(ast["children"])
+        run = self.current_paragraph.add_run(ast["children"])
         run.style = self.document.styles["Macro Text Char"]
 
     def render_code_block(self, ast):
-        self.paragraph = self.document.add_paragraph(style="macro")
+        self.current_paragraph = self.document.add_paragraph(style="macro")
         self.style_stack.append("macro")
         for child in ast["children"]:
             self.render(child)
@@ -655,6 +652,7 @@ class Writer:
                 paragraph.paragraph_format.keep_with_next = True
                 self.style_stack.append("Normal")
                 self.render(markdown.to_ast(desc))
+                # self.current_paragraph.paragraph_style.left_indent = constants.DOCX_CAPTION_INDENT
                 self.style_stack.pop()
 
         # Output Vega-Lite specification as PNG.
@@ -679,7 +677,7 @@ class Writer:
 
         # Fenced code as is.
         else:
-            self.paragraph = self.document.add_paragraph(style="macro")
+            self.current_paragraph = self.document.add_paragraph(style="macro")
             self.style_stack.append("macro")
             for child in ast["children"]:
                 self.render(child)
@@ -710,13 +708,13 @@ class Writer:
         self.superscript = False
 
     def render_emdash(self, ast):
-        self.paragraph.add_run(constants.EM_DASH)
+        self.current_paragraph.add_run(constants.EM_DASH)
 
     def render_line_break(self, ast):
         if ast.get("soft"):
-            self.paragraph.add_run(" ")
+            self.current_paragraph.add_run(" ")
         else:
-            self.paragraph.add_run("\n")
+            self.current_paragraph.add_run("\n")
 
     def render_thematic_break(self, ast):
         paragraph = self.document.add_paragraph(constants.EM_DASH * 20)
@@ -728,7 +726,7 @@ class Writer:
         for child in ast["children"]:
             if child["element"] == "raw_text":
                 raw_text.append(child["children"])
-        self.add_hyperlink(self.paragraph, ast["dest"], "".join(raw_text))
+        self.add_hyperlink(self.current_paragraph, ast["dest"], "".join(raw_text))
 
     def render_list(self, ast):
         data = dict(
@@ -760,7 +758,7 @@ class Writer:
                 heading=self.current_text.heading,
             )
         )
-        run = self.paragraph.add_run(ast["term"])
+        run = self.current_paragraph.add_run(ast["term"])
         if self.indexed_font == constants.ITALIC:
             run.italic = True
         elif self.indexed_font == constants.BOLD:
@@ -784,7 +782,7 @@ class Writer:
             number = len(entries) + 1
             key = f"{fulltitle}-{label}"
         entries[key] = dict(label=label, number=number)
-        run = self.paragraph.add_run(str(number))
+        run = self.current_paragraph.add_run(str(number))
         run.font.superscript = True
         run.font.bold = True
 
@@ -808,7 +806,7 @@ class Writer:
     def render_reference(self, ast):
         if ast["id"] in self.references:
             self.referenced.add(ast["id"])
-            run = self.paragraph.add_run(ast["name"])
+            run = self.current_paragraph.add_run(ast["name"])
             if self.reference_font == constants.ITALIC:
                 run.italic = True
             elif self.reference_font == constants.BOLD:
@@ -816,7 +814,7 @@ class Writer:
             elif self.reference_font == constants.UNDERLINE:
                 run.underline = True
         else:
-            self.paragraph.add_run(f'??? no such refid {ast["name"]} ???')
+            self.current_paragraph.add_run(f'??? no such refid {ast["name"]} ???')
 
     # https://github.com/python-openxml/python-docx/issues/74#issuecomment-261169410
     def add_hyperlink(self, paragraph, url, text, color="2222FF", underline=True):

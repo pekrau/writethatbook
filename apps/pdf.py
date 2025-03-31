@@ -3,7 +3,6 @@
 import datetime
 import io
 import json
-import xml.etree.ElementTree
 
 import reportlab
 import reportlab.rl_config
@@ -12,6 +11,7 @@ from reportlab.lib.styles import *
 from reportlab.platypus import *
 from reportlab.platypus.tables import *
 from reportlab.platypus.tableofcontents import TableOfContents, SimpleIndex
+import svglib.svglib
 
 import PIL
 import vl_convert
@@ -25,6 +25,7 @@ import components
 import constants
 from errors import *
 import markdown
+import minixml
 import users
 import utils
 from utils import Tx
@@ -573,40 +574,87 @@ class Writer:
     def render_fenced_code(self, ast):
         "Fenced code may be SVG or Vega-Lite."
         content = ast["children"][0]["children"]
-        scale = 0.75  # Empirical scale factor...
+        scale_factor = 0.75  # Empirical scale factor...
 
-        # Output SVG as PNG.
+        # Output SVG as ReportLib graphics.
         if ast.get("lang") == "svg":
-            flowables = [HRFlowable(width="100%", color=GREY, spaceBefore=constants.PDF_IMAGE_SPACE, spaceAfter=4)]
-            root = xml.etree.ElementTree.fromstring(content)
-            # SVG content must contain root 'svg' element with xmlns; add if missing.
-            if root.tag == "svg":
-                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
-                root = xml.etree.ElementTree.fromstring(content)
-            pngdata = io.BytesIO(vl_convert.svg_to_png(content))
-            width, height = PIL.Image.open(pngdata).size
-            flowables.append(Image(pngdata, hAlign="LEFT", width=scale * width, height=scale * height))
-            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
-            if desc is None:
-                desc = ast.get("extra")
+            flowables = [self.get_hr()]
+            root = minixml.parse_content(content)
+            # The SVG root element must be 'svg' and have 'width' and 'height'.
+            assert root.tag == "svg"
+            assert "width" in root
+            assert "height" in root
+            # Root 'svg' element must contain xmlns; add if missing.
+            if "xmlns" not in root:
+                root["xmlns"] = constants.XMLNS_SVG
+            # Set viewbox so that scaling behaves.
+            root["viewBox"] = f"0 0 {root['width']} {root['height']}"
+            # Scale width and height in SVG element.
+            root["width"] = scale_factor * float(root["width"])
+            root["height"] = scale_factor * float(root["height"])
+            # Create graphics drawing from updated SVG content.
+            flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
+            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            if desc:
+                desc = desc[0].text
             else:
-                desc = desc.text
+                desc = ast.get("extra")
             if desc:
                 self.caption = True
                 self.para_push()
                 self.render(markdown.to_ast(desc))
                 flowables.append(self.caption)
                 self.caption = None
-            flowables.append(HRFlowable(width="100%", color=GREY, spaceBefore=4, spaceAfter=constants.PDF_IMAGE_SPACE))
+            flowables.append(self.get_hr())
             self.flowables.append(KeepTogether(flowables))
 
-        # Output Vega-Lite specification as PNG.
-        elif ast.get("lang") == "vega-lite":
-            flowables = [HRFlowable(width="100%", color=GREY, spaceBefore=constants.PDF_IMAGE_SPACE, spaceAfter=4)]
-            vl_spec = json.loads(content)
-            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+        # Output SVG as PNG.
+        elif ast.get("lang") == "svg-png":
+            flowables = [self.get_hr()]
+            root = minixml.parse_content(content)
+            # The SVG root element must be 'svg' and have 'width' and 'height'.
+            assert root.tag == "svg"
+            assert "width" in root
+            assert "height" in root
+            # Root 'svg' element must contain xmlns; add if missing.
+            if "xmlns" not in root:
+                root["xmlns"] = constants.XMLNS_SVG
+            # Create PNG from the updated content.
+            pngdata = io.BytesIO(vl_convert.svg_to_png(repr(root)))
             width, height = PIL.Image.open(pngdata).size
-            flowables.append(Image(pngdata, hAlign="LEFT", width=scale * width, height=scale * height))
+            flowables.append(
+                Image(
+                    pngdata,
+                    hAlign="LEFT",
+                    width=scale_factor * width,
+                    height=scale_factor * height,
+                )
+            )
+            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            if desc:
+                desc = desc[0].text
+            else:
+                desc = ast.get("extra")
+            if desc:
+                self.caption = True
+                self.para_push()
+                self.render(markdown.to_ast(desc))
+                flowables.append(self.caption)
+                self.caption = None
+            flowables.append(self.get_hr())
+            self.flowables.append(KeepTogether(flowables))
+
+        # Output Vega-Lite specification as ReportLib graphics.
+        elif ast.get("lang") == "vega-lite":
+            flowables = [self.get_hr()]
+            vl_spec = json.loads(content)
+            root = minixml.parse_content(vl_convert.vegalite_to_svg(vl_spec))
+            # Scale width and height in SVG element.
+            root["width"] = scale_factor * float(root["width"])
+            root["height"] = scale_factor * float(root["height"])
+
+            # Create graphics drawing from updated SVG content.
+            flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
             desc = vl_spec.get("description")
             if not desc:
                 desc = ast.get("extra")
@@ -616,7 +664,33 @@ class Writer:
                 self.render(markdown.to_ast(desc))
                 flowables.append(self.caption)
                 self.caption = None
-            flowables.append(HRFlowable(width="100%", color=GREY, spaceBefore=4, spaceAfter=constants.PDF_IMAGE_SPACE))
+            flowables.append(self.get_hr())
+            self.flowables.append(KeepTogether(flowables))
+
+        # Output Vega-Lite specification as PNG.
+        elif ast.get("lang") == "vega-lite-png":
+            flowables = [self.get_hr()]
+            vl_spec = json.loads(content)
+            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
+            width, height = PIL.Image.open(pngdata).size
+            flowables.append(
+                Image(
+                    pngdata,
+                    hAlign="LEFT",
+                    width=scale_factor * width,
+                    height=scale_factor * height,
+                )
+            )
+            desc = vl_spec.get("description")
+            if not desc:
+                desc = ast.get("extra")
+            if desc:
+                self.caption = True
+                self.para_push()
+                self.render(markdown.to_ast(desc))
+                flowables.append(self.caption)
+                self.caption = None
+            flowables.append(self.get_hr())
             self.flowables.append(KeepTogether(flowables))
 
         # Fenced code as is.
@@ -627,6 +701,14 @@ class Writer:
                 self.render(child)
             self.para_pop("Code", preformatted=True)
             self.within_code = False
+
+    def get_hr(self):
+        return HRFlowable(
+            width="100%",
+            color=GREY,
+            spaceBefore=4,
+            spaceAfter=constants.PDF_IMAGE_SPACE,
+        )
 
     def render_emphasis(self, ast):
         self.para_text("<i>")

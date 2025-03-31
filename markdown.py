@@ -2,7 +2,6 @@
 
 import json
 import re
-import xml.etree.ElementTree
 
 import marko
 import marko.ast_renderer
@@ -13,6 +12,7 @@ import vl_convert
 import yaml
 
 import constants
+import minixml
 import utils
 from utils import Tx
 
@@ -131,25 +131,11 @@ class FencedCodeRenderer:
         content = element.children[0].children
 
         # SVG content must contain the root 'svg' element with xmlns.
-        if element.lang == "svg":
-            root = xml.etree.ElementTree.fromstring(content)
-            # SVG content must contain the root 'svg' element with xmlns.
-            # Add it if missing.
-            if root.tag == "svg":
-                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
-                root = xml.etree.ElementTree.fromstring(content)
-            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
-            if desc:
-                desc = desc.text
-            else:
-                desc = element.extra
-            if desc:
-                return f"<article>\n{content}\n<footer>{to_html(desc)}</footer>\n</article>\n"
-            else:
-                return f"<article>\n{content}\n</article>\n"
+        if element.lang in ("svg", "svg-png"):
+            return self.parse_svg(content, element)
 
         # Output Vega-Lite specification as SVG.
-        elif element.lang == "vega-lite":
+        elif element.lang in ("vega-lite", "vega-lite-png"):
             try:
                 spec = json.loads(content)
             except json.JSONDecodeError as error:
@@ -158,18 +144,40 @@ class FencedCodeRenderer:
                 svg = vl_convert.vegalite_to_svg(spec)
             except ValueError as error:
                 return f"<article>Error converting to SVG: {error}</article>"
-            try:
-                desc = spec["description"]
-            except KeyError:
-                desc = element.extra
-            if desc:
-                return f"<article>\n{svg}\n<footer>{to_html(desc)}</footer></article>\n"
-            else:
-                return f"<article>\n{svg}\n</article>\n"
+            return self.parse_svg(svg, element)
 
         # All other fenced code.
         else:
             return super().render_fenced_code(element)
+
+    def parse_svg(self, content, element):
+        try:
+            root = minixml.parse_content(content)
+            if root.tag != "svg":
+                raise ValueError("XML root element must be 'svg'.")
+            for key in ["width", "height"]:
+                if key not in root:
+                    raise ValueError(f"XML 'svg' element must contain attribute '{key}'.")
+                try:
+                    value = float(root[key])
+                    if value <= 0:
+                        raise ValueError
+                except ValueError:
+                    raise ValueError(f"XML 'svg' attribute '{key}' must be positive number.")
+            # Root 'svg' element must contain xmlns; add if missing.
+            if "xmlns" not in root:
+                root["xmlns"] = constants.XMLNS_SVG
+            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            if desc:
+                desc = desc[0].text
+            else:
+                desc = element.extra
+            if desc:
+                return f"<article>\n{content}\n<footer>{to_html(desc)}</footer>\n</article>\n"
+            else:
+                return f"<article>\n{content}\n</article>\n"
+        except ValueError as error:
+            return f"<article>Error handling SVG: {error}</article>"
 
 
 def to_ast(content):

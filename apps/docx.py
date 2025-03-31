@@ -240,9 +240,12 @@ class Writer:
         section.header_distance = docx.shared.Mm(12.7)
         section.footer_distance = docx.shared.Mm(12.7)
 
-        pstyles = [s for s in self.document.styles 
-                   if isinstance(s, docx.styles.style.ParagraphStyle)
-                   and not isinstance(s, docx.styles.style._TableStyle)]
+        pstyles = [
+            s
+            for s in self.document.styles
+            if isinstance(s, docx.styles.style.ParagraphStyle)
+            and not isinstance(s, docx.styles.style._TableStyle)
+        ]
         ic(pstyles)
 
         # Modify styles.
@@ -514,11 +517,17 @@ class Writer:
             paragraph.paragraph_format.keep_with_next = True
             entries.sort(key=lambda e: e["ordinal"])
             for entry in entries:
-                paragraph = self.document.add_paragraph(entry["heading"], style="Body Text")
-                paragraph.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_INDEXED_INDENT)
-                # XXX
-                paragraph.paragraph_format.keep_with_next = True
-            paragraph.paragraph_format.space_after = docx.shared.Pt(constants.DOCX_INDEXED_SPACE_AFTER)
+                paragraph = self.document.add_paragraph(
+                    entry["heading"], style="Body Text"
+                )
+                paragraph.paragraph_format.left_indent = docx.shared.Pt(
+                    constants.DOCX_INDEXED_INDENT
+                )
+                if entry is not entries[-1]:
+                    paragraph.paragraph_format.keep_with_next = True
+            paragraph.paragraph_format.space_after = docx.shared.Pt(
+                constants.DOCX_INDEXED_SPACE_AFTER
+            )
 
     def render_initialize(self):
         "Set up for rendering."
@@ -556,8 +565,8 @@ class Writer:
                 constants.DOCX_FOOTNOTE_INDENT
             )
             if self.footnote_def_flag > 0:
-                self.current_paragraph.paragraph_format.first_line_indent = -docx.shared.Pt(
-                    constants.DOCX_FOOTNOTE_INDENT
+                self.current_paragraph.paragraph_format.first_line_indent = (
+                    -docx.shared.Pt(constants.DOCX_FOOTNOTE_INDENT)
                 )
                 run = self.current_paragraph.add_run(f"{self.footnote_def_flag}.")
                 run.bold = True

@@ -96,7 +96,6 @@ async def post(request, title: str, tgzfile: UploadFile):
 @rt("/{book:Book}")
 def get(request, book: Book, position: int = None):
     "Display book; contents list of sections and texts."
-    ic(book)
     auth.authorize(request, *auth.book_view_rules, book=book)
 
     if auth.authorized(request, *auth.book_edit_rules, book=book):

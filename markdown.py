@@ -4,6 +4,7 @@ import json
 import re
 
 import marko
+import marko.html_renderer
 import marko.ast_renderer
 import marko.inline
 import marko.helpers
@@ -130,9 +131,9 @@ class FencedCodeRenderer:
     def render_fenced_code(self, element):
         content = element.children[0].children
 
-        # SVG content must contain the root 'svg' element with xmlns.
+        # Output SVG after a few checks.
         if element.lang in ("svg", "svg-png"):
-            return self.parse_svg(content, element)
+            return self.write_svg(content, element)
 
         # Output Vega-Lite specification as SVG.
         elif element.lang in ("vega-lite", "vega-lite-png"):
@@ -144,30 +145,36 @@ class FencedCodeRenderer:
                 svg = vl_convert.vegalite_to_svg(spec)
             except ValueError as error:
                 return f"<article>Error converting to SVG: {error}</article>"
-            return self.parse_svg(svg, element)
+            return self.write_svg(svg, element)
 
         # All other fenced code.
         else:
             return super().render_fenced_code(element)
 
-    def parse_svg(self, content, element):
+    def write_svg(self, content, element):
+        "Output SVG after a few checks."
+        # SVG content must contain the root 'svg' element with xmlns.
         try:
             root = minixml.parse_content(content)
             if root.tag != "svg":
                 raise ValueError("XML root element must be 'svg'.")
             for key in ["width", "height"]:
                 if key not in root:
-                    raise ValueError(f"XML 'svg' element must contain attribute '{key}'.")
+                    raise ValueError(
+                        f"XML 'svg' element must contain attribute '{key}'."
+                    )
                 try:
                     value = float(root[key])
                     if value <= 0:
                         raise ValueError
                 except ValueError:
-                    raise ValueError(f"XML 'svg' attribute '{key}' must be positive number.")
+                    raise ValueError(
+                        f"XML 'svg' attribute '{key}' must be positive number."
+                    )
             # Root 'svg' element must contain xmlns; add if missing.
             if "xmlns" not in root:
                 root["xmlns"] = constants.XMLNS_SVG
-            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
             if desc:
                 desc = desc[0].text
             else:
@@ -178,6 +185,25 @@ class FencedCodeRenderer:
                 return f"<article>\n{content}\n</article>\n"
         except ValueError as error:
             return f"<article>Error handling SVG: {error}</article>"
+
+
+class Editbutton(marko.inline.InlineElement):
+    "Markdown extension for paragraph edit button marker."
+
+    pattern = re.compile(r"!!!([^ ]+) ([0-9]+) ([0-9]+)!!!")
+    parse_children = False
+
+    def __init__(self, match):
+        self.href = match.group(1)
+        self.first = match.group(2)
+        self.last = match.group(3)
+
+
+class EditbuttonRenderer:
+    "Output paragraph edit button."
+
+    def render_editbutton(self, element):
+        return f' <a href="{element.href}?first={element.first}&last={element.last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
 
 
 def to_ast(content):
@@ -192,19 +218,65 @@ def to_ast(content):
     return converter.convert(content)
 
 
-POSITION = "!!position!!"
+POSITION = "!!POSITION!!"
+CODE_BLOCK_PREFIX = "    "
+
+
+class Position(marko.inline.InlineElement):
+    "Markdown extension for edit position marker."
+
+    pattern = re.compile(f"({POSITION})")
+    parse_children = False
+
+
+class PositionRenderer:
+    "Output position marker."
+
+    def render_position(self, element):
+        return '<span id="position"></span>'
+
+
 NEW_PARAGRAPH_RX = re.compile(r"\n\n")
-EDIT_BUTTON_RX = re.compile(r"!!([^ ]+) ([0-9]+) ([0-9]+)!!")
+
+
+class HtmlRenderer(marko.html_renderer.HTMLRenderer):
+    "Modify unordered list bullet display. XXX Doesn't work on Chrome?"
+
+    def render_list(self, element):
+        if element.ordered:
+            tag = "ol"
+            extra = f' start="{element.start}"' if element.start != 1 else ""
+        else:
+            tag = "ul"
+            if element.bullet == "-":
+                extra = ' style="list-style-type: disc;"'
+            elif element.bullet == "*":
+                extra = ' style="list-style-type: square;"'
+            elif element.bullet == "+":
+                extra = ' style="list-style-type: circle;"'
+            else:
+                extra = ""
+        return "<{tag}{extra}>\n{children}</{tag}>\n".format(
+            tag=tag, extra=extra, children=self.render_children(element)
+        )
 
 
 def to_html(content, book=None, position=None, edit_href=None):
     global _current_book  # Required for index links.
     # Create new converter instance.
-    converter = marko.Markdown()
+    converter = marko.Markdown(renderer=HtmlRenderer)
     converter.use("footnote")
     converter.use(
         marko.helpers.MarkoExtension(
-            elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+            elements=[
+                Subscript,
+                Superscript,
+                Emdash,
+                Indexed,
+                Reference,
+                Editbutton,
+                Position,
+            ],
             renderer_mixins=[
                 SubscriptRenderer,
                 SuperscriptRenderer,
@@ -213,31 +285,29 @@ def to_html(content, book=None, position=None, edit_href=None):
                 ReferenceRenderer,
                 ThematicBreakRenderer,
                 FencedCodeRenderer,
+                EditbuttonRenderer,
+                PositionRenderer,
             ],
         )
     )
-    # Insert the position marker before converting to HTML, to get the position right.
-    if position is not None:  # Note: extra newline needed for fenced block!
-        content = content[:position] + POSITION + "\n" + content[position:]
+    # Insert the position marker, if any.
+    if position is not None:
+        # Handle code block special case.
+        if content[position:].startswith(CODE_BLOCK_PREFIX):
+            content = content[:position] + POSITION + "\n\n" + content[position:]
+        else:
+            # Add newline to handle beginning of block.
+            content = content[:position] + POSITION + "\n" + content[position:]
+    # Insert the edit button markers, if any.
     if edit_href:
-        content = AddEditButtons(content, edit_href).processed
+        content = AddEditbuttons(content, edit_href).processed
     if book is not None:
         _current_book = book  # Required for index links generated in the next call.
-    html = converter.convert(content)
-    # Replace the position marker with a proper invisible HTML construct.
-    html = html.replace(POSITION, '<span id="position"></span>')
-    # Replace the edit button markers with proper HTML links.
-    if edit_href:
-        html = EDIT_BUTTON_RX.sub(get_edit_button, html)
-    return html
+    return converter.convert(content)
 
 
-def get_edit_button(match):
-    return f' <a href="{match.group(1)}?first={match.group(2)}&last={match.group(3)}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
-
-
-class AddEditButtons:
-    "Add edit button marker to each paragraph."
+class AddEditbuttons:
+    "Add edit button marker to the end of each paragraph."
 
     def __init__(self, content, edit_href):
         self.edit_href = edit_href
@@ -249,21 +319,24 @@ class AddEditButtons:
         except ValueError:
             self.position = None
         self.first = 0
-        self.processed = NEW_PARAGRAPH_RX.sub(self, self.content)
+        self.processed = NEW_PARAGRAPH_RX.sub(self.add_marker, self.content)
 
-    def __call__(self, match):
+    def add_marker(self, match):
         self.last = match.start()
         result = self.get_marker(self.first, self.last)
         self.first = match.end()
-        if self.first > 4 and self.content[self.first - 5 : self.first] == "```\n\n":
-            return "\n" + result
-        else:
-            return result
+        return "\n" + result
 
     def get_marker(self, first, last):
         # Handle the offset produced by the POSITION marker.
-        if self.position is not None and first > self.position:
-            offset = len(POSITION) + 1  # Deal with that extra newline.
-            first -= offset
-            last -= offset
-        return f"\n!!{self.edit_href} {first} {last}!!\n\n"
+        if self.position is not None:
+            offset = len(POSITION)
+            offset += 1  # Add one for newline for fenced block.
+            if first > self.position:
+                first -= offset
+            if last > self.position:
+                last -= offset
+        if last < 0:
+            return ""
+        else:
+            return f"!!!{self.edit_href} {first} {last}!!!\n\n"

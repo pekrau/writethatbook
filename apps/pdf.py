@@ -594,7 +594,7 @@ class Writer:
             root["height"] = scale_factor * float(root["height"])
             # Create graphics drawing from updated SVG content.
             flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
-            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
             if desc:
                 desc = desc[0].text
             else:
@@ -630,7 +630,7 @@ class Writer:
                     height=scale_factor * height,
                 )
             )
-            desc = list(root.walk(lambda e: e.tag=="desc" and e.depth==1))
+            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
             if desc:
                 desc = desc[0].text
             else:

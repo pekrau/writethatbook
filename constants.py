@@ -6,7 +6,7 @@ from pathlib import Path
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 16, 0)
+VERSION = (1, 17, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -121,6 +121,8 @@ REFS_LINKS = dict(
 )
 MAX_DISPLAY_AUTHORS = 4
 
+IMGS = "_imgs"
+
 NORMAL = "normal"
 ITALIC = "italic"
 BOLD = "bold"
@@ -138,13 +140,24 @@ FOOTNOTES_LOCATIONS = (
     FOOTNOTES_END_OF_BOOK,
 )
 
-DOCX_MIMETYPE = (
+DOCX_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
-PDF_MIMETYPE = "application/pdf"
-GZIP_MIMETYPE = "application/gzip"
+PDF_CONTENT_TYPE = "application/pdf"
+GZIP_CONTENT_TYPE = "application/gzip"
+SVG_CONTENT_TYPE = "image/svg+xml"
+JSON_CONTENT_TYPE = "application/json"
+JPEG_CONTENT_TYPE = "image/jpeg"
+PNG_CONTENT_TYPE = "image/png"
 
-XMLNS_SVG = "http://www.w3.org/2000/svg"
+IMAGE_MAP = {
+    SVG_CONTENT_TYPE: "SVG",
+    JSON_CONTENT_TYPE: "Vega-Lite",
+    JPEG_CONTENT_TYPE: "JPEG",
+    PNG_CONTENT_TYPE: "PNG",
+}
+
+SVG_XMLNS = "http://www.w3.org/2000/svg"
 
 DOCX_MAX_PAGE_BREAK_LEVEL = 4
 DOCX_MAX_TOC_LEVEL = 4

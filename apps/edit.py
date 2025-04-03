@@ -19,7 +19,7 @@ app, rt = components.get_fast_app()
 @rt("/{book:Book}")
 def get(request, book: Book, first: int = None, last: int = None):
     "Edit the book data, possibly one single paragraph of the content."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     # Digest of content only, not frontmatter!
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(book.content))]
@@ -145,7 +145,7 @@ def get(request, book: Book, first: int = None, last: int = None):
 @rt("/{book:Book}")
 def post(request, book: Book, form: dict):
     "Actually edit the book data."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     if form.get("digest") != utils.get_digest(book.content):
         raise Error("text content changed while editing")
@@ -188,7 +188,7 @@ def post(request, book: Book, form: dict):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, first: int = None, last: int = None):
     "Edit the item (section or text), possibly one single paragraph of the content.."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(item.content))]
@@ -271,7 +271,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
 @rt("/{book:Book}/{path:path}")
 def post(request, book: Book, path: str, form: dict):
     "Actually edit the item (section or text)."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     if form.get("digest") != utils.get_digest(item.content):

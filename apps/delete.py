@@ -14,7 +14,7 @@ app, rt = components.get_fast_app()
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Confirm deleting the book."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     if book.items or book.content:
         segments = [P(Strong(Tx("Note: all contents will be lost!")))]
@@ -42,7 +42,7 @@ def get(request, book: Book):
 @rt("/{book:Book}")
 def post(request, book: Book):
     "Actually delete the book, even if it contains items."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
     book.delete(force=True)
     return components.redirect("/")
 
@@ -50,7 +50,7 @@ def post(request, book: Book):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
     "Confirm delete of the text or section."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     if len(item.items) != 0 or item.content:
@@ -79,6 +79,6 @@ def get(request, book: Book, path: str):
 @rt("/{book:Book}/{path:path}")
 def post(request, book: Book, path: str):
     "Delete the text or section."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
     book[path].delete(force=True)
     return components.redirect(f"/book/{book}")

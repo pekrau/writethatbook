@@ -46,7 +46,7 @@ def get(request):
 
 @rt(f"/{constants.REFS}")
 def get(request):
-    auth.authorize(request, *auth.book_view_rules)
+    auth.authorize(request, *auth.book_view)
     result = get_general_state()
     result.update(get_refs().state)
     return result
@@ -55,7 +55,7 @@ def get(request):
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Return JSON for the state of the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
     result = get_general_state()
     result.update(book.state)
     return result

@@ -41,7 +41,7 @@ app, rt = components.get_fast_app()
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Get the parameters for downloading the book as PDF file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     title_page_metadata = bool(settings.get("title_page_metadata", False))
@@ -161,7 +161,7 @@ def get(request, book: Book):
 @rt("/{book:Book}")
 def post(request, book: Book, form: dict):
     "Actually download the book as PDF file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
@@ -175,12 +175,12 @@ def post(request, book: Book, form: dict):
     settings["indexed_font"] = form.get("indexed_font", constants.NORMAL)
 
     # Save settings.
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit, book=book):
         book.write()
 
     return Response(
         content=BookWriter(book).get_content(),
-        media_type=constants.PDF_MIMETYPE,
+        media_type=constants.PDF_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{book.title}.pdf"'},
     )
 
@@ -188,7 +188,7 @@ def post(request, book: Book, form: dict):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
     "Download the item as a PDF file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
 
@@ -198,7 +198,7 @@ def get(request, book: Book, path: str, position: int = None):
     item = book[path]
     return Response(
         content=ItemWriter(book).get_content(item),
-        media_type=constants.PDF_MIMETYPE,
+        media_type=constants.PDF_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{item.title}.pdf"'},
     )
 
@@ -586,7 +586,7 @@ class Writer:
             assert "height" in root
             # Root 'svg' element must contain xmlns; add if missing.
             if "xmlns" not in root:
-                root["xmlns"] = constants.XMLNS_SVG
+                root["xmlns"] = constants.SVG_XMLNS
             # Set viewbox so that scaling behaves.
             root["viewBox"] = f"0 0 {root['width']} {root['height']}"
             # Scale width and height in SVG element.
@@ -618,7 +618,7 @@ class Writer:
             assert "height" in root
             # Root 'svg' element must contain xmlns; add if missing.
             if "xmlns" not in root:
-                root["xmlns"] = constants.XMLNS_SVG
+                root["xmlns"] = constants.SVG_XMLNS
             # Create PNG from the updated content.
             pngdata = io.BytesIO(vl_convert.svg_to_png(repr(root)))
             width, height = PIL.Image.open(pngdata).size

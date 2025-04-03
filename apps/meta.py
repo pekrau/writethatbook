@@ -143,7 +143,7 @@ def get(request):
 @rt("/index/{book:Book}")
 def get(request, book: Book):
     "Display the indexed terms of the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     items = []
     for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].lower()):
@@ -172,7 +172,7 @@ def get(request, book: Book):
 @rt("/recent/{book:Book}")
 def get(request, book: Book):
     "Display the most recently modified items in the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     items = sorted(list(book), key=lambda i: i.modified, reverse=True)
     items = items[: constants.MAX_RECENT]
@@ -200,7 +200,7 @@ def get(request, book: Book):
 @rt("/info/{book:Book}")
 def get(request, book: Book):
     "Display information about the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     segments = [H3(book.title)]
     if book.subtitle:
@@ -209,7 +209,7 @@ def get(request, book: Book):
         segments.append(H5(author))
 
     owner = users.get(book.owner)
-    if auth.authorized(request, *auth.user_view_rules, user=owner):
+    if auth.authorized(request, *auth.user_view, user=owner):
         owner = A(owner.name or owner.id, href=f"/user/view/{owner}")
     else:
         owner = owner.name or owner.id
@@ -238,7 +238,7 @@ def get(request, book: Book):
 @rt("/status/{book:Book}")
 def get(request, book: Book):
     "List each status and texts of the book in it."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     rows = [
         Tr(

@@ -115,7 +115,7 @@ class ReferenceRenderer:
     "Output a link to the reference page and item."
 
     def render_reference(self, element):
-        return f'<strong><a href="/refs/{element.id}">{element.name}</a></strong>'
+        return f'<strong><a href="/refs/view/{element.id}">{element.name}</a></strong>'
 
 
 class ThematicBreakRenderer:
@@ -173,7 +173,7 @@ class FencedCodeRenderer:
                     )
             # Root 'svg' element must contain xmlns; add if missing.
             if "xmlns" not in root:
-                root["xmlns"] = constants.XMLNS_SVG
+                root["xmlns"] = constants.SVG_XMLNS
             desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
             if desc:
                 desc = desc[0].text

@@ -39,10 +39,10 @@ def get(request):
     auth.allow_anyone(request)
 
     tools = []
-    if auth.authorized(request, *auth.book_create_rules):
+    if auth.authorized(request, *auth.book_create):
         tools.append(["Create or upload book", "/book"])
         tools.append(["Reread books", "/reread"])
-    if auth.authorized(request, *auth.book_diff_rules):
+    if auth.authorized(request, *auth.book_diff):
         tools.append(["Differences", f"/diff"])
 
     title = Tx("Books")
@@ -74,7 +74,7 @@ def get(request):
 @rt("/reread/{book:Book}")
 def get(request, book: books.Book, path: str = None):
     # Do not allow anyone to burden the server with reread.
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
     book = books.get_book(book.id, reread=True)
     href = f"/book/{book}"
     if path:
@@ -95,7 +95,7 @@ def get(request):
 
     return Response(
         content=buffer.getvalue(),
-        media_type=constants.GZIP_MIMETYPE,
+        media_type=constants.GZIP_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -103,13 +103,13 @@ def get(request):
 @rt("/tgz/{book:Book}")
 def get(request, book: books.Book):
     "Download a gzipped tar file of the book."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
 
     return Response(
         content=book.get_tgz_content(),
-        media_type=constants.GZIP_MIMETYPE,
+        media_type=constants.GZIP_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

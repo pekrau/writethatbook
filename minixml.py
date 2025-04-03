@@ -29,6 +29,7 @@ class Element:
     "XML element. Contains a reference to superelement and subelements (if any)."
 
     repr_indent = 2
+    xml_decl = True
 
     def __init__(self, tag, **attrs):
         self.tag = tag
@@ -53,7 +54,9 @@ class Element:
     def __repr__(self):
         "Return the string representation of the element and its subelements."
         outfile = io.StringIO()
-        self.serialize(outfile, indent=self.repr_indent, xmldecl=self.depth == 0)
+        self.serialize(
+            outfile, indent=self.repr_indent, xml_decl=self.xml_decl and self.depth == 0
+        )
         return outfile.getvalue()
 
     def __getitem__(self, key):
@@ -192,9 +195,9 @@ class Element:
                 continue
             yield from subelement.walk(test=test)
 
-    def serialize(self, outfile, indent=None, xmldecl=False):
+    def serialize(self, outfile, indent=None, xml_decl=False):
         "Serialize the XML element and its subelements into the open file object."
-        if xmldecl:
+        if xml_decl:
             outfile.write(f'<?xml version="1.0"?>\n')
         if indent is None:
             padding = ""
@@ -209,7 +212,8 @@ class Element:
             newline = False
             for elem in self:
                 if isinstance(elem, Element):
-                    outfile.write("\n")
+                    if indent:
+                        outfile.write("\n")
                     elem.serialize(outfile, indent=indent)
                     newline = True
                 elif isinstance(elem, str):
@@ -219,7 +223,8 @@ class Element:
                     outfile.write(xml.sax.saxutils.escape(str(elem)))
                     newline = False
             if newline:
-                outfile.write("\n")
+                if indent:
+                    outfile.write("\n")
                 outfile.write(padding)
             outfile.write(f"</{self.tag}>")
         else:

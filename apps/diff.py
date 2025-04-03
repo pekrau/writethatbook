@@ -23,7 +23,7 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Compare local site with the remote site. References are excluded."
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.book_diff)
 
     remote_state = get_remote_state()
     if not remote_state:
@@ -143,7 +143,7 @@ def get(request, id: str):
     """Compare local book with the remote site book.
     One of them may not exist.
     """
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.book_diff)
 
     if not id:
         raise Error("book id may not be empty")
@@ -367,7 +367,7 @@ def item_diff(ritem, riurl, litem, liurl):
 @rt("/pull/{id:str}")
 def post(request, id: str):
     "Update book at this site by downloading it from the remote site."
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.book_diff)
 
     if not id:
         raise Error("no book id provided")
@@ -383,7 +383,7 @@ def post(request, id: str):
 
     if response.status_code != HTTP.OK:
         raise Error(f"remote error: {response.content}")
-    if response.headers["Content-Type"] != constants.GZIP_MIMETYPE:
+    if response.headers["Content-Type"] != constants.GZIP_CONTENT_TYPE:
         raise Error("invalid file type from remote")
     content = response.content
     if not content:
@@ -418,7 +418,7 @@ def post(request, id: str):
 @rt("/push/{id:str}")
 def post(request, id: str):
     "Update book at the remote site by uploading it from this site."
-    auth.authorize(request, *auth.book_diff_rules)
+    auth.authorize(request, *auth.book_diff)
 
     if not id:
         raise Error("book id may not be empty")
@@ -435,7 +435,7 @@ def post(request, id: str):
     response = requests.post(
         url,
         headers=headers,
-        files=dict(tgzfile=("tgzfile", content, constants.GZIP_MIMETYPE)),
+        files=dict(tgzfile=("tgzfile", content, constants.GZIP_CONTENT_TYPE)),
     )
     if response.status_code != HTTP.OK:
         raise Error(f"remote did not accept push: {response.content}")
@@ -446,7 +446,7 @@ def post(request, id: str):
 @rt("/receive/{id:str}")
 async def post(request, id: str, tgzfile: UploadFile = None):
     "Update book at local site by another site uploading it."
-    auth.authorize(request, *auth.receive_diff_rules)
+    auth.authorize(request, *auth.receive_diff)
 
     if not id:
         raise Error("book id may not be empty")

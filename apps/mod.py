@@ -14,7 +14,7 @@ app, rt = components.get_fast_app()
 @rt("/append/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
     "Append to the content of the item (book, text or section)."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     if path:
         item = book[path]
@@ -41,7 +41,7 @@ def get(request, book: Book, path: str):
 @rt("/append/{book:Book}/{path:path}")
 def post(request, book: Book, path: str, content: str):
     "Actually append to the content of the item (book, text or section)."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     if path:
         item = book[path]
@@ -62,7 +62,7 @@ def post(request, book: Book, path: str, content: str):
 @rt("/merge/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
     "Join all items from this and below into a single text."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     if not item.is_section:
@@ -89,7 +89,7 @@ def get(request, book: Book, path: str):
 @rt("/merge/{book:Book}/{path:path}")
 def post(request, book: Book, path: str):
     "Actually join all items from this and below into a single text."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
     book.merge(path)
     return components.redirect(f"/book/{book}/{path}")
 
@@ -97,7 +97,7 @@ def post(request, book: Book, path: str):
 @rt("/split/{book:Book}/{path:path}")
 def get(request, book: Book, path: str):
     "Split this text into section with texts below."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     if not item.is_text:
@@ -124,6 +124,6 @@ def get(request, book: Book, path: str):
 @rt("/split/{book:Book}/{path:path}")
 def post(request, book: Book, path: str):
     "Actually split this text into section with texts below."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
     book.split(path)
     return components.redirect(f"/book/{book}/{path}")

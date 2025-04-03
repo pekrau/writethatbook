@@ -105,21 +105,21 @@ class Deny:
 
 
 # Access rule sets.
-user_view_rules = [
+user_view = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
+    Allow({"var": "current_user.is_admin"}),
 ]
 
 
-user_edit_rules = [
+user_edit = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "current_user"}, {"var": "user"}]}),
-    Allow({"==": [{"var": "current_user.role"}, {"var": "constants.ADMIN_ROLE"}]}),
+    Allow({"var": "current_user.is_admin"}),
 ]
 
 
-book_view_rules = [
+book_view = [
     Allow({"var": "book.public"}),
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
@@ -127,44 +127,67 @@ book_view_rules = [
 ]
 
 
-book_create_rules = [
+book_create = [
     Allow({"bool": {"var": "current_user"}}),
 ]
 
 
-book_edit_rules = [
+book_edit = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
     Allow({"var": "current_user.is_admin"}),
 ]
 
 
-refs_add_rules = [
+refs_edit = [  # References book.
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be less restrictive?! Define and use ownership of each ref?
+    # XXX Should be less restrictive. Ownership of reference.
     Allow({"var": "current_user.is_admin"}),
 ]
 
 
-refs_edit_rules = [
+ref_add = [  # Reference item.
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be less restrictive?! Define and use ownership of each ref?
+    # XXX Should be less restrictive. Ownership of reference.
     Allow({"var": "current_user.is_admin"}),
 ]
 
-ref_edit_rules = [
+
+ref_edit = [  # Reference item.
     Deny({"not": {"var": "current_user"}}),
+    # XXX Should be less restrictive. Ownership of reference.
     Allow({"var": "current_user.is_admin"}),
 ]
 
-book_diff_rules = [
+img_view = [
+    Allow({"var": "img.public"}),
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be less restrictive. Ownership of image.
+    Allow({"var": "current_user.is_admin"}),
+]
+
+img_add = [
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be less restrictive. Ownership of image.
+    Allow({"var": "current_user.is_admin"}),
+]
+
+
+img_edit = [
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be less restrictive. Ownership of image.
+    Allow({"var": "current_user.is_admin"}),
+]
+
+
+book_diff = [
     Deny({"not": {"var": "current_user"}}),
     Deny({"not": {"in": ["WRITETHATBOOK_REMOTE_SITE", {"var": "environ"}]}}),
     Allow({"var": "current_user.is_admin"}),
     Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
 ]
 
-receive_diff_rules = [
+receive_diff = [
     Deny({"not": {"var": "current_user"}}),
     Allow({"var": "current_user.is_admin"}),
 ]

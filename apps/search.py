@@ -16,7 +16,7 @@ app, rt = components.get_fast_app()
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Form for searching the book for a given term."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     title = f"{Tx('Search in')} {Tx('book')}"
     return (
@@ -32,7 +32,7 @@ def get(request, book: Book):
 @rt("/{book:Book}")
 def post(request, book: Book, form: dict):
     "Actually search the book for a given term."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     term = form.get("term")
     if term:

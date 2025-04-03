@@ -130,7 +130,7 @@ def get(request):
 @rt("/view/{user:User}")
 def get(request, user: users.User):
     "User account page."
-    auth.authorize(request, *auth.user_view_rules, user=user)
+    auth.authorize(request, *auth.user_view, user=user)
 
     books = [b for b in get_books(request) if b.owner == user.id]
 
@@ -181,7 +181,7 @@ def get(request, user: users.User):
 @rt("/edit/{user:User}")
 def get(request, user: users.User):
     "Form page for editing a user account."
-    auth.authorize(request, *auth.user_edit_rules, user=user)
+    auth.authorize(request, *auth.user_edit, user=user)
     fields = []
     if auth.logged_in(request) is not user and auth.is_admin(request):
         fields.append(
@@ -267,7 +267,7 @@ def get(request, user: users.User):
 @rt("/edit/{user:User}")
 def post(request, user: users.User, form: dict):
     "Actually edit the user account."
-    auth.authorize(request, *auth.user_edit_rules, user=user)
+    auth.authorize(request, *auth.user_edit, user=user)
     with users.database:
         if auth.logged_in(request) is not user and auth.is_admin(request):
             if form.get("role") in constants.ROLES:

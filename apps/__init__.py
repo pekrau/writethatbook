@@ -9,6 +9,7 @@ import apps.move
 import apps.copy
 import apps.delete
 import apps.refs
+import apps.imgs
 import apps.meta
 import apps.state
 import apps.search
@@ -26,6 +27,7 @@ routes = [
     Mount("/copy", apps.copy.app),
     Mount("/delete", apps.delete.app),
     Mount("/refs", apps.refs.app),
+    Mount("/imgs", apps.imgs.app),
     Mount("/meta", apps.meta.app),
     Mount("/state", apps.state.app),
     Mount("/search", apps.search.app),

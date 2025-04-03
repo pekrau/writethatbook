@@ -66,6 +66,9 @@ def search_form(book, term=None, autofocus=True):
     if book is books.get_refs():
         action = "/refs/search"
         placeholder = f'{Tx("Search in")} {Tx("references")}'
+    elif book is books.get_imgs():
+        action = "/refs/search"
+        placeholder = f'{Tx("Search in")} {Tx("images")}'
     else:
         action = f"/search/{book}"
         placeholder = f'{Tx("Search in")} {Tx("book")}'
@@ -92,6 +95,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
     menu = [
         A(Tx("Books"), href="/"),
         A(Tx("References"), href="/refs"),
+        A(Tx("Images"), href="/imgs"),
     ]
 
     # Links to pages for book and item.
@@ -184,6 +188,8 @@ def header(request, title, book=None, item=None, tools=None, search=True):
     if book:
         if book is books.get_refs():
             items.append(Li(A(Tx("References"), href="/refs")))
+        elif book is books.get_imgs():
+            items.append(Li(A(Tx("Images"), href="/imgs")))
         else:
             items.append(Li(A(book.title, title=Tx("Book"), href=f"/book/{book}")))
     # The title of the page.
@@ -244,7 +250,7 @@ def footer(request, item=None):
         cells = [Div(), Div(), Div()]
     user = auth.logged_in(request)
     if user:
-        if auth.authorized(request, *auth.user_view_rules, user=user):
+        if auth.authorized(request, *auth.user_view, user=user):
             cells.append(
                 Div(
                     A(user.name or user.id, href=f"/user/view/{user.id}"),

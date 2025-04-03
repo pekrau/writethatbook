@@ -6,6 +6,8 @@ import json
 import struct
 import xml.etree.ElementTree
 
+# XXX use minixml instead
+
 import docx
 import docx
 import docx.oxml
@@ -34,7 +36,7 @@ app, rt = components.get_fast_app()
 @rt("/{book:Book}")
 def get(request, book: Book):
     "Get the parameters for downloading the book DOCX file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
     title_page_metadata = bool(settings.get("title_page_metadata", False))
@@ -150,7 +152,7 @@ def get(request, book: Book):
 @rt("/{book:Book}")
 def post(request, book: Book, form: dict):
     "Actually download the book as DOCX file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
     settings = book.frontmatter.setdefault("docx", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
@@ -164,12 +166,12 @@ def post(request, book: Book, form: dict):
     settings["indexed_font"] = form.get("indexed_font", constants.NORMAL)
 
     # Save settings.
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit, book=book):
         book.write()
 
     return Response(
         content=BookWriter(book).get_content(),
-        media_type=constants.DOCX_MIMETYPE,
+        media_type=constants.DOCX_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{book.title}.docx"'},
     )
 
@@ -177,7 +179,7 @@ def post(request, book: Book, form: dict):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
     "Download the item as a DOCX file."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
 
@@ -187,7 +189,7 @@ def get(request, book: Book, path: str, position: int = None):
     item = book[path]
     return Response(
         content=ItemWriter(book).get_content(item),
-        media_type=constants.DOCX_MIMETYPE,
+        media_type=constants.DOCX_CONTENT_TYPE,
         headers={"Content-Disposition": f'attachment; filename="{item.title}.docx"'},
     )
 
@@ -642,7 +644,7 @@ class Writer:
             root = xml.etree.ElementTree.fromstring(content)
             # SVG content must contain root 'svg' element with xmlns; add if missing.
             if root.tag == "svg":
-                content = content.replace("<svg", f'<svg xmlns="{constants.XMLNS_SVG}"')
+                content = content.replace("<svg", f'<svg xmlns="{constants.SVG_XMLNS}"')
                 root = xml.etree.ElementTree.fromstring(content)
             pngdata = io.BytesIO(vl_convert.svg_to_png(content))
             width, height = PIL.Image.open(pngdata).size
@@ -652,7 +654,7 @@ class Writer:
             paragraph = self.document.add_paragraph()
             paragraph.paragraph_format.line_spacing = 1
             paragraph.add_run().add_picture(pngdata, width=width, height=height)
-            desc = root.find(f"./{{{constants.XMLNS_SVG}}}desc")
+            desc = root.find(f"./{{{constants.SVG_XMLNS}}}desc")
             if desc is None:
                 desc = ast.get("extra")
             else:

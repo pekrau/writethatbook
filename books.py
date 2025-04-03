@@ -31,9 +31,12 @@ _books = {}
 # References book in-memory.
 _refs = None
 
+# Images book in-memory.
+_imgs = None
+
 
 def read_books():
-    "Read in all books into memory, including '_refs'."
+    "Read in all books into memory, including '_refs' and '_imgs'."
     global _refs
     refspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.REFS
     # Create the references directory, if it doesn't exist.
@@ -46,6 +49,19 @@ def read_books():
             outfile.write("---\n")
     _refs = Book(refspath)
     _refs.items.sort(key=lambda r: r["id"])
+
+    global _imgs
+    imgspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.IMGS
+    # Create the images directory, if it doesn't exist.
+    if not imgspath.exists():
+        imgspath.mkdir()
+        with open(imgspath / "index.md", "w") as outfile:
+            outfile.write("---\n")
+            outfile.write(yaml.dump({"title": "Images"}))
+            outfile.write(yaml.dump({"owner": constants.SYSTEM_USERID}))
+            outfile.write("---\n")
+    _imgs = Book(imgspath)
+    _imgs.items.sort(key=lambda r: r["id"])
 
     global _books
     _books.clear()
@@ -67,7 +83,7 @@ def get_books(request):
         [
             b
             for b in _books.values()
-            if auth.authorized(request, *auth.book_view_rules, book=b)
+            if auth.authorized(request, *auth.book_view, book=b)
         ],
         key=lambda b: b.modified,
         reverse=True,
@@ -102,6 +118,16 @@ def get_refs(reread=False):
         _refs.items.sort(key=lambda r: r["id"])
         _refs.write()
     return _refs
+
+
+def get_imgs(reread=False):
+    "Get the images book, optionally rereading it."
+    global _imgs
+    if reread:
+        _imgs.read()
+        _imgs.items.sort(key=lambda r: r["id"])
+        _imgs.write()
+    return _imgs
 
 
 def unpack_tgz_content(dirpath, content, is_refs=False):
@@ -152,7 +178,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
 class Container:
     "General container of frontmatter and Markdown content. To be inherited."
 
-    def read_markdown(self, filepath):
+    def read_file(self, filepath):
         "Read frontmatter and content from the Markdown file."
         try:
             with open(filepath) as infile:
@@ -179,7 +205,7 @@ class Container:
     def ast(self):
         return markdown.to_ast(self.content)
 
-    def write_markdown(self, filepath):
+    def write_file(self, filepath):
         "Write frontmatter and content to the Markdown file."
         with open(filepath, "w") as outfile:
             if self.frontmatter:
@@ -189,7 +215,7 @@ class Container:
             if self.content:
                 outfile.write(self.content)
 
-    def update_markdown(self, content):
+    def set_content(self, content):
         """Update content. Return True if any change, else False.
         If non-None content, then clean it:
         - Strip each line from the right. (Markdown line breaks not allowed.)
@@ -271,7 +297,7 @@ class Book(Container):
         All items (sections, texts) recursively from files.
         Set up indexed and references lookups.
         """
-        self.read_markdown(self.absfilepath)
+        self.read_file(self.absfilepath)
 
         self.items = []
 
@@ -329,7 +355,7 @@ class Book(Container):
         """Write the 'index.md' file, if changed.
         If 'content' is not None, then update it.
         """
-        changed = self.update_markdown(content)
+        changed = self.set_content(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["items"] = self.get_items_order(self)
         self.frontmatter["type"] = self.type
@@ -337,7 +363,7 @@ class Book(Container):
         self.frontmatter["sum_characters"] = self.sum_characters
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            self.write_markdown(self.absfilepath)
+            self.write_file(self.absfilepath)
 
     def set_items_order(self, container, items_order):
         "Chnage order of items in container according to given items_order."
@@ -568,7 +594,7 @@ class Book(Container):
 
     def create_section(self, title, parent=None):
         """Create a new empty section inside the book or parent section.
-        Raise Error if there is a problem.
+        Return Error if there is a problem.
         """
         assert parent is None or isinstance(parent, Section) or isinstance(parent, Book)
         if parent is None:
@@ -589,7 +615,7 @@ class Book(Container):
 
     def create_text(self, title, parent=None):
         """Create a new empty text inside the book or parent section.
-        Raise ValueError if there is a problem.
+        Return Error if there is a problem.
         """
         assert parent is None or isinstance(parent, Section) or isinstance(parent, Book)
         if parent is None:
@@ -1112,7 +1138,7 @@ class Section(Item):
         """Read all items in the subdirectory, and the 'index.md' file, if any.
         This is recursive; all sections and texts below this are also read.
         """
-        self.read_markdown(self.absfilepath)
+        self.read_file(self.absfilepath)
         for path in sorted(self.abspath.iterdir()):
 
             # Skip temporary emacs files.
@@ -1138,18 +1164,18 @@ class Section(Item):
 
         # Repair if no 'index.md' in the directory.
         if not self.absfilepath.exists():
-            self.write_markdown(self.absfilepath)
+            self.write_file(self.absfilepath)
 
     def write(self, content=None, force=False):
         """Write the 'index.md' file, if changed.
         If 'content' is not None, then update it.
         This is *not* recursive.
         """
-        changed = self.update_markdown(content)
+        changed = self.set_content(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            self.write_markdown(self.absfilepath)
+            self.write_file(self.absfilepath)
 
     @property
     def type(self):
@@ -1276,17 +1302,17 @@ class Text(Item):
 
     def read(self):
         "Read the frontmatter (if any) and content from the Markdown file."
-        self.read_markdown(self.abspath)
+        self.read_file(self.abspath)
 
     def write(self, content=None, force=False):
         """Write the text, if changed.
         If 'content' is not None, then update it.
         """
-        changed = self.update_markdown(content)
+        changed = self.set_content(content)
         original = copy.deepcopy(self.frontmatter)
         self.frontmatter["digest"] = self.digest
         if changed or force or (self.frontmatter != original):
-            self.write_markdown(self.abspath)
+            self.write_file(self.abspath)
 
     @property
     def type(self):

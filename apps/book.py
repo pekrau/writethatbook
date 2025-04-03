@@ -35,7 +35,7 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Create a book or upload it from a gzipped tar file."
-    auth.authorize(request, *auth.book_create_rules)
+    auth.authorize(request, *auth.book_create)
     title = Tx("Create or upload book")
     return (
         Title(title),
@@ -64,7 +64,7 @@ def get(request):
 @rt("/")
 async def post(request, title: str, tgzfile: UploadFile):
     "Actually create a book or upload it from a gzipped tar file."
-    auth.authorize(request, *auth.book_create_rules)
+    auth.authorize(request, *auth.book_create)
     if not title:
         raise Error("book title may not be empty")
     if title.startswith("_"):
@@ -96,9 +96,9 @@ async def post(request, title: str, tgzfile: UploadFile):
 @rt("/{book:Book}")
 def get(request, book: Book, position: int = None):
     "Display book; contents list of sections and texts."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
 
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit, book=book):
         tools = [
             ("Edit", f"/edit/{book}"),
             ("Append", f"/mod/append/{book}/"),
@@ -150,7 +150,7 @@ def get(request, book: Book, position: int = None):
         button_card = ""
         html = markdown.to_html(book.content, book=book)
 
-    if auth.authorized(request, *auth.book_diff_rules, book=book):
+    if auth.authorized(request, *auth.book_diff, book=book):
         tools.append(["Differences", f"/diff/{book}"])
 
     segments = []
@@ -166,7 +166,7 @@ def get(request, book: Book, position: int = None):
             toc(
                 book,
                 book.items,
-                edit=auth.authorized(request, *auth.book_edit_rules, book=book),
+                edit=auth.authorized(request, *auth.book_edit, book=book),
             )
         )
 
@@ -194,7 +194,7 @@ def get(request, book: Book, position: int = None):
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, position: int = None):
     "Display text or section contents."
-    auth.authorize(request, *auth.book_view_rules, book=book)
+    auth.authorize(request, *auth.book_view, book=book)
     if not path:
         return components.redirect(f"/book/{book}")
 
@@ -222,7 +222,7 @@ def get(request, book: Book, path: str, position: int = None):
     else:
         neighbours.append(Div())
 
-    if auth.authorized(request, *auth.book_edit_rules, book=book):
+    if auth.authorized(request, *auth.book_edit, book=book):
         tools = [
             ("Edit", f"/edit/{book}/{path}"),
             ("Append", f"/mod/append/{book}/{path}"),
@@ -273,6 +273,8 @@ def get(request, book: Book, path: str, position: int = None):
             position=position,
             edit_href=f"/edit/{book}/{path}",
         )
+
+    # Not authorized to edit.
     else:
         tools = []
         button_card = ""
@@ -296,7 +298,7 @@ def get(request, book: Book, path: str, position: int = None):
             toc(
                 book,
                 item.items,
-                edit=auth.authorized(request, *auth.book_edit_rules, book=book),
+                edit=auth.authorized(request, *auth.book_edit, book=book),
             )
         )
 
@@ -322,7 +324,7 @@ def get(request, book: Book, path: str, position: int = None):
 @rt("/{book:Book}/{path:path}")
 def post(request, book: Book, path: str, form: dict):
     "Create and add item (text or section)."
-    auth.authorize(request, *auth.book_edit_rules, book=book)
+    auth.authorize(request, *auth.book_edit, book=book)
 
     if path == "":
         parent = None
@@ -419,7 +421,7 @@ def get_books_table(request, books):
     rows = []
     for book in books:
         owner = users.get(book.owner)
-        if auth.authorized(request, *auth.user_view_rules, user=owner):
+        if auth.authorized(request, *auth.user_view, user=owner):
             owner = A(owner.name or owner.id, href=f"/user/view/{owner}")
         else:
             owner = owner.name or owner.id

@@ -45,6 +45,7 @@ def get(request):
     for img in items:
         rows.append(
             Tr(
+                Td(get_img_clipboard(img)),
                 Td(A(img["title"], href=f"/imgs/view/{img['id']}")),
                 Td(constants.IMAGE_MAP[img["content_type"]]),
                 Td(Tx(img.status), title=Tx("Status")),
@@ -55,6 +56,7 @@ def get(request):
     table = Table(
         Thead(
             Tr(
+                Th(),
                 Th(Tx("Image"), scope="col"),
                 Th(Tx("Type"), scope="col"),
                 Th(Tx("Status"), scope="col"),
@@ -114,8 +116,11 @@ def get(request, img: Text):
     title = img["title"]
     return (
         Title(title),
+        Script(src="/clipboard.min.js"),
+        Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=get_imgs(), item=img, tools=tools),
         Main(
+            P(get_img_clipboard(img)),
             item,
             cls="container",
         ),
@@ -420,3 +425,14 @@ def parse_check_vegalite(content):
     except json.JSONDecodeError as error:
         raise ValueError(str(error))
     return (vl_convert.vegalite_to_svg(spec), spec)
+
+
+def get_img_clipboard(img):
+    return Img(
+        src="/clipboard.svg",
+        title=Tx("Image to clipboard"),
+        style="cursor: pointer;",
+        cls="white to_clipboard",
+        data_clipboard_action="copy",
+        data_clipboard_text=f"![]({img['id']})",
+    )

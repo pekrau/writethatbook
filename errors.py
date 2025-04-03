@@ -23,7 +23,6 @@ def error_handler(request, exc):
 
 class NotAllowed(Exception):
     "Not allowed to access a page."
-
     pass
 
 

@@ -10,10 +10,9 @@ import marko.inline
 import marko.helpers
 
 import vl_convert
-import yaml
 
 import constants
-import minixml
+import errors
 import utils
 from utils import Tx
 
@@ -125,68 +124,6 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
-class FencedCodeRenderer:
-    "Handle fenced code for SVG code and Vega-Lite specification."
-
-    def render_fenced_code(self, element):
-        content = element.children[0].children
-
-        # Output SVG after a few checks.
-        if element.lang in ("svg", "svg-png"):
-            return self.write_svg(content, element)
-
-        # Output Vega-Lite specification as SVG.
-        elif element.lang in ("vega-lite", "vega-lite-png"):
-            try:
-                spec = json.loads(content)
-            except json.JSONDecodeError as error:
-                return f"<article>Error parsing JSON: {error}</article>"
-            try:
-                svg = vl_convert.vegalite_to_svg(spec)
-            except ValueError as error:
-                return f"<article>Error converting to SVG: {error}</article>"
-            return self.write_svg(svg, element)
-
-        # All other fenced code.
-        else:
-            return super().render_fenced_code(element)
-
-    def write_svg(self, content, element):
-        "Output SVG after a few checks."
-        # SVG content must contain the root 'svg' element with xmlns.
-        try:
-            root = minixml.parse_content(content)
-            if root.tag != "svg":
-                raise ValueError("XML root element must be 'svg'.")
-            for key in ["width", "height"]:
-                if key not in root:
-                    raise ValueError(
-                        f"XML 'svg' element must contain attribute '{key}'."
-                    )
-                try:
-                    value = float(root[key])
-                    if value <= 0:
-                        raise ValueError
-                except ValueError:
-                    raise ValueError(
-                        f"XML 'svg' attribute '{key}' must be positive number."
-                    )
-            # Root 'svg' element must contain xmlns; add if missing.
-            if "xmlns" not in root:
-                root["xmlns"] = constants.SVG_XMLNS
-            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
-            if desc:
-                desc = desc[0].text
-            else:
-                desc = element.extra
-            if desc:
-                return f"<article>\n{content}\n<footer>{to_html(desc)}</footer>\n</article>\n"
-            else:
-                return f"<article>\n{content}\n</article>\n"
-        except ValueError as error:
-            return f"<article>Error handling SVG: {error}</article>"
-
-
 class Editbutton(marko.inline.InlineElement):
     "Markdown extension for paragraph edit button marker."
 
@@ -240,9 +177,9 @@ NEW_PARAGRAPH_RX = re.compile(r"\n\n")
 
 
 class HtmlRenderer(marko.html_renderer.HTMLRenderer):
-    "Modify unordered list bullet display. XXX Doesn't work on Chrome?"
 
     def render_list(self, element):
+        "Modified unordered list bullet display. XXX Doesn't work on Chrome?"
         if element.ordered:
             tag = "ol"
             extra = f' start="{element.start}"' if element.start != 1 else ""
@@ -259,6 +196,38 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
         return "<{tag}{extra}>\n{children}</{tag}>\n".format(
             tag=tag, extra=extra, children=self.render_children(element)
         )
+
+    def render_image(self, element):
+        """Modified to produce a footer caption from alt text.
+        Fetch image from the image library, if available.
+        """
+        from books import get_imgs # To avoid circular import.
+        title = f' title="{self.escape_html(element.title)}"' if element.title else ""
+        body = self.render_children(element)
+        if body:
+            footer = f"<footer>{body}</footer>"
+        else:
+            footer = ""
+        try:
+            img = get_imgs()[element.dest]
+        except errors.Error:
+            # Assume image from the web.
+            url = self.escape_url(element.dest)
+            return f'<article><img src="{url}" {title} />{footer}</article>'
+        # Get the image from the image library.
+        # SVG, use as such. 'title' is not used.
+        if img["content_type"] == constants.SVG_CONTENT_TYPE:
+            return f'<article>{img["image"]}{footer}</article>'
+        # Vega-Lite, convert to SVG. 'title' is not used.
+        elif img["content_type"] == constants.JSON_CONTENT_TYPE:
+            svg = vl_convert.vegalite_to_svg(json.loads(img["image"]))
+            return f'<article>{svg}{footer}</article>'
+        # One of PNG or JPEG, use inline variant. Set title if not done.
+        else:
+            if not title:
+                title = f' title="{img.title}"'
+            src = f'data:{img["content_type"]};base64, {img["image"]}'
+            return f'<article><img src="{src}" {title} />{footer}</article>'
 
 
 def to_html(content, book=None, position=None, edit_href=None):
@@ -284,7 +253,6 @@ def to_html(content, book=None, position=None, edit_href=None):
                 IndexedRenderer,
                 ReferenceRenderer,
                 ThematicBreakRenderer,
-                FencedCodeRenderer,
                 EditbuttonRenderer,
                 PositionRenderer,
             ],

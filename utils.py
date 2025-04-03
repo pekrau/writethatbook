@@ -13,7 +13,6 @@ import babel.dates
 import babel.numbers
 
 import constants
-import minixml
 
 
 def get_digest_instance(content, digest=None):

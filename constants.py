@@ -6,7 +6,7 @@ from pathlib import Path
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 17, 0)
+VERSION = (1, 17, 1)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -147,14 +147,14 @@ PDF_CONTENT_TYPE = "application/pdf"
 GZIP_CONTENT_TYPE = "application/gzip"
 SVG_CONTENT_TYPE = "image/svg+xml"
 JSON_CONTENT_TYPE = "application/json"
-JPEG_CONTENT_TYPE = "image/jpeg"
 PNG_CONTENT_TYPE = "image/png"
+JPEG_CONTENT_TYPE = "image/jpeg"
 
 IMAGE_MAP = {
     SVG_CONTENT_TYPE: "SVG",
     JSON_CONTENT_TYPE: "Vega-Lite",
-    JPEG_CONTENT_TYPE: "JPEG",
     PNG_CONTENT_TYPE: "PNG",
+    JPEG_CONTENT_TYPE: "JPEG",
 }
 
 SVG_XMLNS = "http://www.w3.org/2000/svg"

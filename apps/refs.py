@@ -724,7 +724,7 @@ def post(request, form: dict):
     )
 
 
-@rt("/all.tgz")
+@rt("/download")
 def get(request):
     "Download a gzipped tar file of all the references."
     auth.allow_anyone(request)

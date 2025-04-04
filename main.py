@@ -66,6 +66,7 @@ def get(request):
 
 @rt("/reread")
 def get(request):
+    "Reread all books."
     auth.allow_admin(request)
     books.read_books()
     return components.redirect("/")
@@ -73,7 +74,7 @@ def get(request):
 
 @rt("/reread/{book:Book}")
 def get(request, book: books.Book, path: str = None):
-    # Do not allow anyone to burden the server with reread.
+    "Reread the given book."
     auth.authorize(request, *auth.book_edit, book=book)
     book = books.get_book(book.id, reread=True)
     href = f"/book/{book}"
@@ -100,13 +101,12 @@ def get(request):
     )
 
 
-@rt("/tgz/{book:Book}")
+@rt("/download/{book:Book}")
 def get(request, book: books.Book):
     "Download a gzipped tar file of the book."
     auth.authorize(request, *auth.book_view, book=book)
 
     filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
-
     return Response(
         content=book.get_tgz_content(),
         media_type=constants.GZIP_CONTENT_TYPE,

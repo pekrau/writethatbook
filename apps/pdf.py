@@ -52,10 +52,9 @@ def get(request, book: Book):
             page_break_options.append(Option(str(value), selected=True))
         else:
             page_break_options.append(Option(str(value)))
-    toc_pages = bool(settings.get("toc_pages"))
-    toc_level = int(settings.get("toc_level", 1))
+    toc_level = int(settings.get("toc_level", 0))
     toc_level_options = []
-    for value in range(1, constants.PDF_MAX_TOC_LEVEL + 1):
+    for value in range(0, constants.PDF_MAX_TOC_LEVEL + 1):
         if value == toc_level:
             toc_level_options.append(Option(str(value), selected=True))
         else:
@@ -111,18 +110,6 @@ def get(request, book: Book):
             Select(*page_break_options, name="page_break_level"),
         ),
         Fieldset(
-            Legend(Tx("Table of contents pages")),
-            Label(
-                Input(
-                    type="checkbox",
-                    name="toc_pages",
-                    role="switch",
-                    checked=toc_pages,
-                ),
-                Tx("Display"),
-            ),
-        ),
-        Fieldset(
             Legend(Tx("Table of contents level")),
             Select(*toc_level_options, name="toc_level"),
         ),
@@ -166,8 +153,7 @@ def post(request, book: Book, form: dict):
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
     settings["page_break_level"] = int(form.get("page_break_level", 1))
-    settings["toc_pages"] = bool(form.get("toc_pages"))
-    settings["toc_level"] = int(form.get("toc_level", 1))
+    settings["toc_level"] = int(form.get("toc_level", 0))
     settings["footnotes_location"] = form.get(
         "footnotes_location", constants.FOOTNOTES_EACH_TEXT
     )
@@ -213,8 +199,7 @@ class Writer:
         settings = book.frontmatter.get("pdf", {})
         self.title_page_metadata = bool(settings.get("title_page_metadata", False))
         self.page_break_level = int(settings.get("page_break_level", 1))
-        self.toc_pages = bool(settings.get("toc_pages"))
-        self.toc_level = int(settings.get("toc_level", 1))
+        self.toc_level = int(settings.get("toc_level", 0))
         self.footnotes_location = settings.get(
             "footnotes_location", constants.FOOTNOTES_EACH_TEXT
         )
@@ -955,7 +940,7 @@ class BookWriter(Writer):
             )
 
         # Write table of contents (TOC) page(s).
-        if self.toc_pages and self.book.items:
+        if self.toc_level and self.book.items:
             self.add_pagebreak()
             self.add_paragraph(Tx("Contents"), "Heading1")
             level_styles = []
@@ -996,7 +981,7 @@ class BookWriter(Writer):
             self.write_references()
 
         output = io.BytesIO()
-        if self.toc_pages:
+        if self.toc_level:
             document = TocDocTemplate(
                 output,
                 toc_level=self.toc_level,

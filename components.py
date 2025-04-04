@@ -106,7 +106,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                     [
                         A(Tx("Keywords"), href="/refs/keywords"),
                         A(Tx("Recently modified"), href="/refs/recent"),
-                        A(Tx("Download references TGZ file"), href="/refs/all.tgz"),
+                        A(Tx("Download references TGZ file"), href="/refs/download"),
                     ]
                 )
         else:
@@ -118,7 +118,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                         A(Tx("Status list"), href=f"/meta/status/{book}"),
                         A(Tx("Information"), href=f"/meta/info/{book}"),
                         A(Tx("State (JSON)"), href=f"/state/{book}"),
-                        A(Tx("Download book TGZ file"), href=f"/tgz/{book}"),
+                        A(Tx("Download book TGZ file"), href=f"/download/{book}"),
                         A(Tx("Book as DOCX file"), href=f"/docx/{book}"),
                         A(Tx("Book as PDF file"), href=f"/pdf/{book}"),
                     ]

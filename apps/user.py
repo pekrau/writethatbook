@@ -39,11 +39,11 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("Identifier")),
+                    Label(Tx("Identifier")),
                     Input(name="userid", required=True, autofocus=True),
                 ),
                 Fieldset(
-                    Legend(Tx("Role")),
+                    Label(Tx("Role")),
                     Label(
                         Input(type="radio", name="role", value=constants.ADMIN_ROLE),
                         constants.ADMIN_ROLE,
@@ -59,10 +59,10 @@ def get(request):
                     ),
                 ),
                 Fieldset(
-                    Legend(Tx("Name")),
+                    Label(Tx("Name")),
                     Input(name="name"),
                 ),
-                Fieldset(Legend(Tx("Email")), Input(type="email", name="email")),
+                Fieldset(Label(Tx("Email")), Input(type="email", name="email")),
                 components.save_button("Create"),
                 action="/user/",
                 method="post",
@@ -186,7 +186,7 @@ def get(request, user: users.User):
     if auth.logged_in(request) is not user and auth.is_admin(request):
         fields.append(
             Fieldset(
-                Legend(Tx("Role")),
+                Label(Tx("Role")),
                 Label(
                     Input(
                         type="radio",
@@ -209,26 +209,26 @@ def get(request, user: users.User):
         )
     fields.append(
         Fieldset(
-            Legend(Tx("Name")),
+            Label(Tx("Name")),
             Input(name="name", value=user.name or ""),
         )
     )
     fields.append(
         Fieldset(
-            Legend(Tx("Email")),
+            Label(Tx("Email")),
             Input(type="email", name="email", value=user.email or ""),
         )
     )
     fields.append(
         Fieldset(
-            Legend(Tx("API key")),
+            Label(Tx("API key")),
             Label(Input(type="checkbox", name="apikey"), Tx("Generate new value.")),
         )
     )
     if auth.logged_in(request) is user:
         fields.append(
             Fieldset(
-                Legend(Tx("Password")),
+                Label(Tx("Password")),
                 Input(
                     type="password", name="old_password", placeholder=Tx("Old password")
                 ),
@@ -240,7 +240,7 @@ def get(request, user: users.User):
     elif auth.is_admin(request):
         fields.append(
             Fieldset(
-                Legend(Tx("Password")),
+                Label(Tx("Password")),
                 Input(type="checkbox", name="code"),
                 Tx("Require new value."),
             )

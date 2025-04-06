@@ -93,9 +93,9 @@ def str_datetime_display(dt=None):
     )
 
 
-def thousands(i):
-    "Return integer as string formatted according to locale."
-    return babel.numbers.format_decimal(i, locale=constants.DEFAULT_LOCALE)
+def numerical(n):
+    "Return numerical value as string formatted according to locale."
+    return babel.numbers.format_decimal(n, locale=constants.DEFAULT_LOCALE)
 
 
 def wildcard_to_regexp(pattern):

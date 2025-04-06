@@ -12,7 +12,7 @@ import marko.helpers
 import vl_convert
 
 import constants
-import errors
+from errors import *
 import utils
 from utils import Tx
 
@@ -201,7 +201,8 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
         """Modified to produce a footer caption from alt text.
         Fetch image from the image library, if available.
         """
-        from books import get_imgs # To avoid circular import.
+        from books import get_imgs  # To avoid circular import.
+
         title = f' title="{self.escape_html(element.title)}"' if element.title else ""
         body = self.render_children(element)
         if body:
@@ -210,23 +211,24 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
             footer = ""
         try:
             img = get_imgs()[element.dest]
-        except errors.Error:
-            # Assume image from the web.
+        except Error:
+            # Fetch image from the web.
             url = self.escape_url(element.dest)
             return f'<article><img src="{url}" {title} />{footer}</article>'
-        # Get the image from the image library.
+
+        # Use the image from the image library.
         # SVG, use as such. 'title' is not used.
         if img["content_type"] == constants.SVG_CONTENT_TYPE:
-            return f'<article>{img["image"]}{footer}</article>'
+            return f'<article>{img["data"]}{footer}</article>'
         # Vega-Lite, convert to SVG. 'title' is not used.
         elif img["content_type"] == constants.JSON_CONTENT_TYPE:
-            svg = vl_convert.vegalite_to_svg(json.loads(img["image"]))
-            return f'<article>{svg}{footer}</article>'
+            svg = vl_convert.vegalite_to_svg(json.loads(img["data"]))
+            return f"<article>{svg}{footer}</article>"
         # One of PNG or JPEG, use inline variant. Set title if not done.
         else:
             if not title:
-                title = f' title="{img.title}"'
-            src = f'data:{img["content_type"]};base64, {img["image"]}'
+                title = f' title="{self.escape_html(img.title)}"'
+            src = f'data:{img["content_type"]};base64, {img["data"]}'
             return f'<article><img src="{src}" {title} />{footer}</article>'
 
 

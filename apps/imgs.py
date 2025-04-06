@@ -4,6 +4,7 @@ import base64
 import json
 import os.path
 
+import babel.numbers
 from fasthtml.common import *
 import vl_convert
 
@@ -45,8 +46,8 @@ def get(request):
     for img in items:
         rows.append(
             Tr(
-                Td(get_img_clipboard(img)),
                 Td(A(img["title"], href=f"/imgs/view/{img['id']}")),
+                Td(get_img_clipboard(img, img["id"])),
                 Td(constants.IMAGE_MAP[img["content_type"]]),
                 Td(Tx(img.status), title=Tx("Status")),
                 Td(utils.str_datetime_display(img.modified), title=Tx("Modified")),
@@ -56,8 +57,7 @@ def get(request):
     table = Table(
         Thead(
             Tr(
-                Th(),
-                Th(Tx("Image"), scope="col"),
+                Th(Tx("Image"), scope="col", colspan="2"),
                 Th(Tx("Type"), scope="col"),
                 Th(Tx("Status"), scope="col"),
                 Th(Tx("Modified"), scope="col"),
@@ -94,24 +94,55 @@ def get(request, img: Text):
                 ("Delete", f"/imgs/delete/{img['id']}"),
             ]
         )
+    if auth.authorized(request, *auth.img_add):
+        tools.append((Tx("Add image"), f"/imgs/add"))
 
     # SVG image.
     if img["content_type"] == constants.SVG_CONTENT_TYPE:
-        image = NotStr(img["image"])
+        image = NotStr(img["data"])
 
     # JSON: Vega-Lite specification image.
     elif img["content_type"] == constants.JSON_CONTENT_TYPE:
-        image = NotStr(vl_convert.vegalite_to_svg(json.loads(img["image"])))
+        image = NotStr(vl_convert.vegalite_to_svg(json.loads(img["data"])))
 
     # PNG or JPEG formats.
     else:
-        url = f'data:{img["content_type"]};base64, {img["image"]}'
+        url = f'data:{img["content_type"]};base64, {img["data"]}'
         image = Img(src=url, title=img["title"])
 
     if img.content:
         item = Article(image, Footer(NotStr(markdown.to_html(img.content))))
     else:
         item = Article(image)
+
+    pdf_info = [
+        P(Tx("Scale factor"), ": ", utils.numerical(img["pdf"]["scale_factor"]))
+    ]
+    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+        pdf_info.append(
+            P(
+                Tx("Rendering"),
+                ": ",
+                img["pdf"]["reportlab_graphics"]
+                and "ReportLab graphics"
+                or "PNG vl_convert",
+            )
+        )
+        pdf_info.append(
+            P(
+                f'{Tx("PNG factor")}: {utils.numerical(img["pdf"].get("png_rendering_factor"))}'
+            )
+        )
+    docx_info = [
+        P(Tx("Scale factor"), ": ", utils.numerical(img["docx"]["scale_factor"]))
+    ]
+
+    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+        docx_info.append(
+            P(
+                f'{Tx("PNG factor")}: {utils.numerical(img["docx"].get("png_rendering_factor"))}'
+            )
+        )
 
     title = img["title"]
     return (
@@ -120,8 +151,17 @@ def get(request, img: Text):
         Script("new ClipboardJS('.to_clipboard');"),
         components.header(request, title, book=get_imgs(), item=img, tools=tools),
         Main(
-            P(get_img_clipboard(img)),
             item,
+            Div(
+                P(get_img_clipboard(img, img["id"])),
+                P(Tx("Type"), ": ", constants.IMAGE_MAP[img["content_type"]]),
+                cls="grid",
+            ),
+            Div(
+                Article(Header("PDF"), *pdf_info),
+                Article(Header("DOCX"), *docx_info),
+                cls="grid",
+            ),
             cls="container",
         ),
         components.footer(request, img),
@@ -140,15 +180,15 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("Title")),
+                    Label(Tx("Title")),
                     Input(name="title", autofocus=True),
                 ),
                 Fieldset(
-                    Legend(Tx("Image file"), components.required()),
+                    Label(Tx("Image file"), components.required()),
                     Input(type="file", name="image_file", multiple=False),
                 ),
                 Fieldset(
-                    Legend(Tx("Caption")),
+                    Label(Tx("Caption")),
                     Textarea(name="caption"),
                 ),
                 components.save_button("Add image"),
@@ -181,10 +221,12 @@ async def post(session, request, form: dict):
         img = imgs.create_text(imgid)
     except ValueError as message:
         raise Error(message)
-    img.set("id", imgid)
+    img["id"] = imgid
     img.title = title or imgid
-    img.set("content_type", image_file.content_type)
+    img["content_type"] = image_file.content_type
     image_content = await image_file.read()
+    img["pdf"] = dict(scale_factor=constants.PDF_DEFAULT_IMAGE_SCALE_FACTOR)
+    img["docx"] = dict(scale_factor=constants.DOCX_DEFAULT_IMAGE_SCALE_FACTOR)
 
     # SVG image.
     if image_file.content_type == constants.SVG_CONTENT_TYPE:
@@ -195,8 +237,13 @@ async def post(session, request, form: dict):
             return components.redirect("/imgs/add")
         root.repr_indent = None
         root.xml_decl = False
-        img.set("image", repr(root))
-        img.set("base64", False)
+        img["data"] = repr(root)
+        img["base64"] = False
+        img["pdf"]["reportlab_graphics"] = True
+        img["pdf"]["png_rendering_factor"] = constants.PDF_DEFAULT_PNG_RENDERING_FACTOR
+        img["docx"][
+            "png_rendering_factor"
+        ] = constants.DOCX_DEFAULT_PNG_RENDERING_FACTOR
         # Set caption from SVG description, if not set.
         if not caption:
             desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
@@ -206,12 +253,17 @@ async def post(session, request, form: dict):
     # Vega-Lite specification.
     elif image_file.content_type == constants.JSON_CONTENT_TYPE:
         try:
-            spec = parse_check_vegalite(image_content)[1]
+            spec = parse_check_vegalite(image_content)
         except ValueError as error:
             add_toast(session, str(error), "error")
             return components.redirect("/imgs/add")
-        img.set("image", json.dumps(spec))
-        img.set("base64", False)
+        img["data"] = json.dumps(spec, ensure_ascii=False)
+        img["base64"] = False
+        img["pdf"]["reportlab_graphics"] = True
+        img["pdf"]["png_rendering_factor"] = constants.DOCX_DEFAULT_PNG_RENDERING_FACTOR
+        img["docx"][
+            "png_rendering_factor"
+        ] = constants.DOCX_DEFAULT_PNG_RENDERING_FACTOR
         # Set caption from Vega-Lite description, if not set.
         if not caption:
             caption = spec.get("description")
@@ -221,8 +273,8 @@ async def post(session, request, form: dict):
         constants.PNG_CONTENT_TYPE,
         constants.JPEG_CONTENT_TYPE,
     ):
-        img.set("image", base64.standard_b64encode(image_content).decode("utf-8"))
-        img.set("base64", True)
+        img["data"] = base64.standard_b64encode(image_content).decode("utf-8")
+        img["base64"] = True
     else:
         return Error(f"invalid image file content type '{image_file.content_type}'")
 
@@ -239,32 +291,130 @@ def get(request, img: Text):
 
     # SVG image.
     if img["content_type"] == constants.SVG_CONTENT_TYPE:
-        root = minixml.parse_content(img["image"])
+        root = minixml.parse_content(img["data"])
         root.xml_decl = False
-        fieldset = Fieldset(
-            Legend("SVG"),
+        edit_fieldset = Fieldset(
+            Label("SVG"),
             Textarea(repr(root), name="image_text", rows=16),
         )
 
     # Vega-Lite specification.
     elif img["content_type"] == constants.JSON_CONTENT_TYPE:
-        spec = json.loads(img["image"])
-        fieldset = Fieldset(
-            Legend("Vega-Lite"),
-            Textarea(json.dumps(spec, indent=2), name="image_text", rows=16),
+        spec = json.loads(img["data"])
+        edit_fieldset = Fieldset(
+            Label("Vega-Lite"),
+            Textarea(
+                json.dumps(spec, indent=2, ensure_ascii=False),
+                name="image_text",
+                rows=16,
+            ),
         )
 
-    # PNG and JPEG formats.
-    elif img["content_type"] in (
-        constants.PNG_CONTENT_TYPE,
-        constants.JPEG_CONTENT_TYPE,
-    ):
-        fieldset = (
+    # Un-editable image content such as PNG and JPEG images.
+    else:
+        edit_fieldset = (
             Fieldset(
-                Legend(Tx("Image file")),
+                Label(Tx("Image file")),
                 Input(type="file", name="image_file", multiple=False),
             ),
         )
+
+    fieldsets = [
+        Fieldset(
+            Label(Tx("Title")),
+            Input(name="title", value=img.title, autofocus=True),
+        ),
+        edit_fieldset,
+        Fieldset(
+            Label(Tx("Caption")),
+            Textarea(img.content or "", name="caption"),
+        ),
+        Fieldset(
+            Label(Tx("Status")),
+            components.get_status_field(img),
+        ),
+    ]
+
+    pdf_scale_factor = [
+        Label(Tx("Scale factor")),
+        Input(
+            type="number",
+            name="pdf_scale_factor",
+            min=0.1,
+            max=2.0,
+            step=0.1,
+            value=img["pdf"]["scale_factor"],
+        ),
+    ]
+
+    docx_scale_factor = [
+        Label(Tx("Scale factor")),
+        Input(
+            type="number",
+            name="docx_scale_factor",
+            min=0.1,
+            max=2.0,
+            step=0.1,
+            value=img["docx"]["scale_factor"],
+        ),
+    ]
+
+    # SVG image and Vega-Lite specification.
+    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+        pdf_fieldset = Fieldset(
+            Legend(
+                Tx("Rendering"),
+                Label(
+                    Input(
+                        type="radio",
+                        name="pdf_reportlab_graphics",
+                        checked=img["pdf"]["reportlab_graphics"],
+                        value="true",
+                    ),
+                    "ReportLab graphics",
+                ),
+                Label(
+                    Input(
+                        type="radio",
+                        name="pdf_reportlab_graphics",
+                        checked=not img["pdf"]["reportlab_graphics"],
+                        value="false",
+                    ),
+                    "PNG vl_convert",
+                ),
+            ),
+            Label(Tx("PNG factor")),
+            Input(
+                type="number",
+                name="pdf_png_rendering_factor",
+                min=1,
+                max=8,
+                step=1,
+                value=img["pdf"].get(
+                    "png_rendering_factor", constants.PDF_DEFAULT_PNG_RENDERING_FACTOR
+                ),
+            ),
+            *pdf_scale_factor,
+        )
+        docx_fieldset = Fieldset(
+            Label(Tx("PNG factor")),
+            Input(
+                type="number",
+                name="docx_png_rendering_factor",
+                min=1,
+                max=8,
+                step=1,
+                value=img["docx"].get(
+                    "png_rendering_factor", constants.DOCX_DEFAULT_PNG_RENDERING_FACTOR
+                ),
+            ),
+            *docx_scale_factor,
+        )
+
+    # PNG and JPEG images.
+    else:
+        pdf_fieldset = Fieldset(*pdf_scale_factor)
+        docx_fieldset = Fieldset(*docx_scale_factor)
 
     title = Tx("Edit image")
     return (
@@ -272,20 +422,13 @@ def get(request, img: Text):
         components.header(request, title, book=get_imgs(), item=img),
         Main(
             Form(
-                Fieldset(
-                    Legend(Tx("Title")),
-                    Input(name="title", value=img.title, autofocus=True),
+                *fieldsets,
+                Div(
+                    Article(Header("PDF"), pdf_fieldset),
+                    Article(Header("DOCX"), docx_fieldset),
+                    cls="grid",
                 ),
-                fieldset,
-                Fieldset(
-                    Legend(Tx("Caption")),
-                    Textarea(img.content or "", name="caption"),
-                ),
-                Fieldset(
-                    Legend(Tx("Status")),
-                    components.get_status_field(img),
-                ),
-                components.save_button("Save image"),
+                components.save_button("Save"),
                 action=f"/imgs/edit/{img['id']}",
                 method="post",
             ),
@@ -316,7 +459,7 @@ async def post(session, request, img: Text, form: dict):
                 return components.redirect(f"/imgs/edit/{img['id']}")
             root.repr_indent = None
             root.xml_decl = False
-            img.set("image", repr(root))
+            img["data"] = repr(root)
             # Set caption from SVG description, if not set.
             if not caption:
                 desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
@@ -330,7 +473,7 @@ async def post(session, request, img: Text, form: dict):
             except ValueError as error:
                 add_toast(session, str(error), "error")
                 return components.redirect(f"/imgs/edit/{img['id']}")
-            img.set("image", json.dumps(spec))
+            img["data"] = json.dumps(spec, ensure_ascii=False)
             # Set caption from Vega-Lite description, if not set.
             if not caption:
                 caption = spec.get("description")
@@ -341,20 +484,44 @@ async def post(session, request, img: Text, form: dict):
         constants.JPEG_CONTENT_TYPE,
     ):
         if image_file and image_file.size != 0:
+            if image_file.content_type not in (
+                constants.PNG_CONTENT_TYPE,
+                constants.JPEG_CONTENT_TYPE,
+            ):
+                add_toast(session, "File must be PNG or JPEG.", "error")
+                return components.redirect(f"/imgs/edit/{img['id']}")
             # Allow changing between PNG and JPEG formats.
             image_content = await image_file.read()
-            img.set("content_type", image_file.content_type)
-            img.set("image", base64.standard_b64encode(image_content).decode("utf-8"))
-            img.set("base64", True)
+            img["content_type"] = image_file.content_type
+            img["data"] = base64.standard_b64encode(image_content).decode("utf-8")
+            img["base64"] = True
 
     else:
         return Error(f"invalid image file content type '{image_file.content_type}'")
 
-    # Caption may have been set from image contents.
+    img["pdf"]["scale_factor"] = float(form["pdf_scale_factor"])
+    try:
+        img["pdf"]["reportlab_graphics"] = (
+            form["pdf_reportlab_graphics"].lower() == "true"
+        )
+    except KeyError:
+        pass
+    try:
+        img["pdf"]["png_rendering_factor"] = int(form["pdf_png_rendering_factor"])
+    except KeyError:
+        pass
+
+    img["docx"]["scale_factor"] = float(form["docx_scale_factor"])
+    try:
+        img["docx"]["png_rendering_factor"] = int(form["docx_png_rendering_factor"])
+    except KeyError:
+        pass
+
     img.title = title or img["id"]
-    img.write(content=caption)
     if status:
         img.status = status
+    # Caption may have been set from image contents.
+    img.write(content=caption)
 
     return components.redirect(f"/imgs/view/{img['id']}")
 
@@ -418,21 +585,27 @@ def parse_check_svg(content):
 def parse_check_vegalite(content):
     """Check that content is valid JSON and can be handled by vl_convert.
     Raise ValueError if any problem.
-    Returns a tuple of the generated SVG and the JSON specification.
+    Returns the JSON specification.
     """
     try:
         spec = json.loads(content)
     except json.JSONDecodeError as error:
         raise ValueError(str(error))
-    return (vl_convert.vegalite_to_svg(spec), spec)
+    vl_convert.vegalite_to_svg(spec)
+    return spec
 
 
-def get_img_clipboard(img):
-    return Img(
-        src="/clipboard.svg",
-        title=Tx("Image to clipboard"),
+def get_img_clipboard(img, text):
+    return Span(
+        Img(
+            src="/clipboard.svg",
+            cls="white",
+        ),
+        " ",
+        text,
         style="cursor: pointer;",
-        cls="white to_clipboard",
+        title=Tx("Copy image to clipboard"),
+        cls="to_clipboard",
         data_clipboard_action="copy",
-        data_clipboard_text=f"![]({img['id']})",
+        data_clipboard_text=f"![{img.content}]({img['id']})",
     )

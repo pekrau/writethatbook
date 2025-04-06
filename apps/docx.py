@@ -4,9 +4,7 @@ import datetime
 import io
 import json
 import struct
-import xml.etree.ElementTree
-
-# XXX use minixml instead
+import urllib.parse
 
 import docx
 import docx
@@ -14,17 +12,19 @@ import docx.oxml
 import docx.shared
 import docx.styles.style
 import PIL
+import requests
 import vl_convert
 
 from fasthtml.common import *
 
 import auth
 import books
-from books import Book
+from books import Book, get_imgs
 import components
 import constants
 from errors import *
 import markdown
+import minixml
 import users
 import utils
 from utils import Tx
@@ -85,7 +85,7 @@ def get(request, book: Book):
             indexed_font_options.append(Option(Tx(value.capitalize()), value=value))
     fields = [
         Fieldset(
-            Legend(Tx("Metadata on title page")),
+            Label(Tx("Metadata on title page")),
             Label(
                 Input(
                     type="checkbox",
@@ -97,23 +97,23 @@ def get(request, book: Book):
             ),
         ),
         Fieldset(
-            Legend(Tx("Page break level")),
+            Label(Tx("Page break level")),
             Select(*page_break_options, name="page_break_level"),
         ),
         Fieldset(
-            Legend(Tx("Table of contents level")),
+            Label(Tx("Table of contents level")),
             Select(*toc_level_options, name="toc_level"),
         ),
         Fieldset(
-            Legend(Tx("Footnotes location")),
+            Label(Tx("Footnotes location")),
             Select(*footnotes_options, name="footnotes_location"),
         ),
         Fieldset(
-            Legend(Tx("Reference font")),
+            Label(Tx("Reference font")),
             Select(*reference_font_options, name="reference_font"),
         ),
         Fieldset(
-            Legend(Tx("Indexed font")),
+            Label(Tx("Indexed font")),
             Select(*indexed_font_options, name="indexed_font"),
         ),
     ]
@@ -227,13 +227,13 @@ class Writer:
         section.header_distance = docx.shared.Mm(12.7)
         section.footer_distance = docx.shared.Mm(12.7)
 
-        pstyles = [
-            s
-            for s in self.document.styles
-            if isinstance(s, docx.styles.style.ParagraphStyle)
-            and not isinstance(s, docx.styles.style._TableStyle)
-        ]
-        ic(pstyles)
+        # pstyles = [
+        #     s
+        #     for s in self.document.styles
+        #     if isinstance(s, docx.styles.style.ParagraphStyle)
+        #     and not isinstance(s, docx.styles.style._TableStyle)
+        # ]
+        # ic(pstyles)
 
         # Modify styles.
         style = self.document.styles["Normal"]
@@ -620,64 +620,89 @@ class Writer:
         self.style_stack.pop()
 
     def render_fenced_code(self, ast):
-        content = ast["children"][0]["children"]
-        scale = 0.7  # Empirical scale factor...
-        cm_px = 2.54 / 72.0  # 1 inch = 2.54 cm per 72 pixels is standard for online.
+        self.current_paragraph = self.document.add_paragraph(style="macro")
+        self.style_stack.append("macro")
+        for child in ast["children"]:
+            self.render(child)
+        self.style_stack.pop()
 
-        # Output SVG as PNG.
-        if ast.get("lang") == "svg":
-            root = xml.etree.ElementTree.fromstring(content)
-            # SVG content must contain root 'svg' element with xmlns; add if missing.
-            if root.tag == "svg":
-                content = content.replace("<svg", f'<svg xmlns="{constants.SVG_XMLNS}"')
-                root = xml.etree.ElementTree.fromstring(content)
-            pngdata = io.BytesIO(vl_convert.svg_to_png(content))
-            width, height = PIL.Image.open(pngdata).size
-            width = docx.shared.Pt(scale * width)
-            height = docx.shared.Pt(scale * height)
-            # This is a kludge; seems required to avoid an obscure bug?
-            paragraph = self.document.add_paragraph()
-            paragraph.paragraph_format.line_spacing = 1
-            paragraph.add_run().add_picture(pngdata, width=width, height=height)
-            desc = root.find(f"./{{{constants.SVG_XMLNS}}}desc")
-            if desc is None:
-                desc = ast.get("extra")
+    def render_image(self, ast):
+        try:
+            # Fetch image from the web.
+            if urllib.parse.urlparse(ast["dest"]).scheme:
+                response = requests.get(ast["dest"])
+                if response.status_code != HTTP.OK:
+                    raise ValueError(f"Could not fetch image '{ast['dest']}'")
+                if response.headers["Content-Type"] not in (
+                    constants.PNG_CONTENT_TYPE,
+                    constants.JPEG_CONTENT_TYPE,
+                ):
+                    raise ValueError(
+                        f"Cannot handle image '{ast['dest']}' with content type '{response.headers['Content-Type']}'"
+                    )
+                self.add_image(response.content, img["docx"]["scale_factor"], ast)
+
+            # Use image from the image library.
+            elif ast["dest"] in get_imgs():
+                img = get_imgs()[ast["dest"]]
+                scale_factor = img["docx"]["scale_factor"]
+
+                if img["content_type"] in (
+                    constants.SVG_CONTENT_TYPE,
+                    constants.JSON_CONTENT_TYPE,
+                ):
+                    # SVG image.
+                    if img["content_type"] == constants.SVG_CONTENT_TYPE:
+                        # SVG in image library has already been checked for validity.
+                        root = minixml.parse_content(img["data"])
+
+                    # Vega-Lite plot.
+                    else:
+                        # JSON in image library has already been checked for validity.
+                        vl_spec = json.loads(img["data"])
+                        root = minixml.parse_content(
+                            vl_convert.vegalite_to_svg(vl_spec)
+                        )
+
+                    # Set viewbox so that scaling behaves.
+                    root["viewBox"] = f"0 0 {root['width']} {root['height']}"
+
+                    # Scale width and height in SVG element.
+                    rendering_factor = img["docx"]["png_rendering_factor"]
+                    root["width"] = rendering_factor * float(root["width"])
+                    root["height"] = rendering_factor * float(root["height"])
+
+                    self.add_image(vl_convert.svg_to_png(repr(root)), ast, scale_factor / rendering_factor)
+
+                # JPEG or PNG.
+                elif img["content_type"] in (
+                    constants.PNG_CONTENT_TYPE,
+                    constants.JPEG_CONTENT_TYPE,
+                ):
+                    self.add_image(base64.standard_b64decode(img["data"]), ast, scale_factor)
+                else:
+                    raise ValueError(f"Cannot handle image {img['content_type']}")
             else:
-                desc = desc.text
-            if desc:
-                paragraph.paragraph_format.keep_with_next = True
-                self.style_stack.append("Normal")
-                self.render(markdown.to_ast(desc))
-                # self.current_paragraph.paragraph_style.left_indent = constants.DOCX_CAPTION_INDENT
-                self.style_stack.pop()
+                raise ValueError(f"No such image '{ast['dest']}'")
 
-        # Output Vega-Lite specification as PNG.
-        elif ast.get("lang") == "vega-lite":
-            vl_spec = json.loads(content)
-            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
-            width, height = PIL.Image.open(pngdata).size
-            width = docx.shared.Pt(scale * width)
-            height = docx.shared.Pt(scale * height)
-            # This is a kludge; seems required to avoid an obscure bug?
-            paragraph = self.document.add_paragraph()
-            paragraph.paragraph_format.line_spacing = 1
-            paragraph.add_run().add_picture(pngdata, width=width, height=height)
-            desc = vl_spec.get("description")
-            if not desc:
-                desc = ast.get("extra")
-            if desc:
-                paragraph.paragraph_format.keep_with_next = True
-                self.style_stack.append("Normal")
-                self.render(markdown.to_ast(desc))
-                self.style_stack.pop()
-
-        # Fenced code as is.
-        else:
+        except ValueError as error:
             self.current_paragraph = self.document.add_paragraph(style="macro")
-            self.style_stack.append("macro")
+            self.current_paragraph.add_run(str(error))
+
+    def add_image(self, image_data, ast, factor):
+        image = io.BytesIO(image_data)
+        width, height = PIL.Image.open(image).size
+        width = docx.shared.Pt(factor * width)
+        height = docx.shared.Pt(factor * height)
+        paragraph = self.document.add_paragraph()
+        # This is a kludge; seems required to avoid an obscure 'docx' bug?
+        paragraph.paragraph_format.line_spacing = 1
+        paragraph.add_run().add_picture(image, width=width, height=height)
+        if ast["children"]:
+            paragraph.paragraph_format.keep_with_next = True
+            self.current_paragraph = self.document.add_paragraph(style="Normal")
             for child in ast["children"]:
                 self.render(child)
-            self.style_stack.pop()
 
     def render_emphasis(self, ast):
         self.italic = True

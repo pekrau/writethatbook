@@ -62,7 +62,7 @@ def get(request):
                             datetime.datetime.fromisoformat(rbook["modified"])
                         ),
                         Br(),
-                        f'{utils.thousands(rbook["sum_characters"])} {Tx("characters")}',
+                        f'{utils.numerical(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(
                         A(lurl, href=lurl),
@@ -71,7 +71,7 @@ def get(request):
                             datetime.datetime.fromisoformat(lbook["modified"])
                         ),
                         Br(),
-                        f'{utils.thousands(lbook["sum_characters"])} {Tx("characters")}',
+                        f'{utils.numerical(lbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td(action),
                 ),
@@ -87,7 +87,7 @@ def get(request):
                             datetime.datetime.fromisoformat(rbook["modified"])
                         ),
                         Br(),
-                        f'{utils.thousands(rbook["sum_characters"])} {Tx("characters")}',
+                        f'{utils.numerical(rbook["sum_characters"])} {Tx("characters")}',
                     ),
                     Td("-"),
                     Td(
@@ -111,7 +111,7 @@ def get(request):
                         datetime.datetime.fromisoformat(lbook["modified"])
                     ),
                     Br(),
-                    f'{utils.thousands(lbook["sum_characters"])} {Tx("characters")}',
+                    f'{utils.numerical(lbook["sum_characters"])} {Tx("characters")}',
                 ),
                 Td(A(Tx("Differences"), href=f"/differences/{id}", role="button")),
             ),

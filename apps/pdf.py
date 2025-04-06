@@ -1,26 +1,30 @@
 "Create PDF file of book or item using the ReportLab package."
 
+import base64
 import datetime
 import io
 import json
+import urllib.parse
 
 import reportlab
 import reportlab.rl_config
 import reportlab.lib.colors
 from reportlab.lib.styles import *
 from reportlab.platypus import *
+from reportlab.platypus.doctemplate import LayoutError
 from reportlab.platypus.tables import *
 from reportlab.platypus.tableofcontents import TableOfContents, SimpleIndex
-import svglib.svglib
 
 import PIL
+import requests
+import svglib.svglib
 import vl_convert
 
 from fasthtml.common import *
 
 import auth
 import books
-from books import Book
+from books import Book, get_imgs
 import components
 import constants
 from errors import *
@@ -29,10 +33,6 @@ import minixml
 import users
 import utils
 from utils import Tx
-
-
-BLACK = reportlab.lib.colors.black
-GREY = reportlab.lib.colors.grey
 
 
 app, rt = components.get_fast_app()
@@ -94,7 +94,7 @@ def get(request, book: Book):
 
     fields = [
         Fieldset(
-            Legend(Tx("Metadata on title page")),
+            Label(Tx("Metadata on title page")),
             Label(
                 Input(
                     type="checkbox",
@@ -106,23 +106,23 @@ def get(request, book: Book):
             ),
         ),
         Fieldset(
-            Legend(Tx("Page break level")),
+            Label(Tx("Page break level")),
             Select(*page_break_options, name="page_break_level"),
         ),
         Fieldset(
-            Legend(Tx("Table of contents level")),
+            Label(Tx("Table of contents level")),
             Select(*toc_level_options, name="toc_level"),
         ),
         Fieldset(
-            Legend(Tx("Footnotes location")),
+            Label(Tx("Footnotes location")),
             Select(*footnotes_options, name="footnotes_location"),
         ),
         Fieldset(
-            Legend(Tx("Reference font")),
+            Label(Tx("Reference font")),
             Select(*reference_font_options, name="reference_font"),
         ),
         Fieldset(
-            Legend(Tx("Indexed font")),
+            Label(Tx("Indexed font")),
             Select(*indexed_font_options, name="indexed_font"),
         ),
     ]
@@ -287,7 +287,6 @@ class Writer:
         self.current_text = None
         self.flowables = []
         self.list_stack = []
-        self.caption = None
         self.index = SimpleIndex(style=self.stylesheet["Index"], headers=False)
         self.any_indexed = False
 
@@ -379,7 +378,7 @@ class Writer:
         self.add_pagebreak()
         self.add_heading(Tx("References"), 1, anchor="references")
         for refid in sorted(self.referenced):
-            self.para_push()
+            self.para_push("Reference")
             try:
                 reference = self.references[refid]
             except Error:
@@ -394,7 +393,7 @@ class Writer:
             else:
                 method(reference)
             self.write_reference_external_links(reference)
-            self.para_pop("Reference")
+            self.para_pop()
 
     def write_reference_authors(self, reference):
         count = len(reference["authors"])
@@ -503,18 +502,18 @@ class Writer:
             self.render(child)
 
     def render_heading(self, ast):
-        self.para_push()
+        self.para_push(f"Heading{level}")
         for child in ast["children"]:
             self.render(child)
         level = min(ast["level"], constants.MAX_LEVEL)
-        self.para_pop(f"Heading{level}")
+        self.para_pop()
 
     def render_paragraph(self, ast):
         self.para_push()
-        stylename = "Normal"
-        preformatted = False
         for child in ast["children"]:
             self.render(child)
+        stylename = None
+        preformatted = None
         if self.within_quote:
             stylename = "Quote"
         elif self.within_code:
@@ -522,12 +521,12 @@ class Writer:
             preformatted = True
         elif self.within_footnote:
             if isinstance(self.within_footnote, str):
-                self.para_stack[-1].insert(0, self.within_footnote)
+                self.para_stack[-1][0].insert(0, self.within_footnote)
                 self.within_footnote = True
                 stylename = "Footnote"
             else:
                 stylename = "Footnote subsequent"
-        self.para_pop(stylename, preformatted=preformatted)
+        self.para_pop(stylename=stylename, preformatted=preformatted)
 
     def render_raw_text(self, ast):
         self.para_text(ast["children"])
@@ -536,12 +535,12 @@ class Writer:
         pass
 
     def render_quote(self, ast):
+        self.para_push("Quote")
         self.within_quote = True
-        self.para_push()
         for child in ast["children"]:
             self.render(child)
-        self.para_pop("Quote")
         self.within_quote = False
+        self.para_pop()
 
     def render_code_span(self, ast):
         self.para_text('<font face="courier">')
@@ -549,151 +548,133 @@ class Writer:
         self.para_text("</font>")
 
     def render_code_block(self, ast):
+        self.para_push("Code", preformatted=True)
         self.within_code = True
-        self.para_push()
         for child in ast["children"]:
             self.render(child)
-        self.para_pop("Code", preformatted=True)
         self.within_code = False
+        self.para_pop()
 
     def render_fenced_code(self, ast):
-        "Fenced code may be SVG or Vega-Lite."
-        content = ast["children"][0]["children"]
-        scale_factor = 0.75  # Empirical scale factor...
+        self.para_push("Code", preformatted=True)
+        self.within_code = True
+        for child in ast["children"]:
+            self.render(child)
+        self.within_code = False
+        self.para_pop()
 
-        # Output SVG as ReportLib graphics.
-        if ast.get("lang") == "svg":
-            flowables = [self.get_hr()]
-            root = minixml.parse_content(content)
-            # The SVG root element must be 'svg' and have 'width' and 'height'.
-            assert root.tag == "svg"
-            assert "width" in root
-            assert "height" in root
-            # Root 'svg' element must contain xmlns; add if missing.
-            if "xmlns" not in root:
-                root["xmlns"] = constants.SVG_XMLNS
-            # Set viewbox so that scaling behaves.
-            root["viewBox"] = f"0 0 {root['width']} {root['height']}"
-            # Scale width and height in SVG element.
-            root["width"] = scale_factor * float(root["width"])
-            root["height"] = scale_factor * float(root["height"])
-            # Create graphics drawing from updated SVG content.
-            flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
-            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
-            if desc:
-                desc = desc[0].text
-            else:
-                desc = ast.get("extra")
-            if desc:
-                self.caption = True
-                self.para_push()
-                self.render(markdown.to_ast(desc))
-                flowables.append(self.caption)
-                self.caption = None
-            flowables.append(self.get_hr())
-            self.flowables.append(KeepTogether(flowables))
-
-        # Output SVG as PNG.
-        elif ast.get("lang") == "svg-png":
-            flowables = [self.get_hr()]
-            root = minixml.parse_content(content)
-            # The SVG root element must be 'svg' and have 'width' and 'height'.
-            assert root.tag == "svg"
-            assert "width" in root
-            assert "height" in root
-            # Root 'svg' element must contain xmlns; add if missing.
-            if "xmlns" not in root:
-                root["xmlns"] = constants.SVG_XMLNS
-            # Create PNG from the updated content.
-            pngdata = io.BytesIO(vl_convert.svg_to_png(repr(root)))
-            width, height = PIL.Image.open(pngdata).size
-            flowables.append(
-                Image(
-                    pngdata,
-                    hAlign="LEFT",
-                    width=scale_factor * width,
-                    height=scale_factor * height,
-                )
+    def render_image(self, ast):
+        self.para_pop()
+        self.para_push()
+        flowables = [
+            HRFlowable(
+                width="100%",
+                color=reportlab.lib.colors.grey,
+                spaceBefore=4,
+                spaceAfter=constants.PDF_IMAGE_SPACE,
             )
-            desc = list(root.walk(lambda e: e.tag == "desc" and e.depth == 1))
-            if desc:
-                desc = desc[0].text
+        ]
+        # Fetch image from the web.
+        if urllib.parse.urlparse(ast["dest"]).scheme:
+            response = requests.get(ast["dest"])
+            if response.status_code != HTTP.OK:
+                flowables.append(Paragraph(f"Could not fetch image '{ast['dest']}'"))
+            elif response.headers["Content-Type"] in (
+                constants.PNG_CONTENT_TYPE,
+                constants.JPEG_CONTENT_TYPE,
+            ):
+                image_data = io.BytesIO(response.content)
+                flowables.append(Image(image_data, hAlign="LEFT"))
             else:
-                desc = ast.get("extra")
-            if desc:
-                self.caption = True
-                self.para_push()
-                self.render(markdown.to_ast(desc))
-                flowables.append(self.caption)
-                self.caption = None
-            flowables.append(self.get_hr())
-            self.flowables.append(KeepTogether(flowables))
-
-        # Output Vega-Lite specification as ReportLib graphics.
-        elif ast.get("lang") == "vega-lite":
-            flowables = [self.get_hr()]
-            vl_spec = json.loads(content)
-            root = minixml.parse_content(vl_convert.vegalite_to_svg(vl_spec))
-            # Scale width and height in SVG element.
-            root["width"] = scale_factor * float(root["width"])
-            root["height"] = scale_factor * float(root["height"])
-
-            # Create graphics drawing from updated SVG content.
-            flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
-            desc = vl_spec.get("description")
-            if not desc:
-                desc = ast.get("extra")
-            if desc:
-                self.caption = True
-                self.para_push()
-                self.render(markdown.to_ast(desc))
-                flowables.append(self.caption)
-                self.caption = None
-            flowables.append(self.get_hr())
-            self.flowables.append(KeepTogether(flowables))
-
-        # Output Vega-Lite specification as PNG.
-        elif ast.get("lang") == "vega-lite-png":
-            flowables = [self.get_hr()]
-            vl_spec = json.loads(content)
-            pngdata = io.BytesIO(vl_convert.vegalite_to_png(vl_spec))
-            width, height = PIL.Image.open(pngdata).size
-            flowables.append(
-                Image(
-                    pngdata,
-                    hAlign="LEFT",
-                    width=scale_factor * width,
-                    height=scale_factor * height,
+                flowables.append(
+                    Paragraph(
+                        f"Cannot handle image '{ast['dest']}' with content type '{response.headers['Content-Type']}'"
+                    )
                 )
-            )
-            desc = vl_spec.get("description")
-            if not desc:
-                desc = ast.get("extra")
-            if desc:
-                self.caption = True
-                self.para_push()
-                self.render(markdown.to_ast(desc))
-                flowables.append(self.caption)
-                self.caption = None
-            flowables.append(self.get_hr())
-            self.flowables.append(KeepTogether(flowables))
 
-        # Fenced code as is.
+        # Use image from the image library.
+        elif ast["dest"] in get_imgs():
+            img = get_imgs()[ast["dest"]]
+            scale_factor = img["pdf"]["scale_factor"]
+
+            if img["content_type"] in (
+                constants.SVG_CONTENT_TYPE,
+                constants.JSON_CONTENT_TYPE,
+            ):
+                # SVG image.
+                if img["content_type"] == constants.SVG_CONTENT_TYPE:
+                    # SVG in image library has already been checked for validity.
+                    root = minixml.parse_content(img["data"])
+
+                # Vega-Lite plot.
+                else:
+                    # JSON in image library has already been checked for validity.
+                    vl_spec = json.loads(img["data"])
+                    root = minixml.parse_content(vl_convert.vegalite_to_svg(vl_spec))
+
+                # Set viewbox so that scaling behaves.
+                root["viewBox"] = f"0 0 {root['width']} {root['height']}"
+
+                # SVG convert to ReportLab graphics.
+                if img["pdf"]["reportlab_graphics"]:
+                    # Scale width and height in SVG element.
+                    root["width"] = scale_factor * float(root["width"])
+                    root["height"] = scale_factor * float(root["height"])
+                    flowables.append(svglib.svglib.svg2rlg(io.StringIO(repr(root))))
+
+                # SVG convert to PNG.
+                else:
+                    png_factor = img["pdf"]["png_rendering_factor"]
+                    # Scale width and height in SVG element.
+                    root["width"] = png_factor * scale_factor * float(root["width"])
+                    root["height"] = png_factor * scale_factor * float(root["height"])
+                    flowables.append(
+                        Image(
+                            io.BytesIO(vl_convert.svg_to_png(repr(root))),
+                            hAlign="LEFT",
+                            width=float(root["width"]) / png_factor,
+                            height=float(root["height"]) / png_factor,
+                        )
+                    )
+
+            # JPEG or PNG.
+            elif img["content_type"] in (
+                constants.PNG_CONTENT_TYPE,
+                constants.JPEG_CONTENT_TYPE,
+            ):
+                image_data = io.BytesIO(base64.standard_b64decode(img["data"]))
+                width, height = PIL.Image.open(image_data).size
+                flowables.append(
+                    Image(
+                        image_data,
+                        hAlign="LEFT",
+                        width=scale_factor * width,
+                        height=scale_factor * height,
+                    )
+                )
+            else:
+                flowables.append(
+                    Paragraph(
+                        f"Cannot handle image content type '{img['content_type']}'"
+                    )
+                )
         else:
-            self.within_code = True
-            self.para_push()
+            flowables.append(Paragraph(f"No such image '{ast['dest']}'"))
+
+        if ast["children"]:
+            self.para_push("Normal")
             for child in ast["children"]:
                 self.render(child)
-            self.para_pop("Code", preformatted=True)
-            self.within_code = False
-
-    def get_hr(self):
-        return HRFlowable(
-            width="100%",
-            color=GREY,
-            spaceBefore=4,
-            spaceAfter=constants.PDF_IMAGE_SPACE,
+            flowables.append(self.para_pop(add=False))
+        flowables.append(
+            HRFlowable(
+                width="100%",
+                color=reportlab.lib.colors.grey,
+                spaceBefore=4,
+                spaceAfter=constants.PDF_IMAGE_SPACE,
+            )
         )
+        self.flowables.append(KeepTogether(flowables))
 
     def render_emphasis(self, ast):
         self.para_text("<i>")
@@ -727,7 +708,9 @@ class Writer:
         self.para_text(" ")
 
     def render_thematic_break(self, ast):
-        self.flowables.append(HRFlowable(width="60%", color=BLACK, spaceAfter=10))
+        self.flowables.append(
+            HRFlowable(width="60%", color=reportlab.lib.colors.black, spaceAfter=10)
+        )
 
     def render_link(self, ast):
         self.para_text(f'<link href="{ast["dest"]}" underline="true" color="blue">')
@@ -850,13 +833,19 @@ class Writer:
     def add_pagebreak(self):
         self.flowables.append(NotAtTopPageBreak())
 
-    def para_push(self):
+    def para_push(self, stylename="Normal", preformatted=False):
         "Push new container for text in a paragraph onto the stack."
-        self.para_stack.append([])
+        self.para_stack.append(([], stylename, preformatted))
 
-    def para_pop(self, stylename, preformatted=False):
+    def para_pop(self, stylename=None, preformatted=None, add=True):
         "Output paragraph containing the saved-up text."
-        text = "".join(self.para_stack.pop())
+        popped = self.para_stack.pop()
+        parts = popped[0]
+        if stylename is None:
+            stylename = popped[1]
+        if preformatted is None:
+            preformatted = popped[2]
+        text = "".join(parts)
         if self.list_stack:
             if preformatted:
                 self.list_stack[-1].append(
@@ -866,17 +855,17 @@ class Writer:
                 self.list_stack[-1].append(
                     Paragraph(text, style=self.stylesheet[stylename])
                 )
-        elif self.caption:
-            self.caption = Paragraph(text, style=self.stylesheet[stylename])
-        else:
+        elif add:
             if preformatted:
                 self.add_preformatted(text, stylename)
             else:
                 self.add_paragraph(text, stylename)
+        else:
+            return Paragraph(text, style=self.stylesheet[stylename])
 
     def para_text(self, text):
         "Add text to container on top of stack."
-        self.para_stack[-1].append(text)
+        self.para_stack[-1][0].append(text)
 
     def display_page_number(self, canvas, doc):
         "Output page number onto the current canvas."
@@ -921,7 +910,9 @@ class BookWriter(Writer):
         "Create the PDF document of the book return its content."
         # Write book title page containing authors and metadata.
         self.add_paragraph(self.book.title, "Title")
-        self.flowables.append(HRFlowable(width="100%", color=BLACK, spaceAfter=20))
+        self.flowables.append(
+            HRFlowable(width="100%", color=reportlab.lib.colors.black, spaceAfter=20)
+        )
         if self.book.subtitle:
             self.add_paragraph(self.book.subtitle, "Heading1")
         for author in self.book.authors:
@@ -1048,17 +1039,20 @@ class ItemWriter(Writer):
             creator=f"writethatbook {constants.__version__}",
             lang=self.book.language,
         )
-        if self.any_indexed:
-            document.build(
-                self.flowables,
-                onFirstPage=self.display_page_number,
-                onLaterPages=self.display_page_number,
-                canvasmaker=self.index.getCanvasMaker(),
-            )
-        else:
-            document.build(
-                self.flowables,
-                onFirstPage=self.display_page_number,
-                onLaterPages=self.display_page_number,
-            )
+        try:
+            if self.any_indexed:
+                document.build(
+                    self.flowables,
+                    onFirstPage=self.display_page_number,
+                    onLaterPages=self.display_page_number,
+                    canvasmaker=self.index.getCanvasMaker(),
+                )
+            else:
+                document.build(
+                    self.flowables,
+                    onFirstPage=self.display_page_number,
+                    onLaterPages=self.display_page_number,
+                )
+        except LayoutError as error:
+            raise Error(str(error))
         return output.getvalue()

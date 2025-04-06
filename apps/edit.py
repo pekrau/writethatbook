@@ -29,7 +29,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Div(
                 Div(
                     Fieldset(
-                        Legend(Tx("Title")),
+                        Label(Tx("Title")),
                         Input(
                             name="title",
                             value=book.title,
@@ -40,7 +40,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 ),
                 Div(
                     Fieldset(
-                        Legend(Tx("Subtitle")),
+                        Label(Tx("Subtitle")),
                         Input(name="subtitle", value=book.subtitle or ""),
                     ),
                 ),
@@ -54,11 +54,9 @@ def get(request, book: Book, first: int = None, last: int = None):
             else:
                 language_options.append(Option(language))
         right = [
+            Fieldset(Label(Tx("Language")), Select(*language_options, name="language")),
             Fieldset(
-                Legend(Tx("Language")), Select(*language_options, name="language")
-            ),
-            Fieldset(
-                Legend(Tx("Public")),
+                Label(Tx("Public")),
                 Label(
                     Input(
                         type="checkbox",
@@ -73,7 +71,7 @@ def get(request, book: Book, first: int = None, last: int = None):
         if book.type == constants.ARTICLE:
             right.append(
                 Fieldset(
-                    Legend(Tx("Status")),
+                    Label(Tx("Status")),
                     components.get_status_field(book),
                 )
             )
@@ -81,7 +79,7 @@ def get(request, book: Book, first: int = None, last: int = None):
             Div(
                 Div(
                     Fieldset(
-                        Legend(Tx("Authors")),
+                        Label(Tx("Authors")),
                         Textarea(
                             "\n".join(book.authors or []),
                             id="authors",
@@ -96,7 +94,7 @@ def get(request, book: Book, first: int = None, last: int = None):
         )
         fields.append(
             Fieldset(
-                Legend(Tx("Text")),
+                Label(Tx("Text")),
                 Textarea(
                     NotStr(book.content),
                     id="text",
@@ -114,7 +112,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 Input(type="hidden", name="first", value=str(first)),
                 Input(type="hidden", name="last", value=str(last)),
                 Fieldset(
-                    Legend(Tx("Paragraph text")),
+                    Label(Tx("Paragraph text")),
                     Textarea(
                         NotStr(content),
                         id="content",
@@ -207,7 +205,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                     title_field,
                     subtitle_field,
                     Fieldset(
-                        Legend(Tx("Status")),
+                        Label(Tx("Status")),
                         components.get_status_field(item),
                     ),
                     cls="grid",
@@ -218,7 +216,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
 
         fields.append(
             Fieldset(
-                Legend(Tx("Text")),
+                Label(Tx("Text")),
                 Textarea(
                     NotStr(item.content),
                     id="content",
@@ -237,7 +235,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 Input(type="hidden", name="first", value=str(first)),
                 Input(type="hidden", name="last", value=str(last)),
                 Fieldset(
-                    Legend(Tx("Paragraph text")),
+                    Label(Tx("Paragraph text")),
                     Textarea(
                         NotStr(content),
                         id="content",

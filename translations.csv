@@ -11,8 +11,8 @@ index,index
 details,detaljer
 references,referenser
 reference,referens
-reference to clipboard,referens till urklipp
-image to clipboard,bild till urklipp
+copy reference to clipboard,kopiera referens till urklipp
+copy image to clipboard,kopiera bild till urklipp
 clipboard,urklipp
 author,författare
 authors,författare
@@ -110,6 +110,7 @@ optional,valfritt
 language,språk
 keywords,nyckelord
 article,artikel
+login,logga in
 logged in,inloggad
 user,användare
 all users,alla användare
@@ -183,3 +184,6 @@ add image,lägg till bild
 image file,bildfil
 caption,bildtext
 edit image,redigera bild
+scale factor,skalfaktor
+rendering,tolkning
+PNG factor,PNG-faktor

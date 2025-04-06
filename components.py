@@ -109,6 +109,8 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                         A(Tx("Download references TGZ file"), href="/refs/download"),
                     ]
                 )
+        elif book is books.get_imgs():
+            pass
         else:
             menu.append(A(Tx("Index"), href=f"/meta/index/{book}"))
             if item is None:
@@ -232,15 +234,15 @@ def footer(request, item=None):
             Div(Tx(item.status), title=Tx("Status")),
             Div(utils.str_datetime_display(item.modified), title=Tx("Modified")),
             Div(
-                f'{utils.thousands(item.n_words)} {Tx("words")}; ',
-                f'{utils.thousands(item.n_characters)} {Tx("characters")}',
+                f'{utils.numerical(item.n_words)} {Tx("words")}; ',
+                f'{utils.numerical(item.n_characters)} {Tx("characters")}',
             ),
         ]
         if item.type in (constants.BOOK, constants.SECTION):
             cells.append(
                 Div(
-                    f'{utils.thousands(item.sum_words)} {Tx("words")}; ',
-                    f'{utils.thousands(item.sum_characters)} {Tx("characters")}',
+                    f'{utils.numerical(item.sum_words)} {Tx("words")}; ',
+                    f'{utils.numerical(item.sum_characters)} {Tx("characters")}',
                 )
             )
         else:

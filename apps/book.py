@@ -43,11 +43,11 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("Title"), components.required()),
+                    Label(Tx("Title"), components.required()),
                     Input(name="title", required=True, autofocus=True),
                 ),
                 Fieldset(
-                    Legend(Tx("Upload TGZ file (optional)")),
+                    Label(Tx("Upload TGZ file (optional)")),
                     Input(type="file", name="tgzfile"),
                 ),
                 components.save_button("Create"),
@@ -430,8 +430,8 @@ def get_books_table(request, books):
                 Td(A(book.title, href=f"/book/{book.id}")),
                 Td(Tx(book.type.capitalize())),
                 Td(Tx(book.status)),
-                Td(Tx(utils.thousands(book.sum_words)), cls="right"),
-                Td(Tx(utils.thousands(book.sum_characters)), cls="right"),
+                Td(Tx(utils.numerical(book.sum_words)), cls="right"),
+                Td(Tx(utils.numerical(book.sum_characters)), cls="right"),
                 Td(owner),
                 Td(Tx(book.public and "Yes" or "No")),
                 Td(utils.str_datetime_display(book.modified)),

@@ -520,7 +520,7 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("BibTex data")),
+                    Label(Tx("BibTex data")),
                     Textarea(name="data", rows=16, autofocus=True),
                 ),
                 components.save_button("Add reference(s)"),
@@ -753,7 +753,7 @@ def get(request):
         Main(
             Form(
                 Fieldset(
-                    Legend(Tx("Reference(s) TGZ file"), components.required()),
+                    Label(Tx("Reference(s) TGZ file"), components.required()),
                     Input(type="file", name="tgzfile", required=True),
                 ),
                 components.save_button("Upload"),
@@ -786,7 +786,7 @@ def get_ref_fields(ref=None, type=None):
     "Return list of input fields for adding or editing a reference."
     if type is None:
         return Fieldset(
-            Legend(Tx("Type")),
+            Label(Tx("Type")),
             Select(
                 *[
                     Option(Tx(t.capitalize()), value=t)
@@ -800,7 +800,7 @@ def get_ref_fields(ref=None, type=None):
     result = [Input(type="hidden", name="type", value=type)]
     result.append(
         Fieldset(
-            Legend(Tx("Authors"), components.required()),
+            Label(Tx("Authors"), components.required()),
             Textarea(
                 "\n".join(ref.get("authors") or []),
                 name="authors",
@@ -811,7 +811,7 @@ def get_ref_fields(ref=None, type=None):
     )
     result.append(
         Fieldset(
-            Legend(Tx("Title"), components.required()),
+            Label(Tx("Title"), components.required()),
             Input(name="title", value=ref.get("title") or "", required=True),
         )
     )
@@ -819,7 +819,7 @@ def get_ref_fields(ref=None, type=None):
     if type == constants.BOOK:
         result.append(
             Fieldset(
-                Legend(Tx("Subtitle")),
+                Label(Tx("Subtitle")),
                 Input(name="subtitle", value=ref.get("subtitle") or ""),
             )
         )
@@ -830,7 +830,7 @@ def get_ref_fields(ref=None, type=None):
     else:
         result.append(
             Fieldset(
-                Legend(Tx("Year"), components.required()),
+                Label(Tx("Year"), components.required()),
                 Input(name="year", value=ref.get("year") or "", required=True),
             )
         )
@@ -839,7 +839,7 @@ def get_ref_fields(ref=None, type=None):
     if type in (constants.BOOK, constants.ARTICLE):
         result.append(
             Fieldset(
-                Legend(Tx("Edition published")),
+                Label(Tx("Edition published")),
                 Input(
                     name="edition_published", value=ref.get("edition_published") or ""
                 ),
@@ -847,81 +847,77 @@ def get_ref_fields(ref=None, type=None):
         )
 
     result.append(
-        Fieldset(Legend(Tx("Date")), Input(name="date", value=ref.get("date") or ""))
+        Fieldset(Label(Tx("Date")), Input(name="date", value=ref.get("date") or ""))
     )
 
     if type == constants.ARTICLE:
         result.append(
             Fieldset(
-                Legend(Tx("Journal") + " / " + Tx("Part of") + " " + Tx("reference")),
+                Label(Tx("Journal") + " / " + Tx("Part of") + " " + Tx("reference")),
                 Input(name="journal", value=ref.get("journal") or ""),
             )
         )
         result.append(
             Fieldset(
-                Legend(Tx("Volume")),
+                Label(Tx("Volume")),
                 Input(name="volume", value=ref.get("volume") or ""),
             )
         )
         result.append(
             Fieldset(
-                Legend(Tx("Number")),
+                Label(Tx("Number")),
                 Input(name="number", value=ref.get("number") or ""),
             )
         )
         result.append(
             Fieldset(
-                Legend(Tx("Pages")), Input(name="pages", value=ref.get("pages") or "")
+                Label(Tx("Pages")), Input(name="pages", value=ref.get("pages") or "")
             )
         )
 
     result.append(
         Fieldset(
-            Legend(Tx("Language")),
+            Label(Tx("Language")),
             Input(name="language", value=ref.get("language") or ""),
         )
     )
     result.append(
         Fieldset(
-            Legend(Tx("Publisher")),
+            Label(Tx("Publisher")),
             Input(name="publisher", value=ref.get("publisher") or ""),
         )
     )
     result.append(
-        Fieldset(Legend(Tx("URL")), Input(name="url", value=ref.get("url") or ""))
+        Fieldset(Label(Tx("URL")), Input(name="url", value=ref.get("url") or ""))
     )
     result.append(
         Fieldset(
-            Legend(Tx("Accessed")),
+            Label(Tx("Accessed")),
             Input(name="accessed", value=ref.get("accessed") or ""),
         )
     )
 
     if type == constants.ARTICLE:
         result.append(
-            Fieldset(
-                Legend(Tx("ISSN")), Input(name="issn", value=ref.get("issn") or "")
-            )
+            Fieldset(Label(Tx("ISSN")), Input(name="issn", value=ref.get("issn") or ""))
         )
         result.append(
             Fieldset(
-                Legend(Tx("PubMed")), Input(name="pmid", value=ref.get("pmid") or "")
+                Label(Tx("PubMed")), Input(name="pmid", value=ref.get("pmid") or "")
             )
         )
     if type == constants.BOOK:
         result.append(
-            Fieldset(
-                Legend(Tx("ISBN")), Input(name="isbn", value=ref.get("isbn") or "")
-            )
+            Fieldset(Label(Tx("ISBN")), Input(name="isbn", value=ref.get("isbn") or ""))
         )
     if type in (constants.BOOK, constants.ARTICLE):
         result.append(
-            Fieldset(Legend(Tx("DOI")), Input(name="doi", value=ref.get("doi") or ""))
+            Fieldset(Label(Tx("DOI")), Input(name="doi", value=ref.get("doi") or ""))
         )
 
     result.append(
         Fieldset(
-            Legend(Tx("Keywords")),
+            Label(Tx("Keywords")),
             Input(name="keywords", value="; ".join(ref.get("keywords") or [])),
         )
     )
@@ -933,7 +929,7 @@ def get_ref_fields(ref=None, type=None):
         autofocus = False
     result.append(
         Fieldset(
-            Legend(Tx("Notes")),
+            Label(Tx("Notes")),
             Textarea(content, name="notes", rows=16, autofocus=autofocus),
         )
     )
@@ -1014,7 +1010,7 @@ def cleanup_whitespaces(value):
 def get_ref_clipboard(ref):
     return Img(
         src="/clipboard.svg",
-        title=Tx("Reference to clipboard"),
+        title=Tx("Copy reference to clipboard"),
         style="cursor: pointer;",
         cls="white to_clipboard",
         data_clipboard_action="copy",

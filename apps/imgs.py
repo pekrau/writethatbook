@@ -70,6 +70,9 @@ def get(request):
     if auth.authorized(request, *auth.img_add):
         tools.append((Tx("Add image"), f"/imgs/add"))
 
+    if auth.authorized(request, *auth.book_diff, book=imgs):
+        tools.append(["Differences", f"/diff/{constants.IMGS}"])
+
     title = f"{len(items)} {Tx('items')}"
     return (
         Title(title),

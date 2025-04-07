@@ -9,7 +9,7 @@ from fasthtml.common import *
 import requests
 
 import auth
-from books import get_refs, get_imgs, get_book, unpack_tgz_content
+from books import get_book, get_refs, get_imgs, unpack_tgz_content
 import components
 import constants
 from errors import *
@@ -162,13 +162,13 @@ def get(request, id: str):
         local_state = book.state
         title = f"{Tx('Differences in')} '{Tx('References')}'"
         rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/refs"
-        lurl = f"/refs"
+        lurl = "/refs"
     elif id == constants.IMGS:
         book = get_imgs()
         local_state = book.state
         title = f"{Tx('Differences in')} '{Tx('Images')}'"
         rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/imgs"
-        lurl = f"/imgs"
+        lurl = "/imgs"
     else:
         try:
             book = get_book(id)
@@ -440,6 +440,8 @@ def post(request, id: str):
         raise Error("book id may not be empty")
     if id == constants.REFS:
         book = get_refs()
+    elif id == constants.IMGS:
+        book = get_imgs()
     else:
         if id.startswith("_"):
             raise Error("book id may not start with an underscore '_'")
@@ -466,7 +468,7 @@ async def post(request, id: str, tgzfile: UploadFile = None):
 
     if not id:
         raise Error("book id may not be empty")
-    if id != constants.REFS and id.startswith("_"):
+    if id not in (constants.REFS, constants.IMGS) and id.startswith("_"):
         raise Error("book id may not start with an underscore '_'")
 
     content = await tgzfile.read()
@@ -491,6 +493,8 @@ async def post(request, id: str, tgzfile: UploadFile = None):
 
     if id == constants.REFS:
         get_refs(reread=True)
+    elif id == constants.IMGS:
+        get_imgs(reread=True)
     else:
         get_book(id, reread=True)
     return "success"

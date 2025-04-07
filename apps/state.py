@@ -3,7 +3,7 @@
 import datetime
 
 import auth
-from books import Book, get_books, get_refs
+from books import Book, get_books, get_refs, get_imgs
 import components
 import constants
 import utils
@@ -15,7 +15,7 @@ app, rt = components.get_fast_app()
 def get_books_state(request):
     "Return JSON for the state of the readable books of this site."
     result = {}
-    for book in get_books(request) + [get_refs()]:
+    for book in get_books(request) + [get_refs()]+ [get_imgs()]:
         result[book.id] = dict(
             title=book.title,
             modified=utils.str_datetime_iso(book.modified),
@@ -46,9 +46,19 @@ def get(request):
 
 @rt(f"/{constants.REFS}")
 def get(request):
-    auth.authorize(request, *auth.book_view)
+    refs = get_refs()
+    auth.authorize(request, *auth.book_view, book=refs)
     result = get_general_state()
-    result.update(get_refs().state)
+    result.update(refs.state)
+    return result
+
+
+@rt(f"/{constants.IMGS}")
+def get(request):
+    imgs = get_imgs()
+    auth.authorize(request, *auth.book_view, book=imgs)
+    result = get_general_state()
+    result.update(imgs.state)
     return result
 
 

@@ -86,17 +86,6 @@ def get(request, img: Text):
     "View an image and its information."
     auth.authorize(request, *auth.img_view, img=img)
 
-    tools = []
-    if auth.authorized(request, *auth.img_edit, img=img):
-        tools.extend(
-            [
-                ("Edit", f"/imgs/edit/{img['id']}"),
-                ("Delete", f"/imgs/delete/{img['id']}"),
-            ]
-        )
-    if auth.authorized(request, *auth.img_add):
-        tools.append((Tx("Add image"), f"/imgs/add"))
-
     # SVG image.
     if img["content_type"] == constants.SVG_CONTENT_TYPE:
         image = NotStr(img["data"])
@@ -114,6 +103,36 @@ def get(request, img: Text):
         item = Article(image, Footer(NotStr(markdown.to_html(img.content))))
     else:
         item = Article(image)
+
+    xrefs = []
+    for book in books.get_books(request):
+        texts = book.imgs.get(img["id"], [])
+        if len(texts) == 0:
+            continue
+        entries = []
+        for text in sorted(texts, key=lambda t: t.ordinal):
+            entries.append(
+                A(
+                    text.fullheading,
+                    cls="secondary",
+                    href=f"/book/{book.id}/{text.path}",
+                )
+            )
+        xrefs.append(
+            Li(A(book.title, href=f"/book/{book}"), Ul(*[Li(e) for e in entries]))
+        )
+    if xrefs:
+        xrefs = Article(Header(Tx("Referenced by")), Ul(*xrefs))
+    else:
+        xrefs = ""
+
+    tools = []
+    if auth.authorized(request, *auth.img_edit, img=img):
+        tools.append(("Edit", f"/imgs/edit/{img['id']}"))
+        if not xrefs:
+            tools.append(("Delete", f"/imgs/delete/{img['id']}"))
+    if auth.authorized(request, *auth.img_add):
+        tools.append((Tx("Add image"), f"/imgs/add"))
 
     pdf_info = [
         P(Tx("Scale factor"), ": ", utils.numerical(img["pdf"]["scale_factor"]))
@@ -157,6 +176,7 @@ def get(request, img: Text):
                 P(Tx("Type"), ": ", constants.IMAGE_MAP[img["content_type"]]),
                 cls="grid",
             ),
+            xrefs,
             Div(
                 Article(Header("PDF"), *pdf_info),
                 Article(Header("DOCX"), *docx_info),
@@ -530,6 +550,7 @@ async def post(session, request, img: Text, form: dict):
 def get(request, img: Text):
     "Confirm delete of the image text item."
     auth.authorize(request, *auth.img_edit, img=img)
+    # XXX Should really check for no references to this image.
 
     title = f"{Tx('Delete')} '{img['title']}'?"
     return (

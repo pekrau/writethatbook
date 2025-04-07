@@ -337,8 +337,10 @@ class Book(Container):
 
         # Index key: indexed term; value: set of texts.
         # Refs key: reference identifier; value: set of texts.
+        # Imgs key: reference identifier; value: set of texts.
         self.indexed = {}
         self.refs = {}
+        self.imgs = {}
         ast = markdown.to_ast(self.content)
         self.find_indexed(self, ast)
         for item in self:
@@ -347,6 +349,7 @@ class Book(Container):
             for keyword in item.get("keywords", []):
                 self.indexed.setdefault(keyword, set()).add(item)
             self.find_refs(item, ast)
+            self.find_imgs(item, ast)
 
         # Write out "index.md" if order changed.
         self.write()
@@ -588,6 +591,18 @@ class Book(Container):
         except KeyError:
             pass
 
+    def find_imgs(self, item, ast):
+        "Return the images in the AST of the content."
+        try:
+            for child in ast["children"]:
+                if isinstance(child, str):
+                    continue
+                if child["element"] == "image":
+                    self.imgs.setdefault(child["dest"], set()).add(item)
+                self.find_imgs(item, child)
+        except KeyError:
+            pass
+
     def get(self, path, default=None):
         "Return the item given its path."
         return self.path_lookup.get(path, default)
@@ -733,6 +748,7 @@ class Book(Container):
             book.frontmatter["owner"] = owner
         book.write()
         get_refs(reread=True)
+        get_imgs(reread=True)
         _books[book.id] = book
         return book
 
@@ -744,6 +760,7 @@ class Book(Container):
         _books.pop(self.id, None)
         shutil.rmtree(self.abspath)
         get_refs(reread=True)
+        get_imgs(reread=True)
 
     def get_tgz_content(self):
         """Return the contents of the gzipped tar file containing
@@ -1063,10 +1080,12 @@ class Item(Container):
         for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and reread everything; refs and indexes must be updated.
+        # Write out book and reread everything.
+        # refs, imgs and indexes must be updated.
         self.book.write()
         self.book.read()
         get_refs(reread=True)
+        get_imgs(reread=True)
 
     def into(self):
         "Move this item into the section closest backward of it."
@@ -1103,10 +1122,12 @@ class Item(Container):
         for item in self:
             self.book.path_lookup[item.path] = item
         self.check_integrity()
-        # Write out book and reread everything; refs and indexes must be updated.
+        # Write out book and reread everything.
+        # refs, img and indexes must be updated.
         self.book.write()
         self.book.read()
         get_refs(reread=True)
+        get_imgs(reread=True)
 
     def copy(self):
         "Copy this item."
@@ -1269,6 +1290,7 @@ class Section(Item):
         self.book.write()
         self.book.read()
         get_refs(reread=True)
+        get_imgs(reread=True)
         return path
 
     def delete(self, force=False):
@@ -1280,6 +1302,7 @@ class Section(Item):
         shutil.rmtree(self.abspath)
         self.book.write()
         get_refs(reread=True)
+        get_imgs(reread=True)
 
     def search(self, rx):
         """Find the set of items that match the compiled regexp.
@@ -1426,6 +1449,7 @@ class Text(Item):
         self.book.write()
         self.book.read()
         get_refs(reread=True)
+        get_imgs(reread=True)
         return path
 
     def delete(self, force=False):

@@ -177,6 +177,7 @@ NEW_PARAGRAPH_RX = re.compile(r"\n\n")
 
 
 class HtmlRenderer(marko.html_renderer.HTMLRenderer):
+    "Modify behaviour of HTML renderer for some elements."
 
     def render_list(self, element):
         "Modified unordered list bullet display. XXX Doesn't work on Chrome?"

@@ -302,9 +302,10 @@ def get(request, ref: Text, position: int = None):
             [
                 ("Edit", f"/refs/edit/{ref['id']}"),
                 ("Append", f"/refs/append/{ref['id']}"),
-                ("Delete", f"/refs/delete/{ref['id']}"),
             ]
         )
+        if not xrefs:
+            tools.append(("Delete", f"/refs/delete/{ref['id']}"))
         tools.extend(
             [
                 (f'{Tx("Add reference")}: {Tx(type)}', f"/refs/add/{type}")
@@ -319,17 +320,6 @@ def get(request, ref: Text, position: int = None):
         )
 
         kwargs = {"role": "button", "style": "width: 10em;"}
-        buttons_card = [
-            Card(
-                Div(A(Tx("Edit"), href=f"/refs/edit/{ref['id']}", **kwargs)),
-                Div(A(Tx("Append"), href=f"/refs/append/{ref['id']}", **kwargs)),
-                Div(),
-                Div(),
-                cls="grid",
-            )
-        ]
-    else:
-        buttons_card = []
 
     title = f"{ref['name']} ({Tx(ref['type'])})"
     html = markdown.to_html(ref.content, book=refs)
@@ -348,7 +338,6 @@ def get(request, ref: Text, position: int = None):
         Main(
             Table(*rows),
             Div(NotStr(html), style="margin-top: 1em;"),
-            *buttons_card,
             cls="container",
         ),
         components.footer(request, ref),
@@ -638,6 +627,7 @@ def post(request, form: dict):
 def get(request, ref: Text):
     "Confirm delete of the reference."
     auth.authorize(request, *auth.ref_edit, ref=ref)
+    # XXX Should really check for no references to this reference.
 
     if ref.content:
         segments = [P(Strong(Tx("Note: all contents will be lost!")))]

@@ -9,7 +9,7 @@ from fasthtml.common import *
 import requests
 
 import auth
-from books import get_refs, get_book, unpack_tgz_content
+from books import get_refs, get_imgs, get_book, unpack_tgz_content
 import components
 import constants
 from errors import *
@@ -39,12 +39,17 @@ def get(request):
         if id == constants.REFS:
             lurl = "/refs"
             rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/refs"
+        elif id == constants.IMGS:
+            lurl = "/imgs"
+            rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/imgs"
         else:
             lurl = f"/book/{id}"
             rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/book/{id}"
         lbook = local_books.pop(id, {})
         if id == constants.REFS:
             title = Tx("References")
+        elif id == constants.IMGS:
+            title = Tx("Images")
         else:
             title = lbook.get("title") or rbook.get("title")
         if lbook:
@@ -147,7 +152,7 @@ def get(request, id: str):
 
     if not id:
         raise Error("book id may not be empty")
-    if id != constants.REFS and id.startswith("_"):
+    if id not in (constants.REFS, constants.IMGS) and id.startswith("_"):
         raise Error("book id may not start with an underscore '_'")
 
     remote_state = get_remote_state(id)
@@ -158,6 +163,12 @@ def get(request, id: str):
         title = f"{Tx('Differences in')} '{Tx('References')}'"
         rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/refs"
         lurl = f"/refs"
+    elif id == constants.IMGS:
+        book = get_imgs()
+        local_state = book.state
+        title = f"{Tx('Differences in')} '{Tx('Images')}'"
+        rurl = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/imgs"
+        lurl = f"/imgs"
     else:
         try:
             book = get_book(id)
@@ -374,6 +385,8 @@ def post(request, id: str):
 
     if id == constants.REFS:
         url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + "/refs/download"
+    elif id == constants.IMGS:
+        url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + "/imgs/download"
     else:
         url = os.environ["WRITETHATBOOK_REMOTE_SITE"].rstrip("/") + f"/download/{id}"
     dirpath = Path(os.environ["WRITETHATBOOK_DIR"]) / id
@@ -396,7 +409,7 @@ def post(request, id: str):
     else:
         saved_dirpath = None
     try:
-        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
+        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS)
     except ValueError as message:
         # If failure, reinstate saved contents.
         if saved_dirpath:
@@ -410,6 +423,9 @@ def post(request, id: str):
     if id == constants.REFS:
         get_refs(reread=True)
         return components.redirect("/refs")
+    elif id == constants.IMGS:
+        get_imgs(reread=True)
+        return components.redirect("/imgs")
     else:
         get_book(id, reread=True)
         return components.redirect(f"/book/{id}")
@@ -465,7 +481,7 @@ async def post(request, id: str, tgzfile: UploadFile = None):
     else:
         saved_dirpath = None
     try:
-        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS)
+        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS)
         if saved_dirpath:
             shutil.rmtree(saved_dirpath)
     except ValueError as message:

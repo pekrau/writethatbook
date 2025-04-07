@@ -141,7 +141,7 @@ book_edit = [
 
 refs_edit = [  # References book.
     Deny({"not": {"var": "current_user"}}),
-    # XXX Should be less restrictive. Ownership of reference.
+    # XXX Should be less restrictive.
     Allow({"var": "current_user.is_admin"}),
 ]
 
@@ -158,6 +158,13 @@ ref_edit = [  # Reference item.
     # XXX Should be less restrictive. Ownership of reference.
     Allow({"var": "current_user.is_admin"}),
 ]
+
+imgs_edit = [  # Images book.
+    Deny({"not": {"var": "current_user"}}),
+    # XXX Should be less restrictive.
+    Allow({"var": "current_user.is_admin"}),
+]
+
 
 img_view = [
     Allow({"var": "img.public"}),

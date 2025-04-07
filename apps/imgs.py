@@ -579,6 +579,64 @@ def post(request, img: Text):
     return components.redirect("/imgs")
 
 
+@rt("/download")
+def get(request):
+    "Download a gzipped tar file of all the images."
+    auth.allow_anyone(request)
+
+    filename = f"writethatbook_imgs_{utils.str_datetime_safe()}.tgz"
+
+    return Response(
+        content=get_imgs().get_tgz_content(),
+        media_type=constants.GZIP_CONTENT_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@rt("/upload")
+def get(request):
+    """Upload a gzipped tar file of images;
+    replace any image with the same name.
+    """
+    imgs = get_imgs()
+    auth.authorize(request, *auth.imgs_edit, imgs=imgs)
+
+    title = Tx("Upload images")
+    return (
+        Title(title),
+        components.header(request, title, book=imgs),
+        Main(
+            Form(
+                Fieldset(
+                    Label(Tx("Images TGZ file"), components.required()),
+                    Input(type="file", name="tgzfile", required=True),
+                ),
+                components.save_button("Upload"),
+                action="/imgs/upload",
+                method="post",
+            ),
+            components.cancel_button("/imgs"),
+            cls="container",
+        ),
+        components.footer(request),
+    )
+
+
+@rt("/upload")
+async def post(request, tgzfile: UploadFile):
+    "Actually add or replace images by contents of the uploaded file."
+    imgs = get_imgs()
+    auth.authorize(request, *auth.imgs_edit, book=imgs)
+
+    content = await tgzfile.read()
+    if not content:
+        raise Error("empty TGZ file")
+    books.unpack_tgz_content(imgs.abspath, content)
+    get_imgs(reread=True)
+
+    return components.redirect("/imgs")
+
+
 def parse_check_svg(content):
     """Check that SVG contains 'svg' root and 'width' and 'height' attributes.
     Raise ValueError if any problem.

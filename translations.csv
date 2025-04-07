@@ -77,10 +77,12 @@ text full name,textens hela namn
 text heading,textens titel
 none,ingen
 add reference,lägg till referens
-add reference(s),lägg till referens(er)
-added reference(s),lade till referens(er)
-upload reference(s),ladda upp referens(er)
-Reference(s) TGZ file,Referens(er) TGZ-fil
+add reference,lägg till referens
+added reference,lade till referens
+upload references,ladda upp referenser
+References TGZ file,Referenser TGZ-fil
+upload images,ladda upp bilder
+Images TGZ file,Bilder TGZ-fil
 status list,statuslista
 download dump file,ladda ner dump-fil
 Book as DOCX file,Boken som DOCX-fil

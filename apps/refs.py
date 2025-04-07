@@ -158,6 +158,7 @@ def get(request):
                     Small(Ul(*[Li(e) for e in entries])),
                 )
             )
+
         if xrefs:
             items.append(Ul(*xrefs))
 
@@ -171,7 +172,7 @@ def get(request):
         )
         tools.extend(
             [
-                (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
+                (f'{Tx("Add reference")}: BibTex', "/refs/bibtex"),
                 (Tx("Upload TGZ file"), "/refs/upload"),
             ]
         )
@@ -314,7 +315,7 @@ def get(request, ref: Text, position: int = None):
         )
         tools.extend(
             [
-                (f'{Tx("Add reference(s)")}: BibTex', "/refs/bibtex"),
+                (f'{Tx("Add reference")}: BibTex', "/refs/bibtex"),
                 (Tx("Upload TGZ file"), "/refs/upload"),
             ]
         )
@@ -502,7 +503,7 @@ def get(request):
     "Add reference(s) from BibTex data."
     auth.authorize(request, *auth.ref_add)
 
-    title = f'{Tx("Add reference(s)")}: BibTex'
+    title = f'{Tx("Add reference")}: BibTex'
     return (
         Title(title),
         components.header(request, title),
@@ -512,7 +513,7 @@ def get(request):
                     Label(Tx("BibTex data")),
                     Textarea(name="data", rows=16, autofocus=True),
                 ),
-                components.save_button("Add reference(s)"),
+                components.save_button("Add reference"),
                 action="/refs/bibtex",
                 method="post",
             ),
@@ -570,7 +571,7 @@ def post(request, data: str):
     # Reread the cache.
     refs = get_refs(reread=True)
 
-    title = Tx("Added reference(s)")
+    title = Tx("Added reference")
     return (
         Title(title),
         Script(src="/clipboard.min.js"),
@@ -736,14 +737,14 @@ def get(request):
     refs = get_refs()
     auth.authorize(request, *auth.refs_edit, refs=refs)
 
-    title = Tx("Upload reference(s)")
+    title = Tx("Upload references")
     return (
         Title(title),
         components.header(request, title, book=refs),
         Main(
             Form(
                 Fieldset(
-                    Label(Tx("Reference(s) TGZ file"), components.required()),
+                    Label(Tx("References TGZ file"), components.required()),
                     Input(type="file", name="tgzfile", required=True),
                 ),
                 components.save_button("Upload"),

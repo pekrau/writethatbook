@@ -130,7 +130,7 @@ def get_imgs(reread=False):
     return _imgs
 
 
-def unpack_tgz_content(dirpath, content, is_refs=False):
+def unpack_tgz_content(dirpath, content, is_refs=False, is_imgs=False):
     "Put contents of a TGZ file for a book into the given directory."
     try:
         tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
@@ -147,7 +147,7 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
                 raise Error(
                     f"reference TGZ file contains disallowed file name '{name}'"
                 )
-        # When refs: Additional checks for validity.
+        # Refs book: Additional checks for validity.
         if is_refs:
             import apps
 
@@ -166,6 +166,20 @@ def unpack_tgz_content(dirpath, content, is_refs=False):
                     raise Error("refs TGZ file contains invalid file name '{name}'")
             # Skip 'index.md' and anything that is not a file.
             filter = lambda f, path: f if f.name != "index.md" and f.isfile() else None
+        # Imgs book: Additional checks for validity.
+        elif is_imgs:
+            for name in tf.getnames():
+                if name == "index.md":
+                    continue
+                # No non-Markdown files allowed.
+                if not name.endswith(".md"):
+                    raise Error("refs TGZ file must contain only *.md files")
+                # No subdirectories allowed.
+                if Path(name).name != name:
+                    raise Error("refs TGZ file must contain no directories")
+            # Skip 'index.md' and anything that is not a file.
+            filter = lambda f, path: f if f.name != "index.md" and f.isfile() else None
+        # Ordinary book.
         else:
             # Skip anything that is not a file or directory.
             filter = lambda f, path: f if f.isfile() or f.isdir() else None

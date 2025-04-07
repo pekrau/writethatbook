@@ -299,6 +299,10 @@ async def post(session, request, form: dict):
         return Error(f"invalid image file content type '{image_file.content_type}'")
 
     # Caption may have been set from image contents.
+    # It must not contain more than one paragraph.
+    if caption:
+        caption = caption.replace("\r", "")
+        caption = "\n".join([c for c in caption.split("\n") if c])
     img.write(content=caption)
 
     return components.redirect(f"/imgs/view/{img['id']}")
@@ -540,7 +544,13 @@ async def post(session, request, img: Text, form: dict):
     img.title = title or img["id"]
     if status:
         img.status = status
+
     # Caption may have been set from image contents.
+    # It must not contain more than one paragraph.
+    if caption:
+        caption = caption.replace("\r", "")
+        caption = "\n".join([c for c in caption.split("\n") if c])
+    ic(caption)
     img.write(content=caption)
 
     return components.redirect(f"/imgs/view/{img['id']}")

@@ -2,6 +2,7 @@
 
 import json
 import re
+import urllib.parse
 
 import marko
 import marko.html_renderer
@@ -210,12 +211,14 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
             footer = f"<footer>{body}</footer>"
         else:
             footer = ""
+        # Fetch image from the web.
+        if urllib.parse.urlparse(element.dest).scheme:
+            url = self.escape_url(element.dest)
+            return f'<article><img src="{url}" {title} />{footer}</article>'
         try:
             img = get_imgs()[element.dest]
         except Error:
-            # Fetch image from the web.
-            url = self.escape_url(element.dest)
-            return f'<article><img src="{url}" {title} />{footer}</article>'
+            return f"<article><b>Error</b>: no such image '{element.dest}'{footer}</article>"
 
         # Use the image from the image library.
         # SVG, use as such. 'title' is not used.

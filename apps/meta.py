@@ -146,7 +146,7 @@ def get(request, book: Book):
     auth.authorize(request, *auth.book_view, book=book)
 
     items = []
-    for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].lower()):
+    for key, texts in sorted(book.indexed.items(), key=lambda tu: tu[0].casefold()):
         refs = []
         for text in sorted(texts, key=lambda t: t.ordinal):
             refs.append(

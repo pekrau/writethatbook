@@ -37,7 +37,7 @@ def post(request, book: Book, form: dict):
     term = form.get("term")
     if term:
         # Ignore case only when term is in all lower-case.
-        ignorecase = term == term.lower()
+        ignorecase = term == term.casefold()
         items = [
             Li(A(i.fulltitle, href=f"/book/{book}/{i.path}"))
             for i in sorted(

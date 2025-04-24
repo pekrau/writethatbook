@@ -36,7 +36,24 @@ _imgs = None
 
 
 def read_books():
-    "Read in all books into memory, including '_refs' and '_imgs'."
+    """Read in all books into memory.
+    Exclude directories beginning with underscore "_",
+    except '_refs' and '_imgs', which are read separately.
+    """
+
+    global _books
+    _books.clear()
+    for bookpath in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
+        if not bookpath.is_dir():
+            continue
+        if bookpath.name.startswith("_"):
+            continue
+        try:
+            book = Book(bookpath)
+            _books[book.id] = book
+        except FileNotFoundError:
+            pass
+
     global _refs
     refspath = Path(os.environ["WRITETHATBOOK_DIR"]) / constants.REFS
     # Create the references directory, if it doesn't exist.
@@ -62,19 +79,6 @@ def read_books():
             outfile.write("---\n")
     _imgs = Book(imgspath)
     _imgs.items.sort(key=lambda r: r["id"])
-
-    global _books
-    _books.clear()
-    for bookpath in Path(os.environ["WRITETHATBOOK_DIR"]).iterdir():
-        if not bookpath.is_dir():
-            continue
-        if bookpath.name.startswith("_"):
-            continue
-        try:
-            book = Book(bookpath)
-            _books[book.id] = book
-        except FileNotFoundError:
-            pass
 
 
 def get_books(request):

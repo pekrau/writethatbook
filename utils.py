@@ -48,7 +48,7 @@ def nameify(title):
     "Make name (lowercase letters, digits, ASCII-only) out of a title."
     result = unicodedata.normalize("NFKD", title).encode("ASCII", "ignore")
     return "".join(
-        [c.lower() if c in SAFE_CHARACTERS else "-" for c in result.decode("utf-8")]
+        [c.casefold() if c in SAFE_CHARACTERS else "-" for c in result.decode("utf-8")]
     )
 
 
@@ -135,7 +135,7 @@ class Translator:
         self.translation = {}
         for term in self.terms:
             self.translation[term[source]] = term[target]
-            self.translation[term[source].lower()] = term[target].lower()
+            self.translation[term[source].casefold()] = term[target].casefold()
             self.translation[term[source].upper()] = term[target].upper()
             self.translation[term[source].capitalize()] = term[target].capitalize()
 

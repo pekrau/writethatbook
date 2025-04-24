@@ -435,7 +435,7 @@ def get(request):
     refs = get_refs()
 
     items = []
-    for key, texts in sorted(refs.indexed.items(), key=lambda tu: tu[0].lower()):
+    for key, texts in sorted(refs.indexed.items(), key=lambda tu: tu[0].casefold()):
         xrefs = []
         for text in sorted(texts, key=lambda t: t.ordinal):
             xrefs.append(
@@ -549,11 +549,11 @@ def post(request, data: str):
         month = form.pop("month", "")
         parts = month.split("~")
         if len(parts) == 2 and parts[1]:
-            month = constants.MONTHS[parts[1].strip().lower()]
+            month = constants.MONTHS[parts[1].strip().casefold()]
             day = int("".join([c for c in parts[0] if c in string.digits]))
             form["date"] = f'{entry["year"]}-{month:02d}-{day:02d}'
         elif len(parts) == 1 and parts[0]:
-            month = constants.MONTHS[parts[0].strip().lower()]
+            month = constants.MONTHS[parts[0].strip().casefold()]
             form["date"] = f'{entry["year"]}-{month:02d}-00'
         # Change page numbers double dash to single dash.
         form["pages"] = form.get("pages", "").replace("--", "-")
@@ -688,7 +688,7 @@ def post(request, form: dict):
     term = form.get("term")
     if term:
         # Ignore case only when term is in all lower-case.
-        ignorecase = term == term.lower()
+        ignorecase = term == term.casefold()
         items = [
             Li(A(i.fulltitle, href=f"/refs/view/{i.path}"))
             for i in sorted(

@@ -498,7 +498,7 @@ class Writer:
     def write_indexed(self):
         self.document.add_page_break()
         self.write_heading(Tx("Index"), 1)
-        items = sorted(self.indexed.items(), key=lambda i: i[0].lower())
+        items = sorted(self.indexed.items(), key=lambda i: i[0].casefold())
         for canonical, entries in items:
             paragraph = self.document.add_paragraph(canonical, style="Body Text")
             paragraph.paragraph_format.keep_with_next = True

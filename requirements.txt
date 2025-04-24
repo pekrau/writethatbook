@@ -14,8 +14,8 @@ cssselect2==0.8.0
 executing==2.2.0
 fastcore==1.8.0
 fastlite==0.1.2
-h11
-httpcore
+h11==0.16.0
+httpcore==1.0.8
 httptools==0.6.4
 httpx==0.28.1
 icecream==2.1.4

@@ -6,7 +6,7 @@ from pathlib import Path
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 18, 3)
+VERSION = (1, 18, 4)
 __version__ = ".".join([str(n) for n in VERSION])
 
 

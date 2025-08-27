@@ -672,14 +672,20 @@ class Writer:
                     root["width"] = rendering_factor * float(root["width"])
                     root["height"] = rendering_factor * float(root["height"])
 
-                    self.add_image(vl_convert.svg_to_png(repr(root)), ast, scale_factor / rendering_factor)
+                    self.add_image(
+                        vl_convert.svg_to_png(repr(root)),
+                        ast,
+                        scale_factor / rendering_factor,
+                    )
 
                 # JPEG or PNG.
                 elif img["content_type"] in (
                     constants.PNG_CONTENT_TYPE,
                     constants.JPEG_CONTENT_TYPE,
                 ):
-                    self.add_image(base64.standard_b64decode(img["data"]), ast, scale_factor)
+                    self.add_image(
+                        base64.standard_b64decode(img["data"]), ast, scale_factor
+                    )
                 else:
                     raise ValueError(f"Cannot handle image {img['content_type']}")
             else:

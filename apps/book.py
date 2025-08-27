@@ -94,7 +94,7 @@ async def post(request, title: str, tgzfile: UploadFile):
 
 
 @rt("/{book:Book}")
-def get(request, book: Book, position: int = None):
+def get(request, book: Book):
     "Display book; contents list of sections and texts."
     auth.authorize(request, *auth.book_view, book=book)
 
@@ -141,9 +141,7 @@ def get(request, book: Book, position: int = None):
                 )
             )
         button_card = Card(*buttons, cls="grid")
-        html = markdown.to_html(
-            book.content, book=book, position=position, edit_href=f"/edit/{book}"
-        )
+        html = markdown.to_html(book.content, book=book, edit_href=f"/edit/{book}")
 
     else:
         tools = []
@@ -192,7 +190,7 @@ def get(request, book: Book, position: int = None):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str, position: int = None):
+def get(request, book: Book, path: str):
     "Display text or section contents."
     auth.authorize(request, *auth.book_view, book=book)
     if not path:
@@ -270,7 +268,6 @@ def get(request, book: Book, path: str, position: int = None):
         html = markdown.to_html(
             item.content,
             book=item.book,
-            position=position,
             edit_href=f"/edit/{book}/{path}",
         )
 

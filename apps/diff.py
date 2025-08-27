@@ -409,7 +409,9 @@ def post(request, id: str):
     else:
         saved_dirpath = None
     try:
-        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS)
+        unpack_tgz_content(
+            dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS
+        )
     except ValueError as message:
         # If failure, reinstate saved contents.
         if saved_dirpath:
@@ -483,7 +485,9 @@ async def post(request, id: str, tgzfile: UploadFile = None):
     else:
         saved_dirpath = None
     try:
-        unpack_tgz_content(dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS)
+        unpack_tgz_content(
+            dirpath, content, is_refs=id == constants.REFS, is_imgs=id == constants.IMGS
+        )
         if saved_dirpath:
             shutil.rmtree(saved_dirpath)
     except ValueError as message:

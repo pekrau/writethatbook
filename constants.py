@@ -2,11 +2,12 @@
 
 import functools
 from pathlib import Path
+import re
 
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 18, 4)
+VERSION = (1, 19, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -128,6 +129,8 @@ ITALIC = "italic"
 BOLD = "bold"
 UNDERLINE = "underline"
 FONT_STYLES = (NORMAL, ITALIC, BOLD, UNDERLINE)
+
+CHUNK_PATTERN = re.compile(r"\n$\n", re.M)
 
 MAX_LEVEL = 6
 

@@ -534,13 +534,17 @@ async def post(session, request, img: Text, form: dict):
     except KeyError:
         pass
     try:
-        img["pdf"]["png_rendering_factor"] = round(float(form["pdf_png_rendering_factor"]))
+        img["pdf"]["png_rendering_factor"] = round(
+            float(form["pdf_png_rendering_factor"])
+        )
     except KeyError:
         pass
 
     img["docx"]["scale_factor"] = float(form["docx_scale_factor"])
     try:
-        img["docx"]["png_rendering_factor"] = round(float(form["docx_png_rendering_factor"]))
+        img["docx"]["png_rendering_factor"] = round(
+            float(form["docx_png_rendering_factor"])
+        )
     except KeyError:
         pass
 

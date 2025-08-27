@@ -47,7 +47,7 @@ pages,sidor
 tools,verktyg
 characters,tecken
 edit,redigera
-edit paragraph,redigera stycke
+edit chunk,redigera stycke
 settings,inställningar
 create,skapa
 create section,skapa sektion
@@ -189,3 +189,4 @@ edit image,redigera bild
 scale factor,skalfaktor
 rendering,tolkning
 PNG factor,PNG-faktor
+display chunk numbers,visa styckenummer

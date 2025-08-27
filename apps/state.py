@@ -15,7 +15,7 @@ app, rt = components.get_fast_app()
 def get_books_state(request):
     "Return JSON for the state of the readable books of this site."
     result = {}
-    for book in get_books(request) + [get_refs()]+ [get_imgs()]:
+    for book in get_books(request) + [get_refs()] + [get_imgs()]:
         result[book.id] = dict(
             title=book.title,
             modified=utils.str_datetime_iso(book.modified),

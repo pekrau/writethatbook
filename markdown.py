@@ -1,5 +1,6 @@
 "Markdown parser."
 
+import html
 import json
 import re
 import urllib.parse
@@ -18,10 +19,13 @@ import utils
 from utils import Tx
 
 
-# Terrible kludge: creating URL for indexed word requires knowing
-# the book, so this global variable keeps track of it.
+# Globals; yes, awful coding, but it works...
 
+# 1) Creating URL for indexed word requires knowing the book.
 _current_book = None  # Required for index links.
+
+# 2) URL for editing an item.
+_current_edit_href = None
 
 
 def get_index_href(canonical):
@@ -125,23 +129,31 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
-class Editbutton(marko.inline.InlineElement):
-    "Markdown extension for paragraph edit button marker."
+class Chunk(marko.inline.InlineElement):
+    "Markdown extension for chunk number and edit button."
 
-    pattern = re.compile(r"!!!([^ ]+) ([0-9]+) ([0-9]+)!!!")
+    pattern = re.compile(r"§(\d+)§")
     parse_children = False
 
     def __init__(self, match):
-        self.href = match.group(1)
-        self.first = match.group(2)
-        self.last = match.group(3)
+        self.nchunk = match.group(1)
 
 
-class EditbuttonRenderer:
-    "Output paragraph edit button."
+class ChunkRenderer:
+    "Output the chunk number and edit button."
 
-    def render_editbutton(self, element):
-        return f' <a href="{element.href}?first={element.first}&last={element.last}" title="{Tx("Edit paragraph")}"><img src="/edit.svg" class="white"></a>'
+    def render_chunk(self, element):
+        global _current_book
+        global _current_edit_href
+        if _current_book.chunk_numbers:
+            result = [f'<mark id="{element.nchunk}">{element.nchunk}</mark>']
+        else:
+            result = []
+        if _current_edit_href:
+            result.append(
+                f'<a href="{_current_edit_href}?nchunk={element.nchunk}" title="{Tx("Edit chunk")}"><img src="/edit.svg" class="white"></a>'
+            )
+        return " ".join(result) + "\n"
 
 
 def to_ast(content):
@@ -156,29 +168,18 @@ def to_ast(content):
     return converter.convert(content)
 
 
-POSITION = "!!POSITION!!"
-CODE_BLOCK_PREFIX = "    "
-
-
-class Position(marko.inline.InlineElement):
-    "Markdown extension for edit position marker."
-
-    pattern = re.compile(f"({POSITION})")
-    parse_children = False
-
-
-class PositionRenderer:
-    "Output position marker."
-
-    def render_position(self, element):
-        return '<span id="position"></span>'
-
-
-NEW_PARAGRAPH_RX = re.compile(r"\n\n")
-
-
 class HtmlRenderer(marko.html_renderer.HTMLRenderer):
-    "Modify behaviour of HTML renderer for some elements."
+    "Modified HTML renderer for some elements."
+
+    def render_fenced_code(self, element):
+        lang = (
+            f' class="language-{self.escape_html(element.lang)}"'
+            if element.lang
+            else ""
+        )
+        return "<pre><code{}>{}</code></pre>\n".format(
+            lang, html.escape(element.children[0].children)  # type: ignore
+        )
 
     def render_list(self, element):
         "Modified unordered list bullet display. XXX Doesn't work on Chrome?"
@@ -236,81 +237,51 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
             return f'<article><img src="{src}" {title} />{footer}</article>'
 
 
-def to_html(content, book=None, position=None, edit_href=None):
-    global _current_book  # Required for index links.
-    # Create new converter instance.
-    converter = marko.Markdown(renderer=HtmlRenderer)
-    converter.use("footnote")
-    converter.use(
-        marko.helpers.MarkoExtension(
-            elements=[
-                Subscript,
-                Superscript,
-                Emdash,
-                Indexed,
-                Reference,
-                Editbutton,
-                Position,
-            ],
-            renderer_mixins=[
-                SubscriptRenderer,
-                SuperscriptRenderer,
-                EmdashRenderer,
-                IndexedRenderer,
-                ReferenceRenderer,
-                ThematicBreakRenderer,
-                EditbuttonRenderer,
-                PositionRenderer,
-            ],
+class Markdown2Html(marko.Markdown):
+    "Add new elements and extended HTML display features."
+
+    def __init__(self):
+        super().__init__(renderer=HtmlRenderer)
+        self.use("footnote")
+        self.use(
+            marko.helpers.MarkoExtension(
+                elements=[
+                    Subscript,
+                    Superscript,
+                    Emdash,
+                    Indexed,
+                    Reference,
+                    Chunk,
+                ],
+                renderer_mixins=[
+                    SubscriptRenderer,
+                    SuperscriptRenderer,
+                    EmdashRenderer,
+                    IndexedRenderer,
+                    ReferenceRenderer,
+                    ThematicBreakRenderer,
+                    ChunkRenderer,
+                ],
+            )
         )
-    )
-    # Insert the position marker, if any.
-    if position is not None:
-        # Handle code block special case.
-        if content[position:].startswith(CODE_BLOCK_PREFIX):
-            content = content[:position] + POSITION + "\n\n" + content[position:]
-        else:
-            # Add newline to handle beginning of block.
-            content = content[:position] + POSITION + "\n" + content[position:]
-    # Insert the edit button markers, if any.
-    if edit_href:
-        content = AddEditbuttons(content, edit_href).processed
+        self._setup_extensions()
+
+    def parse(self, text):
+        result = []
+        chunks = constants.CHUNK_PATTERN.split(text)
+        for nchunk, chunk in enumerate(chunks, start=1):
+            if chunk.startswith("[^"):  # Footnote definition; do not allow edit.
+                result.append(chunk)
+            else:
+                result.append(f"§{nchunk}§\n" + chunk)
+        text = "\n\n".join(result)
+        return super().parse(text)
+
+
+def to_html(content, book=None, edit_href=None):
+    global _current_book  # Required for index links.
     if book is not None:
         _current_book = book  # Required for index links generated in the next call.
-    return converter.convert(content)
-
-
-class AddEditbuttons:
-    "Add edit button marker to the end of each paragraph."
-
-    def __init__(self, content, edit_href):
-        self.edit_href = edit_href
-        self.content = content + "\n\n"  # Handle last paragraph.
-        self.offset = 0
-        # Handle the offset produced by the POSITION marker.
-        try:
-            self.position = self.content.index(POSITION)
-        except ValueError:
-            self.position = None
-        self.first = 0
-        self.processed = NEW_PARAGRAPH_RX.sub(self.add_marker, self.content)
-
-    def add_marker(self, match):
-        self.last = match.start()
-        result = self.get_marker(self.first, self.last)
-        self.first = match.end()
-        return "\n" + result
-
-    def get_marker(self, first, last):
-        # Handle the offset produced by the POSITION marker.
-        if self.position is not None:
-            offset = len(POSITION)
-            offset += 1  # Add one for newline for fenced block.
-            if first > self.position:
-                first -= offset
-            if last > self.position:
-                last -= offset
-        if last < 0:
-            return ""
-        else:
-            return f"!!!{self.edit_href} {first} {last}!!!\n\n"
+    global _current_edit_href  # Required for editing chunk.
+    _current_edit_href = edit_href
+    return Markdown2Html().convert(content)

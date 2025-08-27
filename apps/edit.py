@@ -17,14 +17,14 @@ app, rt = components.get_fast_app()
 
 
 @rt("/{book:Book}")
-def get(request, book: Book, first: int = None, last: int = None):
-    "Edit the book data, possibly one single paragraph of the content."
+def get(request, book: Book, nchunk: int = None):
+    "Edit the book data, possibly a specific chunk of the content."
     auth.authorize(request, *auth.book_edit, book=book)
 
     # Digest of content only, not frontmatter!
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(book.content))]
 
-    if first is None:  # Edit the full content.
+    if nchunk is None:  # Edit the full content.
         fields.append(
             Div(
                 Div(
@@ -56,7 +56,6 @@ def get(request, book: Book, first: int = None, last: int = None):
         right = [
             Fieldset(Label(Tx("Language")), Select(*language_options, name="language")),
             Fieldset(
-                Label(Tx("Public")),
                 Label(
                     Input(
                         type="checkbox",
@@ -65,6 +64,17 @@ def get(request, book: Book, first: int = None, last: int = None):
                         checked=book.public,
                     ),
                     Tx("Readable by anyone."),
+                ),
+            ),
+            Fieldset(
+                Label(
+                    Input(
+                        type="checkbox",
+                        role="switch",
+                        name="chunk_numbers",
+                        checked=book.chunk_numbers,
+                    ),
+                    Tx("Display chunk numbers."),
                 ),
             ),
         ]
@@ -105,14 +115,14 @@ def get(request, book: Book, first: int = None, last: int = None):
         )
         cancel_url = f"/book/{book}"
 
-    else:  # Edit only the given content fragment (paragraph).
-        content = book.content[first:last]
+    else:  # Edit only the given chunk of content.
+        chunks = constants.CHUNK_PATTERN.split(book.content)
+        content = chunks[nchunk - 1]
         fields.extend(
             [
-                Input(type="hidden", name="first", value=str(first)),
-                Input(type="hidden", name="last", value=str(last)),
+                Input(type="hidden", name="nchunk", value=str(nchunk)),
                 Fieldset(
-                    Label(Tx("Paragraph text")),
+                    Label(Tx("Chunk text")),
                     Textarea(
                         NotStr(content),
                         id="content",
@@ -123,7 +133,7 @@ def get(request, book: Book, first: int = None, last: int = None):
                 ),
             ]
         )
-        cancel_url = f"/book/{book}?position={first}#position"
+        cancel_url = f"/book/{book}#{nchunk}"
 
     title = f"{Tx('Edit')} {Tx('book')} '{book.title}'"
     return (
@@ -148,8 +158,8 @@ def post(request, book: Book, form: dict):
     if form.get("digest") != utils.get_digest(book.content):
         raise Error("text content changed while editing")
 
-    first = form.get("first")
-    if first is None:  # Edit the full content.
+    nchunk = form.get("nchunk")
+    if nchunk is None:  # Edit the full content.
         try:
             title = form["title"].strip()
             if not title:
@@ -160,21 +170,22 @@ def post(request, book: Book, form: dict):
         book.subtitle = form.get("subtitle") or ""
         book.authors = [a.strip() for a in (form.get("authors") or "").split("\n")]
         book.public = bool(form.get("public", ""))
+        book.chunk_numbers = bool(form.get("chunk_numbers", ""))
         if book.type == constants.ARTICLE:
             book.status = form.get("status")
         book.language = form.get("language", "")
         content = form["content"]
         href = f"/book/{book}"
 
-    else:  # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given chunk of content.
         try:
-            first = int(first)
-            last = int(form["last"])
+            nchunk = int(nchunk)
         except (KeyError, ValueError, TypeError):
-            raise Error("bad first or last value")
-        content = book.content
-        content = content[:first] + (form.get("content") or "") + content[last:]
-        href = f"/book/{book}?position={first}#position"
+            raise Error("bad chunk number")
+        chunks = constants.CHUNK_PATTERN.split(book.content)
+        chunks[nchunk - 1] = form.get("content") or ""
+        content = "\n\n".join(chunks)
+        href = f"/book/{book}#{nchunk}"
 
     # Save book content. Reread the book, ensuring everything is up to date.
     book.write(content=content, force=True)
@@ -184,14 +195,14 @@ def post(request, book: Book, form: dict):
 
 
 @rt("/{book:Book}/{path:path}")
-def get(request, book: Book, path: str, first: int = None, last: int = None):
+def get(request, book: Book, path: str, nchunk: int = None):
     "Edit the item (section or text), possibly one single paragraph of the content.."
     auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
     fields = [Input(type="hidden", name="digest", value=utils.get_digest(item.content))]
 
-    if first is None:  # Edit the full content.
+    if nchunk is None:  # Edit the full content.
         title_field = Fieldset(
             Label(Tx("Title")), Input(name="title", value=item.title, required=True)
         )
@@ -228,14 +239,14 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
         )
         cancel_url = f"/book/{book}/{path}"
 
-    else:  # Edit only the given content fragment (paragraph).
-        content = item.content[first:last]
+    else:  # Edit only the given chunk of content.
+        chunks = constants.CHUNK_PATTERN.split(item.content)
+        content = chunks[nchunk - 1]
         fields.extend(
             [
-                Input(type="hidden", name="first", value=str(first)),
-                Input(type="hidden", name="last", value=str(last)),
+                Input(type="hidden", name="nchunk", value=str(nchunk)),
                 Fieldset(
-                    Label(Tx("Paragraph text")),
+                    Label(Tx("Chunk text")),
                     Textarea(
                         NotStr(content),
                         id="content",
@@ -246,7 +257,7 @@ def get(request, book: Book, path: str, first: int = None, last: int = None):
                 ),
             ]
         )
-        cancel_url = f"/book/{book}/{path}?position={first}#position"
+        cancel_url = f"/book/{book}/{path}#{nchunk}"
 
     title = f"{Tx('Edit')} {Tx(item.type)} '{item.title}'"
     return (
@@ -273,10 +284,10 @@ def post(request, book: Book, path: str, form: dict):
 
     item = book[path]
     if form.get("digest") != utils.get_digest(item.content):
-        raise Error("text content changed while editing")
+        raise Error("text content changed by some other action")
 
-    first = form.get("first")
-    if first is None:  # Edit the full content.
+    nchunk = form.get("nchunk")
+    if nchunk is None:  # Edit the full content.
         item.name = form["title"]  # Changes name of directory/file.
         item.title = form["title"]
         item.subtitle = form.get("subtitle") or ""
@@ -287,15 +298,15 @@ def post(request, book: Book, path: str, form: dict):
         # Compute new path; item name may have changed.
         href = f"/book/{book}/{item.path}"
 
-    else:  # Edit only the given content fragment (paragraph).
+    else:  # Edit only the given chunk of content.
         try:
-            first = int(first)
-            last = int(form["last"])
+            nchunk = int(nchunk)
         except (KeyError, ValueError, TypeError):
-            raise Error("bad first or last value")
-        content = item.content
-        content = content[:first] + (form.get("content") or "") + content[last:]
-        href = f"/book/{book}/{path}?position={first}#position"
+            raise Error("bad chunk number")
+        chunks = constants.CHUNK_PATTERN.split(item.content)
+        chunks[nchunk - 1] = form.get("content") or ""
+        content = "\n\n".join(chunks)
+        href = f"/book/{book}/{path}#{nchunk}"
 
     # Save item. Reread the book, ensuring everything is up to date.
     item.write(content=content, force=True)

@@ -474,6 +474,14 @@ class Book(Container):
         self.frontmatter["public"] = bool(yes)
 
     @property
+    def chunk_numbers(self):
+        return bool(self.frontmatter.get("chunk_numbers"))
+
+    @chunk_numbers.setter
+    def chunk_numbers(self, yes):
+        self.frontmatter["chunk_numbers"] = bool(yes)
+
+    @property
     def status(self):
         "Return the lowest status for the sub-items, or from 'index.md' if no items."
         if self.items:

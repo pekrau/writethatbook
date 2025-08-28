@@ -23,7 +23,6 @@ from books import Book, get_imgs
 import components
 import constants
 from errors import *
-import markdown
 import minixml
 import users
 import utils
@@ -85,7 +84,6 @@ def get(request, book: Book):
             indexed_font_options.append(Option(Tx(value.capitalize()), value=value))
     fields = [
         Fieldset(
-            Label(Tx("Metadata on title page")),
             Label(
                 Input(
                     type="checkbox",
@@ -93,7 +91,7 @@ def get(request, book: Book):
                     role="switch",
                     checked=title_page_metadata,
                 ),
-                Tx("Display"),
+                Tx("Metadata on title page"),
             ),
         ),
         Fieldset(
@@ -196,6 +194,8 @@ class Writer:
         )
         self.reference_font = settings.get("reference_font", constants.NORMAL)
         self.indexed_font = settings.get("indexed_font", constants.NORMAL)
+        # Paragraph number
+        self.paragraph_number = 0
 
         # Key: fulltitle; value: dict(label, ast_children)
         self.footnotes = {}
@@ -227,13 +227,13 @@ class Writer:
         section.header_distance = docx.shared.Mm(12.7)
         section.footer_distance = docx.shared.Mm(12.7)
 
-        # pstyles = [
+        # for cstyle in [
         #     s
         #     for s in self.document.styles
-        #     if isinstance(s, docx.styles.style.ParagraphStyle)
+        #     if isinstance(s, docx.styles.style.CharacterStyle)
         #     and not isinstance(s, docx.styles.style._TableStyle)
-        # ]
-        # ic(pstyles)
+        # ]:
+        #     ic(cstyle, cstyle.name)
 
         # Modify styles.
         style = self.document.styles["Normal"]
@@ -398,7 +398,7 @@ class Writer:
                 constants.DOCX_REFERENCE_INDENT
             )
             run = paragraph.add_run(reference["name"])
-            run.bold = True
+            run.font.bold = True
             paragraph.add_run("  ")
             self.write_reference_authors(paragraph, reference)
             try:
@@ -556,7 +556,7 @@ class Writer:
                     -docx.shared.Pt(constants.DOCX_FOOTNOTE_INDENT)
                 )
                 run = self.current_paragraph.add_run(f"{self.footnote_def_flag}.")
-                run.bold = True
+                run.font.bold = True
                 self.current_paragraph.add_run(" ")
                 self.footnote_def_flag = -1
 
@@ -583,6 +583,9 @@ class Writer:
             self.current_paragraph.style = style
         else:
             self.current_paragraph.style = self.style_stack[-1]
+        self.paragraph_number += 1
+        run = self.current_paragraph.add_run(f"{self.paragraph_number}. ")
+        run.style = self.document.styles["Intense Quote Char"]
         for child in ast["children"]:
             self.render(child)
 
@@ -787,11 +790,11 @@ class Writer:
         )
         run = self.current_paragraph.add_run(ast["term"])
         if self.indexed_font == constants.ITALIC:
-            run.italic = True
+            run.font.italic = True
         elif self.indexed_font == constants.BOLD:
-            run.bold = True
+            run.font.bold = True
         elif self.indexed_font == constants.UNDERLINE:
-            run.underline = True
+            run.font.underline = True
 
     def render_footnote_ref(self, ast):
         # The label is used only for lookup; number is used for output.
@@ -835,11 +838,11 @@ class Writer:
             self.referenced.add(ast["id"])
             run = self.current_paragraph.add_run(ast["name"])
             if self.reference_font == constants.ITALIC:
-                run.italic = True
+                run.font.italic = True
             elif self.reference_font == constants.BOLD:
-                run.bold = True
+                run.font.bold = True
             elif self.reference_font == constants.UNDERLINE:
-                run.underline = True
+                run.font.underline = True
         else:
             self.current_paragraph.add_run(f'??? no such refid {ast["name"]} ???')
 
@@ -925,15 +928,15 @@ class BookWriter(Writer):
             )
 
             run = paragraph.add_run(f"{Tx('Status')}: {Tx(self.book.status)}")
-            run.italic = True
+            run.font.italic = True
             run.add_break()
             run = paragraph.add_run(f"{Tx('Created')}: {utils.str_datetime_display()}")
-            run.italic = True
+            run.font.italic = True
             run.add_break()
             run = paragraph.add_run(
                 f'{Tx("Modified")}: {utils.str_datetime_display(self.book.modified)}'
             )
-            run.italic = True
+            run.font.italic = True
 
         # Write table of contents (TOC) page(s).
         if self.toc_level:

@@ -8,6 +8,7 @@ from books import Book
 import components
 import constants
 from errors import *
+from markdown import Chunked
 import users
 import utils
 from utils import Tx
@@ -116,11 +117,11 @@ def get(request, book: Book, nchunk: int = None):
         cancel_url = f"/book/{book}"
 
     else:  # Edit only the given chunk of content.
-        chunks = constants.CHUNK_PATTERN.split(book.content)
-        content = chunks[nchunk - 1]
+        chunked = Chunked(book.content)
+        content = chunked.get(nchunk)
         fields.extend(
             [
-                Input(type="hidden", name="nchunk", value=str(nchunk)),
+                Input(type="hidden", name="nchunk", value=nchunk),
                 Fieldset(
                     Label(Tx("Chunk text")),
                     Textarea(
@@ -182,9 +183,9 @@ def post(request, book: Book, form: dict):
             nchunk = int(nchunk)
         except (KeyError, ValueError, TypeError):
             raise Error("bad chunk number")
-        chunks = constants.CHUNK_PATTERN.split(book.content)
-        chunks[nchunk - 1] = form.get("content") or ""
-        content = "\n\n".join(chunks)
+        chunked = Chunked(book.content)
+        chunked.replace(form.get("content") or "", nchunk)
+        content = chunked.content
         href = f"/book/{book}#{nchunk}"
 
     # Save book content. Reread the book, ensuring everything is up to date.
@@ -240,8 +241,8 @@ def get(request, book: Book, path: str, nchunk: int = None):
         cancel_url = f"/book/{book}/{path}"
 
     else:  # Edit only the given chunk of content.
-        chunks = constants.CHUNK_PATTERN.split(item.content)
-        content = chunks[nchunk - 1]
+        chunked = Chunked(item.content)
+        content = chunked.get(nchunk)
         fields.extend(
             [
                 Input(type="hidden", name="nchunk", value=str(nchunk)),
@@ -303,9 +304,9 @@ def post(request, book: Book, path: str, form: dict):
             nchunk = int(nchunk)
         except (KeyError, ValueError, TypeError):
             raise Error("bad chunk number")
-        chunks = constants.CHUNK_PATTERN.split(item.content)
-        chunks[nchunk - 1] = form.get("content") or ""
-        content = "\n\n".join(chunks)
+        chunked = Chunked(item.content)
+        chunked.replace(form.get("content") or "", nchunk)
+        content = chunked.content
         href = f"/book/{book}/{path}#{nchunk}"
 
     # Save item. Reread the book, ensuring everything is up to date.

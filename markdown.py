@@ -267,17 +267,9 @@ class Markdown2Html(marko.Markdown):
         self._setup_extensions()
 
     def parse(self, text):
-        result = []
-        chunks = constants.CHUNK_PATTERN.split(text)
-        for nchunk, chunk in enumerate(chunks, start=1):
-            if chunk.startswith("[^"):  # Footnote definition; do not allow chunk edit.
-                result.append(chunk)
-            elif chunk.startswith("---"):  # Thematic break; do not allow chunk edit.
-                result.append(chunk)
-            else:
-                result.append(f"§{nchunk}§\n" + chunk)
-        text = "\n\n".join(result)
-        return super().parse(text)
+        chunked = Chunked(text)
+        chunked.add_markdown()
+        return super().parse(chunked.content)
 
 
 def to_html(content, book=None, edit_href=None):
@@ -287,3 +279,50 @@ def to_html(content, book=None, edit_href=None):
     global _current_edit_href  # Required for editing chunk.
     _current_edit_href = edit_href
     return Markdown2Html().convert(content)
+
+
+class Chunked:
+    "Helper class for chunk processing."
+
+    def __init__(self, content):
+        self.chunks = constants.CHUNK_PATTERN.split(content)
+
+    def add_markdown(self):
+        nchunk = 0
+        for pos, chunk in enumerate(self.chunks):
+            if chunk.startswith("[^"):  # Footnote definition; do not allow chunk edit.
+                pass
+            elif chunk.startswith("---"):  # Thematic break; do not allow chunk edit.
+                pass
+            else:
+                nchunk += 1
+                self.chunks[pos] = f"§{nchunk}§\n" + chunk
+
+    def get(self, nchunk):
+        chunk_number = 0
+        for chunk in self.chunks:
+            if chunk.startswith("[^"):  # Footnote definition; do not allow chunk edit.
+                pass
+            elif chunk.startswith("---"):  # Thematic break; do not allow chunk edit.
+                pass
+            else:
+                chunk_number += 1
+                if nchunk == chunk_number:
+                    return chunk
+
+    def replace(self, content, nchunk):
+        chunk_number = 0
+        for pos, chunk in enumerate(self.chunks):
+            if chunk.startswith("[^"):  # Footnote definition; do not allow chunk edit.
+                pass
+            elif chunk.startswith("---"):  # Thematic break; do not allow chunk edit.
+                pass
+            else:
+                chunk_number += 1
+                if nchunk == chunk_number:
+                    self.chunks[pos] = content
+                    break
+
+    @property
+    def content(self):
+        return "\n\n".join(self.chunks)

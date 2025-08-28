@@ -28,7 +28,6 @@ from books import Book, get_imgs
 import components
 import constants
 from errors import *
-import markdown
 import minixml
 import users
 import utils
@@ -94,7 +93,6 @@ def get(request, book: Book):
 
     fields = [
         Fieldset(
-            Label(Tx("Metadata on title page")),
             Label(
                 Input(
                     type="checkbox",
@@ -102,7 +100,7 @@ def get(request, book: Book):
                     role="switch",
                     checked=title_page_metadata,
                 ),
-                Tx("Display"),
+                Tx("Metadata on title page"),
             ),
         ),
         Fieldset(

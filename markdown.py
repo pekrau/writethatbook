@@ -148,7 +148,7 @@ class ChunkRenderer:
         if _current_book.chunk_numbers:
             result = [f'<mark id="{element.nchunk}">{element.nchunk}</mark>']
         else:
-            result = []
+            result = [f'<span id="{element.nchunk}"></span>']
         if _current_edit_href:
             result.append(
                 f'<a href="{_current_edit_href}?nchunk={element.nchunk}" title="{Tx("Edit chunk")}"><img src="/edit.svg" class="white"></a>'
@@ -270,7 +270,9 @@ class Markdown2Html(marko.Markdown):
         result = []
         chunks = constants.CHUNK_PATTERN.split(text)
         for nchunk, chunk in enumerate(chunks, start=1):
-            if chunk.startswith("[^"):  # Footnote definition; do not allow edit.
+            if chunk.startswith("[^"):  # Footnote definition; do not allow chunk edit.
+                result.append(chunk)
+            elif chunk.startswith("---"):  # Thematic break; do not allow chunk edit.
                 result.append(chunk)
             else:
                 result.append(f"§{nchunk}§\n" + chunk)

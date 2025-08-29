@@ -185,6 +185,13 @@ class Writer:
         self.book = book
         self.references = books.get_refs()
 
+        # General settings.
+        if book.frontmatter.get("chunk_number"): # Display paragraph numbers.
+            self.paragraph_number = 0
+        else:
+            self.paragraph_number = None
+
+        # DOCX-specific settings.
         settings = book.frontmatter.get("docx", {})
         self.title_page_metadata = bool(settings.get("title_page_metadata", False))
         self.page_break_level = int(settings.get("page_break_level", 1))
@@ -194,8 +201,6 @@ class Writer:
         )
         self.reference_font = settings.get("reference_font", constants.NORMAL)
         self.indexed_font = settings.get("indexed_font", constants.NORMAL)
-        # Paragraph number
-        self.paragraph_number = 0
 
         # Key: fulltitle; value: dict(label, ast_children)
         self.footnotes = {}
@@ -583,9 +588,10 @@ class Writer:
             self.current_paragraph.style = style
         else:
             self.current_paragraph.style = self.style_stack[-1]
-        self.paragraph_number += 1
-        run = self.current_paragraph.add_run(f"{self.paragraph_number}. ")
-        run.style = self.document.styles["Intense Quote Char"]
+        if self.paragraph_number is not None:
+            self.paragraph_number += 1
+            run = self.current_paragraph.add_run(f"{self.paragraph_number}. ")
+            run.style = self.document.styles["Intense Quote Char"]
         for child in ast["children"]:
             self.render(child)
 

@@ -194,6 +194,14 @@ class Writer:
         self.book = book
         self.references = books.get_refs()
 
+        # General settings.
+        if book.frontmatter.get("chunk_numbers"): # Display paragraph numbers.
+            self.paragraph_number = 0
+        else:
+            self.paragraph_number = None
+        ic(self.paragraph_number)
+
+        # PDF-specific settings.
         settings = book.frontmatter.get("pdf", {})
         self.title_page_metadata = bool(settings.get("title_page_metadata", False))
         self.page_break_level = int(settings.get("page_break_level", 1))
@@ -508,6 +516,11 @@ class Writer:
 
     def render_paragraph(self, ast):
         self.para_push()
+        if self.paragraph_number is not None and not self.within_footnote:
+            self.paragraph_number += 1
+            self.para_text('<font face="courier">')
+            self.para_text(f"{self.paragraph_number}.")
+            self.para_text('</font> ')
         for child in ast["children"]:
             self.render(child)
         stylename = None

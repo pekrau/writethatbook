@@ -195,7 +195,7 @@ class Writer:
         self.references = books.get_refs()
 
         # General settings.
-        if book.frontmatter.get("chunk_numbers"): # Display paragraph numbers.
+        if book.frontmatter.get("chunk_numbers"):  # Display paragraph numbers.
             self.paragraph_number = 0
         else:
             self.paragraph_number = None
@@ -258,6 +258,15 @@ class Writer:
         )
         self.stylesheet.add(
             ParagraphStyle(
+                name="Synopsis",
+                parent=self.stylesheet["Normal"],
+                spaceAfter=constants.PDF_SYNOPSIS_SPACE_AFTER,
+                leftIndent=constants.PDF_SYNOPSIS_INDENT,
+                rightIndent=constants.PDF_SYNOPSIS_INDENT,
+            )
+        )
+        self.stylesheet.add(
+            ParagraphStyle(
                 name="Footnote",
                 parent=self.stylesheet["Normal"],
                 leftIndent=constants.PDF_FOOTNOTE_INDENT,
@@ -304,8 +313,10 @@ class Writer:
         self.add_heading(section.heading, level, section.ordinal)
         if section.subtitle:
             self.add_heading(section.subtitle, level + 1)
-        self.current_text = section
+        if section.synopsis:
+            self.add_paragraph("<i>" + section.synopsis + "</i>", "Synopsis")
 
+        self.current_text = section
         self.render(section.ast)
 
         if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
@@ -326,8 +337,10 @@ class Writer:
             self.add_heading(text.heading, level, text.ordinal)
             if text.subtitle:
                 self.add_heading(text.subtitle, level + 1)
-        self.current_text = text
+        if text.synopsis:
+            self.add_paragraph("<i>" + text.synopsis + "</i>", "Synopsis")
 
+        self.current_text = text
         self.render(text.ast)
 
         if self.footnotes_location == constants.FOOTNOTES_EACH_TEXT:
@@ -520,7 +533,7 @@ class Writer:
             self.paragraph_number += 1
             self.para_text('<font face="courier">')
             self.para_text(f"{self.paragraph_number}.")
-            self.para_text('</font> ')
+            self.para_text("</font> ")
         for child in ast["children"]:
             self.render(child)
         stylename = None
@@ -554,7 +567,7 @@ class Writer:
         self.para_pop()
 
     def render_code_span(self, ast):
-        self.para_text('<font face="courier">')
+        self.para_text(f'<font face="{constants.PDF_QUOTE_FONT}">')
         self.para_text(ast["children"])
         self.para_text("</font>")
 

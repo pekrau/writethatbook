@@ -186,7 +186,7 @@ class Writer:
         self.references = books.get_refs()
 
         # General settings.
-        if book.frontmatter.get("chunk_number"): # Display paragraph numbers.
+        if book.frontmatter.get("chunk_number"):  # Display paragraph numbers.
             self.paragraph_number = 0
         else:
             self.paragraph_number = None
@@ -235,28 +235,12 @@ class Writer:
         # for cstyle in [
         #     s
         #     for s in self.document.styles
-        #     if isinstance(s, docx.styles.style.CharacterStyle)
+        #     if isinstance(s, docx.styles.style.ParagraphStyle)
         #     and not isinstance(s, docx.styles.style._TableStyle)
         # ]:
         #     ic(cstyle, cstyle.name)
 
         # Modify styles.
-        style = self.document.styles["Normal"]
-        style.font.name = constants.DOCX_NORMAL_FONT
-        style.font.size = docx.shared.Pt(constants.DOCX_NORMAL_FONT_SIZE)
-        style.paragraph_format.line_spacing = docx.shared.Pt(
-            constants.DOCX_NORMAL_LINE_SPACING
-        )
-
-        # "Body Text": used for TOC entries and for index pages.
-        style = self.document.styles["Body Text"]
-        style.paragraph_format.space_before = docx.shared.Pt(
-            constants.DOCX_TOC_SPACE_BEFORE
-        )
-        style.paragraph_format.space_after = docx.shared.Pt(
-            constants.DOCX_TOC_SPACE_AFTER
-        )
-
         style = self.document.styles["Title"]
         style.font.color.rgb = docx.shared.RGBColor(0, 0, 0)
 
@@ -267,8 +251,46 @@ class Writer:
             )
             style.font.color.rgb = docx.shared.RGBColor(0, 0, 0)
 
+        style = self.document.styles["Normal"]
+        style.font.name = constants.DOCX_NORMAL_FONT
+        style.font.size = docx.shared.Pt(constants.DOCX_NORMAL_FONT_SIZE)
+        style.paragraph_format.line_spacing = docx.shared.Pt(
+            constants.DOCX_NORMAL_LINE_SPACING
+        )
+
+        # "Body Text": TOC entries and for index pages.
+        style = self.document.styles["Body Text"]
+        style.paragraph_format.space_before = docx.shared.Pt(
+            constants.DOCX_TOC_SPACE_BEFORE
+        )
+        style.paragraph_format.space_after = docx.shared.Pt(
+            constants.DOCX_TOC_SPACE_AFTER
+        )
+
+        # "Body Text 2": synopsis.
+        style = self.document.styles["Body Text 2"]
+        style.font.italic = True
+        style.paragraph_format.space_before = docx.shared.Pt(
+            constants.DOCX_SYNOPSIS_SPACE_BEFORE
+        )
+        style.paragraph_format.space_after = docx.shared.Pt(
+            constants.DOCX_SYNOPSIS_SPACE_AFTER
+        )
+        style.paragraph_format.line_spacing = docx.shared.Pt(
+            constants.DOCX_SYNOPSIS_LINE_SPACING
+        )
+        style.paragraph_format.left_indent = docx.shared.Pt(
+            constants.DOCX_SYNOPSIS_INDENT
+        )
+        style.paragraph_format.right_indent = docx.shared.Pt(
+            constants.DOCX_SYNOPSIS_INDENT
+        )
+
         style = self.document.styles["Quote"]
         style.paragraph_format.left_indent = docx.shared.Pt(constants.DOCX_QUOTE_INDENT)
+        style.paragraph_format.right_indent = docx.shared.Pt(
+            constants.DOCX_QUOTE_INDENT
+        )
 
         style = self.document.styles["macro"]
         style.font.name = constants.DOCX_CODE_FONT
@@ -309,6 +331,10 @@ class Writer:
         self.write_heading(section.heading, level)
         if section.subtitle:
             self.write_heading(section.subtitle, level + 1)
+        if section.synopsis:
+            paragraph = self.document.add_paragraph(style="Body Text 2")
+            paragraph.add_run(section.synopsis)
+
         self.current_text = section
         self.render_initialize()
         self.render(section.ast)
@@ -329,6 +355,9 @@ class Writer:
             self.write_heading(text.heading, level)
             if text.subtitle:
                 self.write_heading(text.subtitle, level + 1)
+        if text.synopsis:
+            paragraph = self.document.add_paragraph(style="Body Text 2")
+            paragraph.add_run(text.synopsis)
         self.current_text = text
         self.render_initialize()
         self.render(text.ast)
@@ -649,7 +678,7 @@ class Writer:
                     raise ValueError(
                         f"Cannot handle image '{ast['dest']}' with content type '{response.headers['Content-Type']}'"
                     )
-                self.add_image(response.content, img["docx"]["scale_factor"], ast)
+                self.add_image(response.content, ast, 1.0)
 
             # Use image from the image library.
             elif ast["dest"] in get_imgs():

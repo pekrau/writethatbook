@@ -282,6 +282,8 @@ def get(request, book: Book, path: str):
         segments.append(H3(item.heading))
         if item.subtitle:
             segments.append(H5(item.subtitle))
+        if item.synopsis:
+            segments.append(Card(I(item.synopsis)))
     elif item.is_section:
         segments.append(
             Div(
@@ -291,6 +293,8 @@ def get(request, book: Book, path: str):
         )
         if item.subtitle:
             segments.append(H5(item.subtitle))
+        if item.synopsis:
+            segments.append(Card(I(item.synopsis)))
         segments.append(
             toc(
                 book,

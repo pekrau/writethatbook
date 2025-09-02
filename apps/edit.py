@@ -197,7 +197,7 @@ def post(request, book: Book, form: dict):
 
 @rt("/{book:Book}/{path:path}")
 def get(request, book: Book, path: str, nchunk: int = None):
-    "Edit the item (section or text), possibly one single paragraph of the content.."
+    "Edit the item (section or text), possibly one single paragraph of the content."
     auth.authorize(request, *auth.book_edit, book=book)
 
     item = book[path]
@@ -226,6 +226,17 @@ def get(request, book: Book, path: str, nchunk: int = None):
         elif item.is_section:
             fields.append(Div(title_field, subtitle_field, cls="grid"))
 
+        fields.append(
+            Fieldset(
+                Label(Tx("Synopsis")),
+                Textarea(
+                    item.synopsis or "",
+                    id="synopsis",
+                    name="synopsis",
+                    rows=2,
+                ),
+            )
+        )
         fields.append(
             Fieldset(
                 Label(Tx("Text")),
@@ -295,6 +306,7 @@ def post(request, book: Book, path: str, form: dict):
         if item.is_text:
             if form.get("status"):
                 item.status = form["status"]
+        item.synopsis = form.get("synopsis") or None
         content = form["content"]
         # Compute new path; item name may have changed.
         href = f"/book/{book}/{item.path}"

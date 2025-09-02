@@ -129,7 +129,7 @@ class ThematicBreakRenderer:
         return '<hr class="break" />\n'
 
 
-class Chunk(marko.inline.InlineElement):
+class Chunkmark(marko.inline.InlineElement):
     "Markdown extension for chunk number and edit button."
 
     pattern = re.compile(r"§(\d+)§")
@@ -139,10 +139,10 @@ class Chunk(marko.inline.InlineElement):
         self.nchunk = match.group(1)
 
 
-class ChunkRenderer:
+class ChunkmarkRenderer:
     "Output the chunk number and edit button."
 
-    def render_chunk(self, element):
+    def render_chunkmark(self, element):
         global _current_book
         global _current_edit_href
         if _current_book.chunk_numbers:
@@ -172,11 +172,10 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
     "Modified HTML renderer for some elements."
 
     def render_fenced_code(self, element):
-        lang = (
-            f' class="language-{self.escape_html(element.lang)}"'
-            if element.lang
-            else ""
-        )
+        if element.lang:
+            lang = f' class="language-{self.escape_html(element.lang)}"'
+        else:
+            lang = ""
         return "<pre><code{}>{}</code></pre>\n".format(
             lang, html.escape(element.children[0].children)  # type: ignore
         )
@@ -251,7 +250,7 @@ class Markdown2Html(marko.Markdown):
                     Emdash,
                     Indexed,
                     Reference,
-                    Chunk,
+                    Chunkmark,
                 ],
                 renderer_mixins=[
                     SubscriptRenderer,
@@ -260,7 +259,7 @@ class Markdown2Html(marko.Markdown):
                     IndexedRenderer,
                     ReferenceRenderer,
                     ThematicBreakRenderer,
-                    ChunkRenderer,
+                    ChunkmarkRenderer,
                 ],
             )
         )

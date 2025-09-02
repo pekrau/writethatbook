@@ -873,6 +873,14 @@ class Item(Container):
         raise NotImplementedError
 
     @property
+    def synopsis(self):
+        return self.frontmatter.get("synopsis")
+
+    @synopsis.setter
+    def synopsis(self, synopsis):
+        self.frontmatter["synopsis"] = synopsis
+
+    @property
     def name(self):
         return self._name
 

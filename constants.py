@@ -7,7 +7,7 @@ import re
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 20, 0)
+VERSION = (1, 20, 1)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -95,13 +95,14 @@ class Status:
         return self.ordinal < other.ordinal
 
 
-STARTED = Status("started", 0, "green")
-DRAFT = Status("draft", 1, "crimson")
-MANUSCRIPT = Status("manuscript", 2, "dodgerblue")
-REVISED = Status("revised", 3, "blueviolet")
-FINAL = Status("final", 4, "black")
-OMITTED = Status("omitted", 5, "silver")
-STATUSES = (STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL, OMITTED)
+CREATED = Status("created", 0, "grey")
+STARTED = Status("started", 1, "green")
+DRAFT = Status("draft", 2, "crimson")
+MANUSCRIPT = Status("manuscript", 3, "dodgerblue")
+REVISED = Status("revised", 4, "blueviolet")
+FINAL = Status("final", 5, "black")
+OMITTED = Status("omitted", 6, "silver")
+STATUSES = (CREATED, STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL, OMITTED)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
 STATUS_LOOKUP.update(dict([(str(s), s) for s in STATUSES]))
 

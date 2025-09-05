@@ -78,6 +78,17 @@ def get(request, book: Book, nchunk: int = None):
                     Tx("Display chunk numbers."),
                 ),
             ),
+            Fieldset(
+                Label(
+                    Input(
+                        type="checkbox",
+                        role="switch",
+                        name="toc_synopsis",
+                        checked=book.toc_synopsis,
+                    ),
+                    Tx("Display synopsis in table of contents."),
+                ),
+            ),
         ]
         if book.type == constants.ARTICLE:
             right.append(
@@ -172,6 +183,7 @@ def post(request, book: Book, form: dict):
         book.authors = [a.strip() for a in (form.get("authors") or "").split("\n")]
         book.public = bool(form.get("public", ""))
         book.chunk_numbers = bool(form.get("chunk_numbers", ""))
+        book.toc_synopsis = bool(form.get("toc_synopsis", ""))
         if book.type == constants.ARTICLE:
             book.status = form.get("status")
         book.language = form.get("language", "")

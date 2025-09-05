@@ -482,6 +482,14 @@ class Book(Container):
         self.frontmatter["chunk_numbers"] = bool(yes)
 
     @property
+    def toc_synopsis(self):
+        return bool(self.frontmatter.get("toc_synopsis"))
+
+    @toc_synopsis.setter
+    def toc_synopsis(self, yes):
+        self.frontmatter["toc_synopsis"] = bool(yes)
+
+    @property
     def status(self):
         "Return the lowest status for the sub-items, or from 'index.md' if no items."
         if self.items:

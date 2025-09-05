@@ -165,6 +165,7 @@ def get(request, book: Book):
                 book,
                 book.items,
                 edit=auth.authorized(request, *auth.book_edit, book=book),
+                synopsis=book.toc_synopsis,
             )
         )
 
@@ -300,6 +301,7 @@ def get(request, book: Book, path: str):
                 book,
                 item.items,
                 edit=auth.authorized(request, *auth.book_edit, book=book),
+                synopsis=book.toc_synopsis,
             )
         )
 
@@ -348,12 +350,12 @@ def post(request, book: Book, path: str, form: dict):
     return components.redirect(f"/edit/{book}/{new.path}")
 
 
-def toc(book, items, toplevel=True, edit=False):
+def toc(book, items, toplevel=True, edit=False, synopsis=False):
     "Recursive lists of sections and texts."
-    parts = []
+    entries = []
     for item in items:
         if edit:
-            arrows = [
+            parts = [
                 components.blank(0),
                 A(
                     NotStr("&ShortUpArrow;"),
@@ -370,8 +372,8 @@ def toc(book, items, toplevel=True, edit=False):
                 ),
             ]
             if not toplevel and item.parent is not book:
-                arrows.append(components.blank(0))
-                arrows.append(
+                parts.append(components.blank(0))
+                parts.append(
                     A(
                         NotStr("&ShortLeftArrow;"),
                         title=Tx("Out of"),
@@ -380,8 +382,8 @@ def toc(book, items, toplevel=True, edit=False):
                     )
                 )
             if item.prev_section:
-                arrows.append(components.blank(0))
-                arrows.append(
+                parts.append(components.blank(0))
+                parts.append(
                     A(
                         NotStr("&ShortRightArrow;"),
                         title=Tx("Into"),
@@ -390,31 +392,37 @@ def toc(book, items, toplevel=True, edit=False):
                     )
                 )
         else:
-            arrows = []
-        if arrows:
-            arrows.append(components.blank(0))
+            parts = []
+        if parts:
+            parts.append(components.blank(0))
         parts.append(
-            Li(
-                *arrows,
-                Img(
-                    src="/folder.svg" if item.is_section else "/file-text.svg",
-                    cls="white",
-                    title=Tx(item.type.capitalize()),
-                ),
-                components.blank(0.1),
-                A(
-                    item.title,
-                    style=f"color: {item.status.color};",
-                    href=f"/book/{item.book}/{item.path}",
-                    title=f'{Tx("Status")}: {Tx(item.status)}',
-                ),
-                components.blank(0.2),
-                item.subtitle or "",
+            Img(
+                src="/folder.svg" if item.is_section else "/file-text.svg",
+                cls="white",
+                title=Tx(item.type.capitalize()),
             )
         )
+        parts.append(components.blank(0.1))
+        parts.append(
+            A(
+                item.title,
+                style=f"color: {item.status.color};",
+                href=f"/book/{item.book}/{item.path}",
+                title=f'{Tx("Status")}: {Tx(item.status)}',
+            )
+        )
+        if item.subtitle:
+            parts.append(components.blank(0.2))
+            parts.append(item.subtitle)
+        if synopsis and item.synopsis:
+            parts.append(Br())
+            parts.append(I(item.synopsis))
+        entries.append(Li(*parts))
         if item.is_section:
-            parts.append(toc(book, item.items, toplevel=False, edit=edit))
-    return Ol(*parts)
+            entries.append(
+                toc(book, item.items, toplevel=False, edit=edit, synopsis=synopsis)
+            )
+    return Ol(*entries)
 
 
 def get_books_table(request, books):

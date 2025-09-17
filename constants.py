@@ -7,7 +7,7 @@ import re
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 20, 2)
+VERSION = (1, 20, 3)
 __version__ = ".".join([str(n) for n in VERSION])
 
 

@@ -134,7 +134,7 @@ def get(request, book: Book, nchunk: int = None):
             [
                 Input(type="hidden", name="nchunk", value=nchunk),
                 Fieldset(
-                    Label(Tx("Chunk text")),
+                    Label(Tx("Chunk")),
                     Textarea(
                         NotStr(content),
                         id="content",
@@ -270,7 +270,7 @@ def get(request, book: Book, path: str, nchunk: int = None):
             [
                 Input(type="hidden", name="nchunk", value=str(nchunk)),
                 Fieldset(
-                    Label(Tx("Chunk text")),
+                    Label(Tx("Chunk")),
                     Textarea(
                         NotStr(content),
                         id="content",

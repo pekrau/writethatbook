@@ -140,7 +140,7 @@ def get(request, book: Book):
                     ),
                 )
             )
-        button_card = Card(*buttons, cls="grid")
+        button_card = Card(*buttons, cls="grid no-print")
         html = markdown.to_html(book.content, book=book, edit_href=f"/edit/{book}")
 
     else:
@@ -201,7 +201,7 @@ def get(request, book: Book, path: str):
 
     neighbours = []
     style = "text-align: center;"
-    kwargs = {"role": "button", "cls": "outline thin-button"}
+    kwargs = {"role": "button", "cls": "outline thin-button no-print"}
     if item.prev:
         label = NotStr(f"&ShortLeftArrow; {item.prev.title}")
         url = f"/book/{book}/{item.prev.path}"
@@ -265,7 +265,7 @@ def get(request, book: Book, path: str):
                 ("Delete", f"/delete/{book}/{path}"),
             ]
         )
-        button_card = Card(*buttons, cls="grid")
+        button_card = Card(*buttons, cls="grid no-print")
         html = markdown.to_html(
             item.content,
             book=item.book,
@@ -278,7 +278,7 @@ def get(request, book: Book, path: str):
         button_card = ""
         html = markdown.to_html(item.content, book=item.book)
 
-    segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid")]
+    segments = [Div(*neighbours, style="padding-bottom: 1em;", cls="grid no-print")]
     if item.is_text:
         segments.append(H3(item.heading))
         if item.subtitle:
@@ -360,14 +360,14 @@ def toc(book, items, toplevel=True, edit=False, synopsis=False):
                 A(
                     NotStr("&ShortUpArrow;"),
                     title=Tx("Backward"),
-                    cls="plain-text",
+                    cls="plain-text no-print",
                     href=f"/move/backward/{book}/{item.path}",
                 ),
                 components.blank(0),
                 A(
                     NotStr("&ShortDownArrow;"),
                     title=Tx("Forward"),
-                    cls="plain-text",
+                    cls="plain-text no-print",
                     href=f"/move/forward/{book}/{item.path}",
                 ),
             ]
@@ -377,7 +377,7 @@ def toc(book, items, toplevel=True, edit=False, synopsis=False):
                     A(
                         NotStr("&ShortLeftArrow;"),
                         title=Tx("Out of"),
-                        cls="plain-text",
+                        cls="plain-text no-print",
                         href=f"/move/outof/{book}/{item.path}",
                     )
                 )
@@ -387,7 +387,7 @@ def toc(book, items, toplevel=True, edit=False, synopsis=False):
                     A(
                         NotStr("&ShortRightArrow;"),
                         title=Tx("Into"),
-                        cls="plain-text",
+                        cls="plain-text no-print",
                         href=f"/move/into/{book}/{item.path}",
                     )
                 )

@@ -990,9 +990,6 @@ class BookWriter(Writer):
                     constants.DOCX_TOC_INDENT
                 )
                 paragraph.add_run(item.heading)
-                if item.synopsis:
-                    paragraph = self.document.add_paragraph(style="Body Text 2")
-                    paragraph.add_run(item.synopsis)
                     
             # At this stage it is not known if any references or indexed.
             self.document.add_paragraph(Tx("References"), style="Body Text")

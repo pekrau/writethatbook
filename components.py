@@ -175,6 +175,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                 Ul(*[Li(a) for a in menu]),
                 cls="dropdown",
             ),
+            cls="no-print",
         )
     ]
     if tools:
@@ -183,8 +184,9 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                 Details(
                     Summary(Img(src="/tools.svg", title=Tx("Tools"), style=style)),
                     Ul(*[Li(a) for a in tools]),
-                    cls="dropdown",
+                    cls="dropdown no-print",
                 ),
+                cls="no-print",
             )
         )
     if book:
@@ -201,7 +203,7 @@ def header(request, title, book=None, item=None, tools=None, search=True):
 
     # Search field, if book is defined.
     if search and book:
-        navs.append(Ul(Li(search_form(book, autofocus=False))))
+        navs.append(Ul(Li(search_form(book, autofocus=False)), cls="no-print"))
 
     # Login button, if not logged in.
     if auth.logged_in(request) is None:

@@ -146,12 +146,12 @@ class ChunkmarkRenderer:
         global _current_book
         global _current_edit_href
         if _current_book.chunk_numbers:
-            result = [f'<mark id="{element.nchunk}">{element.nchunk}</mark>']
+            result = [f'<mark id="{element.nchunk}">{element.nchunk}.</mark>']
         else:
             result = [f'<span id="{element.nchunk}"></span>']
         if _current_edit_href:
             result.append(
-                f'<a href="{_current_edit_href}?nchunk={element.nchunk}" title="{Tx("Edit chunk")}"><img src="/edit.svg" class="white"></a>'
+                f'<a href="{_current_edit_href}?nchunk={element.nchunk}" title="{Tx("Edit chunk")}"><img src="/edit.svg" class="white no-print"></a>'
             )
         return " ".join(result) + "\n"
 

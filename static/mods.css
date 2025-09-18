@@ -19,3 +19,9 @@ hr.break {border: 1px solid;
 th.right {text-align: right;}
 td.right {text-align: right;}
 tr.noborder td {border: none; padding: 3px;}
+
+@media print {
+    .no-print {
+        display: none;
+    }
+}

@@ -82,11 +82,18 @@ def read_books():
 
 
 def get_books(request):
-    "Get list of all books readable by the current user, excluding '_refs'."
+    """Get list of all books readable by the current user, excluding '_refs'.
+    Also check that each book is owned by someone, else set it to current user.
+    """
+    books = list(_books.values())
+    for book in books:
+        if book.owner is None:
+            book.owner = str(request.scope.get("current_user"))
+            book.write()
     return sorted(
         [
             b
-            for b in _books.values()
+            for b in books
             if auth.authorized(request, *auth.book_view, book=b)
         ],
         key=lambda b: b.modified,
@@ -461,8 +468,8 @@ class Book(Container):
 
     @owner.setter
     def owner(self, userid):
-        if not users.get(userid):
-            raise ValueError("no such user '{userid]'")
+        if not users.get(userid=userid):
+            raise ValueError(f"no such user '{userid}'")
         self.frontmatter["owner"] = userid
 
     @property

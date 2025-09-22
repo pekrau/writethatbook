@@ -557,7 +557,6 @@ async def post(session, request, img: Text, form: dict):
     if caption:
         caption = caption.replace("\r", "")
         caption = "\n".join([c for c in caption.split("\n") if c])
-    ic(caption)
     img.write(content=caption)
 
     return components.redirect(f"/imgs/view/{img['id']}")

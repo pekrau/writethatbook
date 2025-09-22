@@ -213,6 +213,10 @@ class Container:
         match = FRONTMATTER.match(content)
         if match:
             self.frontmatter = yaml.safe_load(match.group(1))
+            # Dates must be represented as strings, not datetime.date.
+            for key, value in self.frontmatter.items():
+                if isinstance(value, datetime.date):
+                    self.frontmatter[key] = str(value)
             self.content = content[match.start(2) :]
         else:
             self.frontmatter = {}

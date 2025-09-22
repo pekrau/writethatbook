@@ -199,7 +199,6 @@ class Writer:
             self.paragraph_number = 0
         else:
             self.paragraph_number = None
-        ic(self.paragraph_number)
 
         # PDF-specific settings.
         settings = book.frontmatter.get("pdf", {})

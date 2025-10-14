@@ -10,6 +10,7 @@ from fasthtml.common import *
 import auth
 import components
 import constants
+from errors import *
 import utils
 
 
@@ -19,7 +20,10 @@ app, rt = components.get_fast_app()
 @rt("/")
 def get(request):
     "Return a JSON dictionary of items {name: modified} for all files."
-    auth.allow_admin(request)
+    try:
+        auth.allow_admin(request)
+    except NotAllowed:
+        raise InvalidApiKey
 
     sourcedir = Path(os.environ["WRITETHATBOOK_DIR"])
     result = {}
@@ -36,7 +40,10 @@ def get(request):
 @rt("/download")
 async def post(request):
     "Return a TGZ file of those files given in the request JSON data."
-    auth.allow_admin(request)
+    try:
+        auth.allow_admin(request)
+    except NotAllowed:
+        raise InvalidApiKey
 
     data = await request.json()
     buffer = io.BytesIO()

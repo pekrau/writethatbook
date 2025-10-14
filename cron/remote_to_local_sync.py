@@ -34,7 +34,7 @@ def update(url, apikey):
         raise IOError(f"invalid response: {response.status_code=}")
     elif response.status_code != HTTP.OK:
         raise IOError(f"invalid response: {response.status_code=} {response.content=}")
-    
+
     remote_files = response.json()
 
     local_files = {}
@@ -45,7 +45,9 @@ def update(url, apikey):
         for filename in filenames:
             filepath = dirpath / filename
             dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime)
-            local_files[str(filepath.relative_to(sourcedir))] = utils.str_datetime_iso(dt)
+            local_files[str(filepath.relative_to(sourcedir))] = utils.str_datetime_iso(
+                dt
+            )
 
     download_files = set()
     for name, modified in remote_files.items():
@@ -91,7 +93,7 @@ def update(url, apikey):
             "remote": len(remote_files),
             "downloaded": len(download_files),
             "deleted": len(delete_files),
-            "time": str(timer)
+            "time": str(timer),
         }
     return result
 

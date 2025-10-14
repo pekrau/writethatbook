@@ -990,7 +990,7 @@ class BookWriter(Writer):
                     constants.DOCX_TOC_INDENT
                 )
                 paragraph.add_run(item.heading)
-                    
+
             # At this stage it is not known if any references or indexed.
             self.document.add_paragraph(Tx("References"), style="Body Text")
             self.document.add_paragraph(Tx("Index"), style="Body Text")

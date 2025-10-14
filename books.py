@@ -91,11 +91,7 @@ def get_books(request):
             book.owner = str(request.scope.get("current_user"))
             book.write()
     return sorted(
-        [
-            b
-            for b in books
-            if auth.authorized(request, *auth.book_view, book=b)
-        ],
+        [b for b in books if auth.authorized(request, *auth.book_view, book=b)],
         key=lambda b: b.modified,
         reverse=True,
     )

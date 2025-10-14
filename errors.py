@@ -5,7 +5,15 @@ import urllib
 
 from fasthtml.common import Response, RedirectResponse
 
-__all__ = ["Error", "error_handler", "NotAllowed", "not_allowed_handler", "HTTP"]
+__all__ = [
+    "Error",
+    "error_handler",
+    "NotAllowed",
+    "not_allowed_handler",
+    "InvalidApiKey",
+    "invalid_api_key_handler",
+    "HTTP",
+]
 
 
 class Error(Exception):
@@ -36,3 +44,13 @@ def not_allowed_handler(request, exc):
     else:
         path = urllib.parse.urlencode({"path": request.url.path})
         return RedirectResponse(f"/user/login?{path}", status_code=HTTP.SEE_OTHER)
+
+
+class InvalidApiKey(Exception):
+    "Invalid API key."
+
+    pass
+
+
+def invalid_api_key_handler(request, exc):
+    return Response(content="Invalid API key", status_code=HTTP.FORBIDDEN)

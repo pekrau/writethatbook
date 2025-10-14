@@ -23,6 +23,7 @@ def get_fast_app(routes=None):
         exception_handlers={
             Error: error_handler,
             NotAllowed: not_allowed_handler,
+            InvalidApiKey: invalid_api_key_handler,
         },
         routes=routes,
     )

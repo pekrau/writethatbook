@@ -8,6 +8,7 @@ import uuid
 import yaml
 
 import constants
+from errors import *
 import utils
 
 
@@ -130,8 +131,10 @@ class Database:
         for user in self.users.values():
             if email and user.email == email:
                 return user
-            if apikey and user.apikey == apikey:
+            if user.apikey == apikey:
                 return user
+        if apikey:
+            raise InvalidApiKey
         return default
 
     def create_user(self, userid, role=constants.USER_ROLE):

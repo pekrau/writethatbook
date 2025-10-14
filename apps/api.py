@@ -31,7 +31,7 @@ def get(request):
         dirpath = Path(dirpath)
         for filename in filenames:
             filepath = dirpath / filename
-            dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime)
+            dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime, tz=datetime.UTC)
             result[str(filepath.relative_to(sourcedir))] = utils.str_datetime_iso(dt)
 
     return result

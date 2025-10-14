@@ -101,7 +101,7 @@ def get(request):
                 Td(reportlab.__version__, cls="right"),
             ),
             Tr(
-                Td(A("bibtextparser", href="https://pypi.org/project/bibtexparser/")),
+                Td(A("bibtexparser", href="https://pypi.org/project/bibtexparser/")),
                 Td(bibtexparser.__version__, cls="right"),
             ),
         ),

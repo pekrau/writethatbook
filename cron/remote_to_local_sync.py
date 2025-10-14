@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(sys.path[0]).parent))
 # This must be done before importing 'constants'.
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 import constants
 import utils
@@ -26,7 +26,7 @@ from timer import Timer
 timer = Timer()
 
 
-def update(url, apikey):
+def update(url, apikey, targetdir):
     "Get the current list of remote files, compare and update the local files."
 
     response = requests.get(url.rstrip("/") + "/api/", headers=dict(apikey=apikey))
@@ -36,22 +36,29 @@ def update(url, apikey):
         raise IOError(f"invalid response: {response.status_code=} {response.content=}")
 
     remote_files = response.json()
+    with open("remote_files.json", "w") as outfile:
+        outfile.write(json.dumps(remote_files, indent=2))
 
     local_files = {}
-    sourcedir = Path(os.environ["WRITETHATBOOK_DIR"])
-    for dirpath, dirnames, filenames in os.walk(sourcedir):
+    targetdir = Path(targetdir)
+    for dirpath, dirnames, filenames in os.walk(targetdir):
         dirpath = Path(dirpath)
         for filename in filenames:
             filepath = dirpath / filename
-            dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime)
-            local_files[str(filepath.relative_to(sourcedir))] = utils.str_datetime_iso(
+            dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime, tz=datetime.UTC)
+            local_files[str(filepath.relative_to(targetdir))] = utils.str_datetime_iso(
                 dt
             )
+    with open("local_files.json", "w") as outfile:
+        outfile.write(json.dumps(local_files, indent=2))
 
     download_files = set()
     for name, modified in remote_files.items():
         if (name not in local_files) or (local_files[name] != modified):
             download_files.add(name)
+
+    with open("download_files.json", "w") as outfile:
+        outfile.write(json.dumps(list(download_files), indent=2))
 
     if download_files:
         response = requests.post(
@@ -81,7 +88,7 @@ def update(url, apikey):
     # Delete local files that do not exist in the remote.
     delete_files = set(local_files.keys()).difference(remote_files.keys())
     for name in delete_files:
-        path = sourcedir / name
+        path = targetdir / name
         path.unlink()
 
     if not download_files and not delete_files:
@@ -99,7 +106,9 @@ def update(url, apikey):
 
 if __name__ == "__main__":
     url = os.environ["WRITETHATBOOK_REMOTE_URL"]
-    print(f"writethatbook {timer.now}, instance {url}")
-    result = update(url, os.environ["WRITETHATBOOK_APIKEY"])
+    targetdir = os.environ["WRITETHATBOOK_DIR"]
+    apikey = os.environ["WRITETHATBOOK_APIKEY"]
+    print(f"writethatbook {timer.now}, instance {url}, target {targetdir}")
+    result = update(url, apikey, targetdir)
     if result:
         print(", ".join([f"{k}={v}" for k, v in result.items()]))

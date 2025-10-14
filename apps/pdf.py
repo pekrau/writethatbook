@@ -164,7 +164,7 @@ def post(request, book: Book, form: dict):
 
     return Response(
         content=BookWriter(book).get_content(),
-        media_type=constants.PDF_CONTENT_TYPE,
+        media_type=constants.PDF_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{book.title}.pdf"'},
     )
 
@@ -182,7 +182,7 @@ def get(request, book: Book, path: str, position: int = None):
     item = book[path]
     return Response(
         content=ItemWriter(book).get_content(item),
-        media_type=constants.PDF_CONTENT_TYPE,
+        media_type=constants.PDF_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{item.title}.pdf"'},
     )
 
@@ -603,8 +603,8 @@ class Writer:
             if response.status_code != HTTP.OK:
                 flowables.append(Paragraph(f"Could not fetch image '{ast['dest']}'"))
             elif response.headers["Content-Type"] in (
-                constants.PNG_CONTENT_TYPE,
-                constants.JPEG_CONTENT_TYPE,
+                constants.PNG_MIMETYPE,
+                constants.JPEG_MIMETYPE,
             ):
                 image_data = io.BytesIO(response.content)
                 flowables.append(Image(image_data, hAlign="LEFT"))
@@ -621,11 +621,11 @@ class Writer:
             scale_factor = img["pdf"]["scale_factor"]
 
             if img["content_type"] in (
-                constants.SVG_CONTENT_TYPE,
-                constants.JSON_CONTENT_TYPE,
+                constants.SVG_MIMETYPE,
+                constants.JSON_MIMETYPE,
             ):
                 # SVG image.
-                if img["content_type"] == constants.SVG_CONTENT_TYPE:
+                if img["content_type"] == constants.SVG_MIMETYPE:
                     # SVG in image library has already been checked for validity.
                     root = minixml.parse_content(img["data"])
 
@@ -662,8 +662,8 @@ class Writer:
 
             # JPEG or PNG.
             elif img["content_type"] in (
-                constants.PNG_CONTENT_TYPE,
-                constants.JPEG_CONTENT_TYPE,
+                constants.PNG_MIMETYPE,
+                constants.JPEG_MIMETYPE,
             ):
                 image_data = io.BytesIO(base64.standard_b64decode(img["data"]))
                 width, height = PIL.Image.open(image_data).size

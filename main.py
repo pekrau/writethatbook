@@ -11,13 +11,18 @@ import io
 import os
 import tarfile
 
+from fasthtml.common import *
+
+# This must be done before importing 'constants'.
+from dotenv import load_dotenv
+
+load_dotenv()
+
 if "WRITETHATBOOK_DIR" not in os.environ:
     raise ValueError(
         "Environment variable WRITETHATBOOK_DIR is undefined; it is required!"
     )
 
-
-from fasthtml.common import *
 
 import apps
 import auth
@@ -42,8 +47,6 @@ def get(request):
     if auth.authorized(request, *auth.book_create):
         tools.append(["Create or upload book", "/book"])
         tools.append(["Reread books", "/reread"])
-    if auth.authorized(request, *auth.book_diff):
-        tools.append(["Differences", f"/diff"])
 
     title = Tx("Books")
     return (
@@ -96,7 +99,7 @@ def get(request):
 
     return Response(
         content=buffer.getvalue(),
-        media_type=constants.GZIP_CONTENT_TYPE,
+        media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -109,7 +112,7 @@ def get(request, book: books.Book):
     filename = f"writethatbook_{book}_{utils.str_datetime_safe()}.tgz"
     return Response(
         content=book.get_tgz_content(),
-        media_type=constants.GZIP_CONTENT_TYPE,
+        media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

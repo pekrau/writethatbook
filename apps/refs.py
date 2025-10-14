@@ -176,8 +176,6 @@ def get(request):
                 (Tx("Upload TGZ file"), "/refs/upload"),
             ]
         )
-    if auth.authorized(request, *auth.book_diff, book=refs):
-        tools.append(["Differences", f"/diff/{constants.REFS}"])
 
     title = f"{len(refs.items)} {Tx('items')}"
     return (
@@ -724,7 +722,7 @@ def get(request):
 
     return Response(
         content=get_refs().get_tgz_content(),
-        media_type=constants.GZIP_CONTENT_TYPE,
+        media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

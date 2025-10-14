@@ -148,9 +148,6 @@ def get(request, book: Book):
         button_card = ""
         html = markdown.to_html(book.content, book=book)
 
-    if auth.authorized(request, *auth.book_diff, book=book):
-        tools.append(["Differences", f"/diff/{book}"])
-
     segments = []
 
     if len(book.items) == 0:

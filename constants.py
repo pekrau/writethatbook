@@ -7,7 +7,7 @@ import re
 import babel.dates
 
 SOFTWARE = "WriteThatBook"
-VERSION = (1, 20, 6)
+VERSION = (1, 21, 0)
 __version__ = ".".join([str(n) for n in VERSION])
 
 
@@ -144,21 +144,21 @@ FOOTNOTES_LOCATIONS = (
     FOOTNOTES_END_OF_BOOK,
 )
 
-DOCX_CONTENT_TYPE = (
+DOCX_MIMETYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
-PDF_CONTENT_TYPE = "application/pdf"
-GZIP_CONTENT_TYPE = "application/gzip"
-SVG_CONTENT_TYPE = "image/svg+xml"
-JSON_CONTENT_TYPE = "application/json"
-PNG_CONTENT_TYPE = "image/png"
-JPEG_CONTENT_TYPE = "image/jpeg"
+PDF_MIMETYPE = "application/pdf"
+GZIP_MIMETYPE = "application/gzip"
+SVG_MIMETYPE = "image/svg+xml"
+JSON_MIMETYPE = "application/json"
+PNG_MIMETYPE = "image/png"
+JPEG_MIMETYPE = "image/jpeg"
 
 IMAGE_MAP = {
-    SVG_CONTENT_TYPE: "SVG",
-    JSON_CONTENT_TYPE: "Vega-Lite",
-    PNG_CONTENT_TYPE: "PNG",
-    JPEG_CONTENT_TYPE: "JPEG",
+    SVG_MIMETYPE: "SVG",
+    JSON_MIMETYPE: "Vega-Lite",
+    PNG_MIMETYPE: "PNG",
+    JPEG_MIMETYPE: "JPEG",
 }
 
 SVG_XMLNS = "http://www.w3.org/2000/svg"

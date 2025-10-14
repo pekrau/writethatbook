@@ -16,7 +16,7 @@ import apps.search
 import apps.docx
 import apps.pdf
 import apps.user
-import apps.diff
+import apps.api
 
 
 routes = [
@@ -34,5 +34,5 @@ routes = [
     Mount("/docx", apps.docx.app),
     Mount("/pdf", apps.pdf.app),
     Mount("/user", apps.user.app),
-    Mount("/diff", apps.diff.app),
+    Mount("/api", apps.api.app),
 ]

@@ -185,16 +185,3 @@ img_edit = [
     # XXX Should be less restrictive. Ownership of image.
     Allow({"var": "current_user.is_admin"}),
 ]
-
-
-book_diff = [
-    Deny({"not": {"var": "current_user"}}),
-    Deny({"not": {"in": ["WRITETHATBOOK_REMOTE_SITE", {"var": "environ"}]}}),
-    Allow({"var": "current_user.is_admin"}),
-    Allow({"==": [{"var": "book.owner"}, {"var": "current_user.id"}]}),
-]
-
-receive_diff = [
-    Deny({"not": {"var": "current_user"}}),
-    Allow({"var": "current_user.is_admin"}),
-]

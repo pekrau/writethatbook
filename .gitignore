@@ -1,5 +1,7 @@
+.env
 .sesskey
 .project
 *~
+*.log
 __pycache__
 old

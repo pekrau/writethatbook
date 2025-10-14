@@ -222,10 +222,10 @@ class HtmlRenderer(marko.html_renderer.HTMLRenderer):
 
         # Use the image from the image library.
         # SVG, use as such. 'title' is not used.
-        if img["content_type"] == constants.SVG_CONTENT_TYPE:
+        if img["content_type"] == constants.SVG_MIMETYPE:
             return f'<article>{img["data"]}{footer}</article>'
         # Vega-Lite, convert to SVG. 'title' is not used.
-        elif img["content_type"] == constants.JSON_CONTENT_TYPE:
+        elif img["content_type"] == constants.JSON_MIMETYPE:
             svg = vl_convert.vegalite_to_svg(json.loads(img["data"]))
             return f"<article>{svg}{footer}</article>"
         # One of PNG or JPEG, use inline variant. Set title if not done.

@@ -70,9 +70,6 @@ def get(request):
     if auth.authorized(request, *auth.img_add):
         tools.append((Tx("Add image"), f"/imgs/add"))
 
-    if auth.authorized(request, *auth.book_diff, book=imgs):
-        tools.append(["Differences", f"/diff/{constants.IMGS}"])
-
     title = f"{len(items)} {Tx('items')}"
     return (
         Title(title),
@@ -90,11 +87,11 @@ def get(request, img: Text):
     auth.authorize(request, *auth.img_view, img=img)
 
     # SVG image.
-    if img["content_type"] == constants.SVG_CONTENT_TYPE:
+    if img["content_type"] == constants.SVG_MIMETYPE:
         image = NotStr(img["data"])
 
     # JSON: Vega-Lite specification image.
-    elif img["content_type"] == constants.JSON_CONTENT_TYPE:
+    elif img["content_type"] == constants.JSON_MIMETYPE:
         image = NotStr(vl_convert.vegalite_to_svg(json.loads(img["data"])))
 
     # PNG or JPEG formats.
@@ -140,7 +137,7 @@ def get(request, img: Text):
     pdf_info = [
         P(Tx("Scale factor"), ": ", utils.numerical(img["pdf"]["scale_factor"]))
     ]
-    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+    if img["content_type"] in (constants.SVG_MIMETYPE, constants.JSON_MIMETYPE):
         pdf_info.append(
             P(
                 Tx("Rendering"),
@@ -159,7 +156,7 @@ def get(request, img: Text):
         P(Tx("Scale factor"), ": ", utils.numerical(img["docx"]["scale_factor"]))
     ]
 
-    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+    if img["content_type"] in (constants.SVG_MIMETYPE, constants.JSON_MIMETYPE):
         docx_info.append(
             P(
                 f'{Tx("PNG factor")}: {utils.numerical(img["docx"].get("png_rendering_factor"))}'
@@ -252,7 +249,7 @@ async def post(session, request, form: dict):
     img["docx"] = dict(scale_factor=constants.DOCX_DEFAULT_IMAGE_SCALE_FACTOR)
 
     # SVG image.
-    if image_file.content_type == constants.SVG_CONTENT_TYPE:
+    if image_file.content_type == constants.SVG_MIMETYPE:
         try:
             root = parse_check_svg(image_content.decode("utf-8"))
         except ValueError as error:
@@ -274,7 +271,7 @@ async def post(session, request, form: dict):
                 caption = desc[0].text
 
     # Vega-Lite specification.
-    elif image_file.content_type == constants.JSON_CONTENT_TYPE:
+    elif image_file.content_type == constants.JSON_MIMETYPE:
         try:
             spec = parse_check_vegalite(image_content)
         except ValueError as error:
@@ -293,8 +290,8 @@ async def post(session, request, form: dict):
 
     # PNG and JPEG formats.
     elif image_file.content_type in (
-        constants.PNG_CONTENT_TYPE,
-        constants.JPEG_CONTENT_TYPE,
+        constants.PNG_MIMETYPE,
+        constants.JPEG_MIMETYPE,
     ):
         img["data"] = base64.standard_b64encode(image_content).decode("utf-8")
         img["base64"] = True
@@ -317,7 +314,7 @@ def get(request, img: Text):
     auth.authorize(request, *auth.img_edit, img=img)
 
     # SVG image.
-    if img["content_type"] == constants.SVG_CONTENT_TYPE:
+    if img["content_type"] == constants.SVG_MIMETYPE:
         root = minixml.parse_content(img["data"])
         root.xml_decl = False
         edit_fieldset = Fieldset(
@@ -326,7 +323,7 @@ def get(request, img: Text):
         )
 
     # Vega-Lite specification.
-    elif img["content_type"] == constants.JSON_CONTENT_TYPE:
+    elif img["content_type"] == constants.JSON_MIMETYPE:
         spec = json.loads(img["data"])
         edit_fieldset = Fieldset(
             Label("Vega-Lite"),
@@ -387,7 +384,7 @@ def get(request, img: Text):
     ]
 
     # SVG image and Vega-Lite specification.
-    if img["content_type"] in (constants.SVG_CONTENT_TYPE, constants.JSON_CONTENT_TYPE):
+    if img["content_type"] in (constants.SVG_MIMETYPE, constants.JSON_MIMETYPE):
         pdf_fieldset = Fieldset(
             Legend(
                 Tx("Rendering"),
@@ -477,7 +474,7 @@ async def post(session, request, img: Text, form: dict):
     caption = form.get("caption")
     status = form.get("status")
 
-    if img["content_type"] == constants.SVG_CONTENT_TYPE:
+    if img["content_type"] == constants.SVG_MIMETYPE:
         if image_text:
             try:
                 root = parse_check_svg(image_text)
@@ -493,7 +490,7 @@ async def post(session, request, img: Text, form: dict):
                 if desc:
                     caption = desc[0].text
 
-    elif img["content_type"] == constants.JSON_CONTENT_TYPE:
+    elif img["content_type"] == constants.JSON_MIMETYPE:
         if image_text:
             try:
                 spec = parse_check_vegalite(image_text)
@@ -507,13 +504,13 @@ async def post(session, request, img: Text, form: dict):
 
     # PNG and JPEG formats.
     elif img["content_type"] in (
-        constants.PNG_CONTENT_TYPE,
-        constants.JPEG_CONTENT_TYPE,
+        constants.PNG_MIMETYPE,
+        constants.JPEG_MIMETYPE,
     ):
         if image_file and image_file.size != 0:
             if image_file.content_type not in (
-                constants.PNG_CONTENT_TYPE,
-                constants.JPEG_CONTENT_TYPE,
+                constants.PNG_MIMETYPE,
+                constants.JPEG_MIMETYPE,
             ):
                 add_toast(session, "File must be PNG or JPEG.", "error")
                 return components.redirect(f"/imgs/edit/{img['id']}")
@@ -604,7 +601,7 @@ def get(request):
 
     return Response(
         content=get_imgs().get_tgz_content(),
-        media_type=constants.GZIP_CONTENT_TYPE,
+        media_type=constants.GZIP_MIMETYPE,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

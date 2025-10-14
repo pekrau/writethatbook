@@ -64,7 +64,7 @@ def get(request):
 def get(request):
     "Health check of web app instance."
     auth.allow_anyone(request)
-    return f"Hello, {auth.logged_in(request) or 'anonymous'}, from {constants.SOFTWARE} {constants.__version__}"
+    return f"Hello, {auth.logged_in(request) or 'anonymous'}, from writethatbook {constants.__version__}"
 
 
 @rt("/reread")

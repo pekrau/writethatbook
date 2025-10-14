@@ -148,8 +148,6 @@ def header(request, title, book=None, item=None, tools=None, search=True):
                     A(Tx("System"), href="/meta/system"),
                 ]
             )
-        # Links to general pages.
-        menu.append(A(Tx("Software"), href="/meta/software"))
 
     if tools:
         tools = [A(NotStr(Tx(text)), href=href) for text, href in tools]

@@ -28,7 +28,7 @@ def get_books_state(request):
 def get_general_state():
     "Return JSON for the general state of this instance."
     return dict(
-        software=constants.SOFTWARE,
+        software="writethatbook",
         version=constants.__version__,
         now=utils.str_datetime_iso(datetime.datetime.now(tz=datetime.UTC)),
     )

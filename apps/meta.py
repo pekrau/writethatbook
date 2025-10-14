@@ -26,63 +26,9 @@ from utils import Tx
 app, rt = components.get_fast_app()
 
 
-@rt("/software")
-def get(request):
-    "View software versions."
-    auth.allow_anyone(request)
-
-    title = Tx("Software")
-    rows = []
-    for name, href, version in [
-        (
-            constants.SOFTWARE,
-            "https://github.com/pekrau/writethatbook",
-            constants.__version__,
-        ),
-        (
-            "Python",
-            "https://www.python.org/",
-            f"{'.'.join([str(v) for v in sys.version_info[0:3]])}",
-        ),
-        ("fastHTML", "https://fastht.ml/", fasthtml.__version__),
-        ("Marko", "https://marko-py.readthedocs.io/", marko.__version__),
-        (
-            "python-docx",
-            "https://python-docx.readthedocs.io/en/latest/",
-            docx.__version__,
-        ),
-        ("ReportLab", "https://docs.reportlab.com/", reportlab.__version__),
-        ("PyYAML", "https://pypi.org/project/PyYAML/", yaml.__version__),
-        (
-            "bibtexparser",
-            "https://pypi.org/project/bibtexparser/",
-            bibtexparser.__version__,
-        ),
-    ]:
-        rows.append(
-            Tr(
-                Td(A(name, href=href)),
-                Td(version),
-            )
-        )
-
-    return (
-        Title(title),
-        components.header(request, title),
-        Main(
-            Table(
-                Thead(Tr(Th(Tx("Software")), Th(Tx("Version")))),
-                Tbody(*rows),
-            ),
-            cls="container",
-        ),
-        components.footer(request),
-    )
-
-
 @rt("/system")
 def get(request):
-    "View aggregate system information."
+    "View system and software information."
     auth.allow_admin(request)
 
     disk_usage = shutil.disk_usage(os.environ["WRITETHATBOOK_DIR"])
@@ -93,49 +39,78 @@ def get(request):
             fp = dp / filename
             dir_size += os.path.getsize(fp)
 
-    if os.environ.get("WRITETHATBOOK_REMOTE_SITE"):
-        remote = A(
-            os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
-            href=os.environ.get("WRITETHATBOOK_REMOTE_SITE"),
-        )
-    else:
-        remote = "-"
+    usage = Table(
+        Thead(
+            Tr(
+                Th(Tx("Resource usage"), Th(Tx("Bytes or #"), cls="right")))),
+        Tbody(
+            Tr(
+                Td(Tx("RAM usage")),
+                Td(
+                    utils.numerical(psutil.Process().memory_info().rss),
+                    cls="right",
+                ),
+            ),
+            Tr(
+                Td(Tx("Disk")),
+                Td(os.environ["WRITETHATBOOK_DIR"], cls="right"),
+            ),
+            Tr(
+                Td(Tx("Data size")),
+                Td(utils.numerical(dir_size),cls="right"),
+            ),
+            Tr(
+                Td(Tx("Disk free")),
+                Td(utils.numerical(disk_usage.free), cls="right"),
+            ),
+            Tr(
+                Td(Tx("# users")),
+                Td(str(len(users.database)), cls="right"),
+            ),
+            Tr(
+                Td(Tx("# books")),
+                Td(str(len(get_books(request))), cls="right"),
+            ),
+        ),
+    )
+    software = Table(
+        Thead(Tr(Th(Tx("Software"), Th(Tx("Version"), cls="right")))),
+        Tbody(
+            Tr(
+                Td(A("writethatbook", href=constants.GITHUB_URL)),
+                Td(constants.__version__, cls="right"),
+            ),
+            Tr(
+                Td(A("Python", href="https://www.python.org/")),
+                Td(f"{'.'.join([str(v) for v in sys.version_info[0:3]])}", cls="right"),
+            ),
+            Tr(
+                Td(A("fastHTML", href="https://fastht.ml/")),
+                Td(fasthtml.__version__, cls="right"),
+            ),
+            Tr(
+                Td(A("Marko", href="https://marko-py.readthedocs.io/")),
+                Td(marko.__version__, cls="right"),
+            ),
+            Tr(
+                Td(A("PyYAML", href="https://pypi.org/project/PyYAML/")),
+                Td(yaml.__version__, cls="right"),
+            ),
+            Tr(
+                Td(A("ReportLab", href="https://docs.reportlab.com/")),
+                Td(reportlab.__version__, cls="right"),
+            ),
+            Tr(
+                Td(A("bibtextparser", href="https://pypi.org/project/bibtexparser/")),
+                Td(bibtexparser.__version__, cls="right"),
+            ),
+        ),
+    )
     title = Tx("System")
     return (
         Title(title),
         components.header(request, title),
-        Main(
-            Table(
-                Tr(
-                    Td(Tx("Remote site")),
-                    Td(remote),
-                ),
-                Tr(
-                    Td(Tx("RAM usage")),
-                    Td(
-                        utils.numerical(psutil.Process().memory_info().rss),
-                        " bytes",
-                    ),
-                ),
-                Tr(
-                    Td(Tx("Data size")),
-                    Td(utils.numerical(dir_size), " bytes"),
-                ),
-                Tr(
-                    Td(Tx("Disk free")),
-                    Td(utils.numerical(disk_usage.free), " bytes"),
-                ),
-                Tr(
-                    Td(Tx("# users")),
-                    Td(str(len(users.database))),
-                ),
-                Tr(
-                    Td(Tx("# books")),
-                    Td(str(len(get_books(request)))),
-                ),
-            ),
-            cls="container",
-        ),
+        Main(usage, software, cls="container"),
         components.footer(request),
     )
 

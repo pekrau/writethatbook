@@ -37,7 +37,6 @@ volume,volym
 number,nummer
 date,datum
 update,uppdatera
-remote site,fjärrsajt
 here,här
 update here,uppdatera här
 edition published,utgåva publicerad
@@ -130,9 +129,14 @@ require new value.,kräv nytt värde.
 API key,API-nyckel
 generate new value.,skapa nytt värde.
 code,kod
+resource usage,resursanvändning
+bytes or #,byte eller #
 RAM usage,RAM-användning
 data size,mängd data
+disk,lagringsyta
 disk free,ledig lagringsyta
+software,mjukvara
+version,version
 identifier,identifierare
 modified,modifierad
 differences,skillnader
@@ -150,9 +154,6 @@ link,länk
 not present in,finns inte i
 not present here,finns inte här
 information,information
-system,system
-software,mjukvara
-version,version
 metadata on title page,metadata på titelsidan
 contents,innehåll
 table of contents pages,innehållsförteckning

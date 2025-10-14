@@ -6,8 +6,9 @@ import re
 
 import babel.dates
 
-SOFTWARE = "WriteThatBook"
-VERSION = (1, 21, 1)
+
+GITHUB_URL = "https://github.com/pekrau/writethatbook"
+VERSION = (1, 21, 2)
 __version__ = ".".join([str(n) for n in VERSION])
 
 

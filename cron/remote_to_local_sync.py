@@ -39,7 +39,6 @@ def update(url, apikey):
 
     local_files = {}
     sourcedir = Path(os.environ["WRITETHATBOOK_DIR"])
-    # sourcedir = Path(os.environ["WRITETHATBOOK_DEV_DIR"])
     for dirpath, dirnames, filenames in os.walk(sourcedir):
         dirpath = Path(dirpath)
         for filename in filenames:
@@ -75,7 +74,7 @@ def update(url, apikey):
             raise IOError("empty TGZ file from remote")
         try:
             tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
-            tf.extractall(path=os.environ["WRITETHATBOOK_DEV_DIR"])
+            tf.extractall(path=os.environ["WRITETHATBOOK_DIR"])
         except tarfile.TarError as message:
             raise IOError(f"tar file error: {message}")
 
@@ -100,7 +99,6 @@ def update(url, apikey):
 
 if __name__ == "__main__":
     url = os.environ["WRITETHATBOOK_REMOTE_URL"]
-    # url = "http://0.0.0.0:5001/"
     print(f"writethatbook {timer.now}, instance {url}")
     result = update(url, os.environ["WRITETHATBOOK_APIKEY"])
     if result:

@@ -36,8 +36,6 @@ def update(url, apikey, targetdir):
         raise IOError(f"invalid response: {response.status_code=} {response.content=}")
 
     remote_files = response.json()
-    with open("remote_files.json", "w") as outfile:
-        outfile.write(json.dumps(remote_files, indent=2))
 
     local_files = {}
     targetdir = Path(targetdir)
@@ -45,20 +43,17 @@ def update(url, apikey, targetdir):
         dirpath = Path(dirpath)
         for filename in filenames:
             filepath = dirpath / filename
-            dt = datetime.datetime.fromtimestamp(filepath.stat().st_mtime, tz=datetime.UTC)
+            dt = datetime.datetime.fromtimestamp(
+                filepath.stat().st_mtime, tz=datetime.UTC
+            )
             local_files[str(filepath.relative_to(targetdir))] = utils.str_datetime_iso(
                 dt
             )
-    with open("local_files.json", "w") as outfile:
-        outfile.write(json.dumps(local_files, indent=2))
 
     download_files = set()
     for name, modified in remote_files.items():
         if (name not in local_files) or (local_files[name] != modified):
             download_files.add(name)
-
-    with open("download_files.json", "w") as outfile:
-        outfile.write(json.dumps(list(download_files), indent=2))
 
     if download_files:
         response = requests.post(
@@ -81,7 +76,7 @@ def update(url, apikey, targetdir):
             raise IOError("empty TGZ file from remote")
         try:
             tf = tarfile.open(fileobj=io.BytesIO(content), mode="r:gz")
-            tf.extractall(path=os.environ["WRITETHATBOOK_DIR"])
+            tf.extractall(path=targetdir)
         except tarfile.TarError as message:
             raise IOError(f"tar file error: {message}")
 
@@ -99,16 +94,15 @@ def update(url, apikey, targetdir):
             "remote": len(remote_files),
             "downloaded": len(download_files),
             "deleted": len(delete_files),
-            "time": str(timer),
         }
+        result.update(timer.current)
     return result
 
 
 if __name__ == "__main__":
     url = os.environ["WRITETHATBOOK_REMOTE_URL"]
     targetdir = os.environ["WRITETHATBOOK_DIR"]
-    apikey = os.environ["WRITETHATBOOK_APIKEY"]
-    print(f"writethatbook {timer.now}, instance {url}, target {targetdir}")
-    result = update(url, apikey, targetdir)
+    result = update(url, os.environ["WRITETHATBOOK_APIKEY"], targetdir)
     if result:
+        print(f"{timer.now}, instance {url}, target {targetdir}")
         print(", ".join([f"{k}={v}" for k, v in result.items()]))

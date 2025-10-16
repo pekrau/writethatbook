@@ -34,3 +34,10 @@ def dump(source_dir, target_dir):
 
 if __name__ == "__main__":
     dump(os.environ["WRITETHATBOOK_DIR"], os.environ["WRITETHATBOOK_DUMP_DIR"])
+    print(
+        str(datetime.date.today()),
+        "from",
+        os.environ["WRITETHATBOOK_DIR"],
+        "to",
+        os.environ["WRITETHATBOOK_DUMP_DIR"],
+    )

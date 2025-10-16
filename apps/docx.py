@@ -302,7 +302,7 @@ class Writer:
 
         # Set Dublin core metadata.
         self.document.core_properties.author = ", ".join(self.book.authors)
-        self.document.core_properties.created = datetime.datetime.now()
+        self.document.core_properties.created = datetime.datetime.now(tz=datetime.UTC)
         self.document.core_properties.modified = self.book.modified
         if self.book.language:
             self.document.core_properties.language = self.book.language

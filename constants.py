@@ -6,11 +6,10 @@ import re
 
 import babel.dates
 
-
-GITHUB_URL = "https://github.com/pekrau/writethatbook"
-VERSION = (1, 21, 3)
+VERSION = (1, 21, 4)
 __version__ = ".".join([str(n) for n in VERSION])
 
+GITHUB_URL = "https://github.com/pekrau/writethatbook"
 
 LANGUAGE_CODES = ("sv-SE", "en-GB", "en-US")
 ENCODING = "utf-8"

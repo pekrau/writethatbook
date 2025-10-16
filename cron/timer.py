@@ -2,8 +2,6 @@
 
 import time
 
-import constants
-
 
 class Timer:
     "Return elapsed time and CPU time since creation of the instance."
@@ -13,18 +11,26 @@ class Timer:
         self.process_time = time.process_time()
 
     def __str__(self):
-        return ", ".join([f"{k}={v:.3f}" for k, v in self.current.items()])
+        return ", ".join(self.current.items())
+
+    @property
+    def elapsed(self):
+        return time.time() - self.time
+
+    @property
+    def cputime(self):
+        return time.process_time() - self.process_time
 
     @property
     def current(self):
         return {
-            "elapsed time": time.time() - self.time,
-            "CPU time": time.process_time() - self.process_time,
+            "elapsed time": f"{self.elapsed:.3f}",
+            "CPU time": f"{self.cputime:.3f}",
         }
 
     @property
     def now(self):
-        return time.strftime(constants.DATETIME_ISO_FORMAT)
+        return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 if __name__ == "__main__":

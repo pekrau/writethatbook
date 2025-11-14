@@ -40,9 +40,7 @@ def get(request):
             dir_size += os.path.getsize(fp)
 
     usage = Table(
-        Thead(
-            Tr(
-                Th(Tx("Resource usage"), Th(Tx("Bytes or #"), cls="right")))),
+        Thead(Tr(Th(Tx("Resource usage"), Th(Tx("Bytes or #"), cls="right")))),
         Tbody(
             Tr(
                 Td(Tx("RAM usage")),
@@ -57,7 +55,7 @@ def get(request):
             ),
             Tr(
                 Td(Tx("Data size")),
-                Td(utils.numerical(dir_size),cls="right"),
+                Td(utils.numerical(dir_size), cls="right"),
             ),
             Tr(
                 Td(Tx("Disk free")),

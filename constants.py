@@ -6,7 +6,7 @@ import re
 
 import babel.dates
 
-VERSION = (1, 21, 4)
+VERSION = (1, 21, 6)
 __version__ = ".".join([str(n) for n in VERSION])
 
 GITHUB_URL = "https://github.com/pekrau/writethatbook"
@@ -101,7 +101,7 @@ DRAFT = Status("draft", 2, "crimson")
 MANUSCRIPT = Status("manuscript", 3, "dodgerblue")
 REVISED = Status("revised", 4, "blueviolet")
 FINAL = Status("final", 5, "black")
-OMITTED = Status("omitted", 6, "silver")
+OMITTED = Status("omitted", 100, "silver")
 STATUSES = (CREATED, STARTED, DRAFT, MANUSCRIPT, REVISED, FINAL, OMITTED)
 STATUS_LOOKUP = dict([(s.name, s) for s in STATUSES])
 STATUS_LOOKUP.update(dict([(str(s), s) for s in STATUSES]))

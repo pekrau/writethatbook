@@ -44,6 +44,12 @@ def get(request, book: Book):
 
     settings = book.frontmatter.setdefault("pdf", {})
     title_page_metadata = bool(settings.get("title_page_metadata", False))
+    include_status = settings.get("include_status", constants.CREATED)
+    include_status_options = [
+        Option(Tx(str(s)), value=repr(s), selected=include_status == s)
+        for s in constants.STATUSES
+        if s != constants.OMITTED
+    ]
     page_break_level = int(settings.get("page_break_level", 1))
     page_break_options = []
     for value in range(0, constants.PDF_MAX_PAGE_BREAK_LEVEL + 1):
@@ -103,25 +109,38 @@ def get(request, book: Book):
                 Tx("Metadata on title page"),
             ),
         ),
-        Fieldset(
-            Label(Tx("Page break level")),
-            Select(*page_break_options, name="page_break_level"),
+        Div(
+            Fieldset(
+                Label(Tx("Lowest status included")),
+                Select(*include_status_options, name="include_status"),
+            ),
+            Fieldset(
+                Label(Tx("Footnotes location")),
+                Select(*footnotes_options, name="footnotes_location"),
+            ),
+            cls="grid",
         ),
-        Fieldset(
-            Label(Tx("Table of contents level")),
-            Select(*toc_level_options, name="toc_level"),
+        Div(
+            Fieldset(
+                Label(Tx("Page break level")),
+                Select(*page_break_options, name="page_break_level"),
+            ),
+            Fieldset(
+                Label(Tx("Table of contents level")),
+                Select(*toc_level_options, name="toc_level"),
+            ),
+            cls="grid",
         ),
-        Fieldset(
-            Label(Tx("Footnotes location")),
-            Select(*footnotes_options, name="footnotes_location"),
-        ),
-        Fieldset(
-            Label(Tx("Reference font")),
-            Select(*reference_font_options, name="reference_font"),
-        ),
-        Fieldset(
-            Label(Tx("Indexed font")),
-            Select(*indexed_font_options, name="indexed_font"),
+        Div(
+            Fieldset(
+                Label(Tx("Reference font")),
+                Select(*reference_font_options, name="reference_font"),
+            ),
+            Fieldset(
+                Label(Tx("Indexed font")),
+                Select(*indexed_font_options, name="indexed_font"),
+            ),
+            cls="grid",
         ),
     ]
 
@@ -150,6 +169,7 @@ def post(request, book: Book, form: dict):
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
+    settings["include_status"] = form.get("include_status", repr(constants.CREATED))
     settings["page_break_level"] = int(form.get("page_break_level", 1))
     settings["toc_level"] = int(form.get("toc_level", 0))
     settings["footnotes_location"] = form.get(
@@ -203,6 +223,9 @@ class Writer:
         # PDF-specific settings.
         settings = book.frontmatter.get("pdf", {})
         self.title_page_metadata = bool(settings.get("title_page_metadata", False))
+        self.include_status = constants.Status.lookup(
+            settings.get("include_status", constants.CREATED), constants.CREATED
+        )
         self.page_break_level = int(settings.get("page_break_level", 1))
         self.toc_level = int(settings.get("toc_level", 0))
         self.footnotes_location = settings.get(
@@ -520,7 +543,7 @@ class Writer:
             self.render(child)
 
     def render_heading(self, ast):
-        self.para_push(f"Heading{level}")
+        self.para_push(f"Heading{ast['level']}")
         for child in ast["children"]:
             self.render(child)
         level = min(ast["level"], constants.MAX_LEVEL)
@@ -978,6 +1001,8 @@ class BookWriter(Writer):
         # First-level items are chapters.
         for item in self.book.items:
             if item.status == constants.OMITTED:
+                continue
+            if item.status < self.include_status:
                 continue
 
             if item.is_section:

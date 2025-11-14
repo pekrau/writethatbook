@@ -1,16 +1,25 @@
+nav {outline-width: 4px;
+     outline-style: solid;
+     padding: 0px 10px;
+     border-radius: 5px;
+    }
+
 img.white {background-color: white;
-           padding: 2px;}
+           padding: 2px;
+          }
 
 hr.break {border: 1px solid;
           margin-left: 10em;
-          margin-right: 10em;}
+          margin-right: 10em;
+         }
 
 .footnote-ref {outline-color: blue;
                outline-width: 2px;
                outline-style: solid;
                font-weight:bold;
                padding: 0px 2px;
-               margin: 0px 4px;}
+               margin: 0px 4px;
+              }
 
 .plain-text {text-decoration: none;}
 

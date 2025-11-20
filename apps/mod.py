@@ -90,8 +90,8 @@ def get(request, book: Book, path: str):
 def post(request, book: Book, path: str):
     "Actually join all items from this and below into a single text."
     auth.authorize(request, *auth.book_edit, book=book)
-    book.merge(path)
-    return components.redirect(f"/book/{book}/{path}")
+    new = book.merge(path)
+    return components.redirect(f"/book/{book}/{new}")
 
 
 @rt("/split/{book:Book}/{path:path}")
@@ -125,5 +125,5 @@ def get(request, book: Book, path: str):
 def post(request, book: Book, path: str):
     "Actually split this text into section with texts below."
     auth.authorize(request, *auth.book_edit, book=book)
-    book.split(path)
-    return components.redirect(f"/book/{book}/{path}")
+    new = book.split(path)
+    return components.redirect(f"/book/{book}/{new}")

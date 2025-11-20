@@ -984,9 +984,9 @@ class BookWriter(Writer):
             for level in range(0, constants.PDF_MAX_TOC_LEVEL + 1):
                 style = ParagraphStyle(
                     name=f"TOC level {level}",
-                    fontName="Helvetica",
-                    fontSize=10,
-                    leading=11,
+                    fontName=constants.PDF_NORMAL_FONT,
+                    fontSize=constants.PDF_TOC_FONT_SIZE,
+                    leading=constants.PDF_TOC_LEADING,
                     firstLineIndent=constants.PDF_TOC_INDENT * level,
                     leftIndent=constants.PDF_TOC_INDENT * (level + 1),
                 )

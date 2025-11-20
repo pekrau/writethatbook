@@ -198,9 +198,9 @@ def get(request, ref: Text, position: int = None):
         Tr(
             Td(Tx("Reference")),
             Td(
-                f"{ref['name']}",
-                components.blank(0.1),
                 get_ref_clipboard(ref),
+                components.blank(0.1),
+                f"{ref['name']}",
             ),
         ),
         Tr(Td(Tx("Authors"), valign="top"), Td("; ".join(ref.get("authors") or []))),

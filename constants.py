@@ -6,7 +6,7 @@ import re
 
 import babel.dates
 
-VERSION = (1, 21, 6)
+VERSION = (1, 21, 7)
 __version__ = ".".join([str(n) for n in VERSION])
 
 GITHUB_URL = "https://github.com/pekrau/writethatbook"
@@ -192,6 +192,8 @@ DOCX_DEFAULT_PNG_RENDERING_FACTOR = 2.0
 PDF_MAX_PAGE_BREAK_LEVEL = 4
 PDF_MAX_TOC_LEVEL = 4
 PDF_TOC_INDENT = 15
+PDF_TOC_FONT_SIZE = 10
+PDF_TOC_LEADING = 11
 PDF_NORMAL_FONT = "Helvetica"
 PDF_NORMAL_FONT_SIZE = 12
 PDF_NORMAL_LEADING = 17

@@ -8,6 +8,13 @@ img.white {background-color: white;
            padding: 2px;
           }
 
+span.comment {background-color: yellow;
+              outline-width: 1px;
+              outline-style: solid;
+              padding: 0 0.25em;
+              margin: 0 0.25em;
+             }
+
 hr.break {border: 1px solid;
           margin-left: 10em;
           margin-right: 10em;

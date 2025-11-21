@@ -904,6 +904,9 @@ class Writer:
         else:
             self.current_paragraph.add_run(f'??? no such refid {ast["name"]} ???')
 
+    def render_comment(self, ast):
+        pass
+
     # https://github.com/python-openxml/python-docx/issues/74#issuecomment-261169410
     def add_hyperlink(self, paragraph, url, text, color="2222FF", underline=True):
         """

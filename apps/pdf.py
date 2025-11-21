@@ -859,6 +859,9 @@ class Writer:
         else:
             self.para_text(f'??? no such refid {ast["id"]} ???')
 
+    def render_comment(self, ast):
+        pass
+
     def add_paragraph(self, text, stylename="Normal"):
         self.flowables.append(Paragraph(text, style=self.stylesheet[stylename]))
 

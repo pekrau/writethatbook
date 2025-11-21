@@ -122,6 +122,23 @@ class ReferenceRenderer:
         return f'<strong><a href="/refs/view/{element.id}">{element.name}</a></strong>'
 
 
+class Comment(marko.inline.InlineElement):
+    "Markdown extension for comment."
+
+    pattern = re.compile(r"\[!(.+?)\]")
+    parse_children = False
+
+    def __init__(self, match):
+        self.comment = match.group(1).strip()
+
+
+class CommentRenderer:
+    "Output a the comment text."
+
+    def render_comment(self, element):
+        return f'<span class="comment">{element.comment}</span>'
+
+
 class ThematicBreakRenderer:
     "Thematic break before a paragraph."
 
@@ -162,7 +179,7 @@ def to_ast(content):
     converter.use("footnote")
     converter.use(
         marko.helpers.MarkoExtension(
-            elements=[Subscript, Superscript, Emdash, Indexed, Reference],
+            elements=[Subscript, Superscript, Emdash, Indexed, Reference, Comment],
         )
     )
     return converter.convert(content)
@@ -250,6 +267,7 @@ class Markdown2Html(marko.Markdown):
                     Emdash,
                     Indexed,
                     Reference,
+                    Comment,
                     Chunkmark,
                 ],
                 renderer_mixins=[
@@ -258,6 +276,7 @@ class Markdown2Html(marko.Markdown):
                     EmdashRenderer,
                     IndexedRenderer,
                     ReferenceRenderer,
+                    CommentRenderer,
                     ThematicBreakRenderer,
                     ChunkmarkRenderer,
                 ],

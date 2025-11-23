@@ -44,6 +44,7 @@ def get(request, book: Book):
 
     settings = book.frontmatter.setdefault("pdf", {})
     title_page_metadata = bool(settings.get("title_page_metadata", False))
+    output_comments = bool(settings.get("output_comments", False))
     include_status = settings.get("include_status", constants.CREATED)
     include_status_options = [
         Option(Tx(str(s)), value=repr(s), selected=include_status == s)
@@ -98,16 +99,30 @@ def get(request, book: Book):
             indexed_font_options.append(Option(Tx(value.capitalize()), value=value))
 
     fields = [
-        Fieldset(
-            Label(
-                Input(
-                    type="checkbox",
-                    name="title_page_metadata",
-                    role="switch",
-                    checked=title_page_metadata,
+        Div(
+            Fieldset(
+                Label(
+                    Input(
+                        type="checkbox",
+                        name="title_page_metadata",
+                        role="switch",
+                        checked=title_page_metadata,
+                    ),
+                    Tx("Metadata on title page"),
                 ),
-                Tx("Metadata on title page"),
             ),
+            Fieldset(
+                Label(
+                    Input(
+                        type="checkbox",
+                        name="output_comments",
+                        role="switch",
+                        checked=output_comments,
+                    ),
+                    Tx("Output comments"),
+                ),
+            ),
+            cls="grid",
         ),
         Div(
             Fieldset(
@@ -169,6 +184,7 @@ def post(request, book: Book, form: dict):
 
     settings = book.frontmatter.setdefault("pdf", {})
     settings["title_page_metadata"] = bool(form.get("title_page_metadata", False))
+    settings["output_comments"] = bool(form.get("output_comments", False))
     settings["include_status"] = form.get("include_status", repr(constants.CREATED))
     settings["page_break_level"] = int(form.get("page_break_level", 1))
     settings["toc_level"] = int(form.get("toc_level", 0))
@@ -223,6 +239,7 @@ class Writer:
         # PDF-specific settings.
         settings = book.frontmatter.get("pdf", {})
         self.title_page_metadata = bool(settings.get("title_page_metadata", False))
+        self.output_comments = bool(settings.get("output_comments", False))
         self.include_status = constants.Status.lookup(
             settings.get("include_status", constants.CREATED), constants.CREATED
         )
@@ -860,7 +877,8 @@ class Writer:
             self.para_text(f'??? no such refid {ast["id"]} ???')
 
     def render_comment(self, ast):
-        pass
+        if self.output_comments:
+            self.para_text(f'<span backcolor="yellow"><b>{ast["comment"]}</b></span>')
 
     def add_paragraph(self, text, stylename="Normal"):
         self.flowables.append(Paragraph(text, style=self.stylesheet[stylename]))

@@ -349,7 +349,7 @@ class Writer:
             return
         if level <= self.page_break_level:
             self.add_pagebreak()
-        self.add_heading(section.heading, level, section.ordinal)
+        self.add_heading(section.heading, level, anchor=section.ordinal)
         if section.subtitle:
             self.add_heading(section.subtitle, level + 1)
         if section.synopsis:
@@ -373,7 +373,7 @@ class Writer:
         if level <= self.page_break_level:
             self.add_pagebreak()
         if not text.frontmatter.get("suppress_title"):
-            self.add_heading(text.heading, level, text.ordinal)
+            self.add_heading(text.heading, level, anchor=text.ordinal)
             if text.subtitle:
                 self.add_heading(text.subtitle, level + 1)
         if text.synopsis:

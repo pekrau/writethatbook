@@ -3,6 +3,10 @@
 Web app for writing books using Markdown files, allowing references and
 indexing, creating DOCX or PDF.
 
+**NOTE**: Work on this has been discontinued.
+See [mdcompile](https://github.com/pekrau/mdcompile) for a similar project
+based on a different design.
+
 - Content files in Markdown format.
 - Contents hierarchically organized into sections (directories) and texts (files).
 - Interactive editing and rearrangement of sections and texts.

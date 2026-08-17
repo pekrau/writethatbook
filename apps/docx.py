@@ -7,7 +7,6 @@ import struct
 import urllib.parse
 
 import docx
-import docx
 import docx.oxml
 import docx.shared
 import docx.styles.style
